@@ -128,12 +128,16 @@ export async function setDefaultPriceBook(
 export async function listCategories(
   organizationId: string,
   priceBookId: string,
-): Promise<PriceBookCategory[]> {
+): Promise<(PriceBookCategory & { entryCount: number })[]> {
   await mustExist('PriceBook', { id: priceBookId, organizationId, deletedAt: null });
-  return prisma.priceBookCategory.findMany({
+  const cats = await prisma.priceBookCategory.findMany({
     where: { priceBookId, organizationId, deletedAt: null },
     orderBy: [{ order: 'asc' }, { name: 'asc' }],
+    include: {
+      _count: { select: { entries: { where: { deletedAt: null } } } },
+    },
   });
+  return cats.map(({ _count, ...rest }) => ({ ...rest, entryCount: _count.entries }));
 }
 
 export interface CreateCategoryInput {

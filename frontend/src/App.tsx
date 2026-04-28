@@ -5,6 +5,7 @@ import { AppShell } from '@/pages/AppShell';
 import { AccountPage } from '@/pages/Account';
 import { SettingsPage } from '@/pages/Settings';
 import { TeamPage } from '@/pages/Team';
+import { PricingPage } from '@/pages/Pricing';
 import { InvitationAcceptPage } from '@/pages/InvitationAccept';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { PublicRoute } from '@/components/PublicRoute';
@@ -57,6 +58,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <TeamPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/app/pricing"
+        element={
+          <ProtectedRoute>
+            <PricingPage />
           </ProtectedRoute>
         }
       />
