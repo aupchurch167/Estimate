@@ -54,6 +54,7 @@ async function makeMember(orgId: string, role: 'PM' | 'VIEWER' | 'ESTIMATOR' | '
 afterAll(async () => {
   for (const orgId of orgIds) {
     await prisma.activityEvent.deleteMany({ where: { organizationId: orgId } });
+    await prisma.reviewAction.deleteMany({ where: { organizationId: orgId } });
     await prisma.estimate.deleteMany({ where: { organizationId: orgId } });
     await prisma.user.deleteMany({ where: { organizationId: orgId } });
     await prisma.orgSettings.deleteMany({ where: { organizationId: orgId } });
@@ -267,5 +268,111 @@ describe('DELETE /api/estimates/:id', () => {
       data: { status: 'DRAFT' },
     });
     await estAgent.delete(`/api/estimates/${own.id}`).expect(204);
+  });
+});
+
+describe('Review-workflow routes (Phase 4.1)', () => {
+  it('full happy-path: submit → request-changes → submit → approve, with review-actions log', async () => {
+    const { user: owner, organization } = await makeOwner();
+    const drafterUser = await prisma.user.update({
+      where: { id: owner.id },
+      data: { role: 'ESTIMATOR' },
+    });
+    const reviewer = await makeMember(organization.id, 'ESTIMATOR');
+    const drafterAgent = await loginAs(drafterUser.email);
+    const reviewerAgent = await loginAs(reviewer.email);
+
+    const created = (
+      await drafterAgent
+        .post('/api/estimates')
+        .send({ title: 'Workflow', reviewerId: reviewer.userId })
+        .expect(201)
+    ).body.estimate;
+
+    // submit
+    const sub = await drafterAgent
+      .post(`/api/estimates/${created.id}/submit`)
+      .send({})
+      .expect(200);
+    expect(sub.body.estimate.status).toBe('IN_REVIEW');
+
+    // drafter cannot approve their own
+    await drafterAgent
+      .post(`/api/estimates/${created.id}/approve`)
+      .send({})
+      .expect(403);
+
+    // request-changes (note required)
+    await reviewerAgent
+      .post(`/api/estimates/${created.id}/request-changes`)
+      .send({})
+      .expect(400);
+
+    const rc = await reviewerAgent
+      .post(`/api/estimates/${created.id}/request-changes`)
+      .send({ note: 'tighten demo' })
+      .expect(200);
+    expect(rc.body.estimate.status).toBe('REVISED');
+
+    // resubmit
+    const resub = await drafterAgent
+      .post(`/api/estimates/${created.id}/submit`)
+      .send({})
+      .expect(200);
+    expect(resub.body.estimate.status).toBe('IN_REVIEW');
+
+    // approve
+    const ap = await reviewerAgent
+      .post(`/api/estimates/${created.id}/approve`)
+      .send({ note: 'looks good' })
+      .expect(200);
+    expect(ap.body.estimate.status).toBe('APPROVED');
+
+    // review-actions log shows the full chronological history
+    const log = await drafterAgent
+      .get(`/api/estimates/${created.id}/review-actions`)
+      .expect(200);
+    expect(log.body.reviewActions.map((a: { actionType: string }) => a.actionType)).toEqual([
+      'SUBMITTED_FOR_REVIEW',
+      'REQUESTED_CHANGES',
+      'RESUBMITTED',
+      'APPROVED',
+    ]);
+  });
+
+  it('only admins can unlock an APPROVED estimate', async () => {
+    const { user: owner, organization } = await makeOwner();
+    const drafterUser = await prisma.user.update({
+      where: { id: owner.id },
+      data: { role: 'ESTIMATOR' },
+    });
+    const reviewer = await makeMember(organization.id, 'ESTIMATOR');
+    const adminMember = await makeMember(organization.id, 'ADMIN');
+    const drafterAgent = await loginAs(drafterUser.email);
+    const reviewerAgent = await loginAs(reviewer.email);
+    const adminAgent = await loginAs(adminMember.email);
+
+    const created = (
+      await drafterAgent
+        .post('/api/estimates')
+        .send({ title: 'Unlock me', reviewerId: reviewer.userId })
+        .expect(201)
+    ).body.estimate;
+
+    await drafterAgent.post(`/api/estimates/${created.id}/submit`).send({}).expect(200);
+    await reviewerAgent.post(`/api/estimates/${created.id}/approve`).send({}).expect(200);
+
+    // Reviewer cannot unlock.
+    await reviewerAgent
+      .post(`/api/estimates/${created.id}/unlock`)
+      .send({ note: 'hmm' })
+      .expect(403);
+
+    // Admin can.
+    const un = await adminAgent
+      .post(`/api/estimates/${created.id}/unlock`)
+      .send({ note: 'client wants changes' })
+      .expect(200);
+    expect(un.body.estimate.status).toBe('REVISED');
   });
 });

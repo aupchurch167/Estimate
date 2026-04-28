@@ -5,6 +5,7 @@
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 import * as estimateService from '../services/estimateService.js';
+import * as reviewWorkflowService from '../services/reviewWorkflowService.js';
 import { canCreateEstimate } from '../lib/permissions.js';
 import { ForbiddenError, ValidationError } from '../lib/errors.js';
 import { ok } from '../lib/response.js';
@@ -127,4 +128,75 @@ export async function deleteEstimate(req: Request, res: Response): Promise<void>
     String(req.params.id ?? ''),
   );
   res.status(204).end();
+}
+
+// ─── Review-workflow transitions (Phase 4.1) ─────────────────────────────
+
+const optionalNoteBody = z
+  .object({
+    note: z.string().max(2000).nullable().optional(),
+    reviewerId: z.string().min(1).nullable().optional(),
+  })
+  .optional()
+  .default({});
+
+const requiredNoteBody = z.object({
+  note: z.string().min(1, 'Required').max(2000),
+});
+
+export async function submitForReview(req: Request, res: Response): Promise<void> {
+  const { orgId, user } = assertOrg(req);
+  const input = parse(optionalNoteBody, req.body ?? {});
+  const result = await reviewWorkflowService.submitForReview(
+    orgId,
+    { id: user.id, role: user.role },
+    String(req.params.id ?? ''),
+    { note: input.note, reviewerId: input.reviewerId },
+  );
+  res.status(200).json(result);
+}
+
+export async function approveEstimate(req: Request, res: Response): Promise<void> {
+  const { orgId, user } = assertOrg(req);
+  const input = parse(optionalNoteBody, req.body ?? {});
+  const result = await reviewWorkflowService.approve(
+    orgId,
+    { id: user.id, role: user.role },
+    String(req.params.id ?? ''),
+    { note: input.note },
+  );
+  res.status(200).json(result);
+}
+
+export async function requestChanges(req: Request, res: Response): Promise<void> {
+  const { orgId, user } = assertOrg(req);
+  const input = parse(requiredNoteBody, req.body ?? {});
+  const result = await reviewWorkflowService.requestChanges(
+    orgId,
+    { id: user.id, role: user.role },
+    String(req.params.id ?? ''),
+    { note: input.note },
+  );
+  res.status(200).json(result);
+}
+
+export async function unlockEstimate(req: Request, res: Response): Promise<void> {
+  const { orgId, user } = assertOrg(req);
+  const input = parse(optionalNoteBody, req.body ?? {});
+  const result = await reviewWorkflowService.unlock(
+    orgId,
+    { id: user.id, role: user.role },
+    String(req.params.id ?? ''),
+    { note: input.note },
+  );
+  res.status(200).json(result);
+}
+
+export async function listReviewActions(req: Request, res: Response): Promise<void> {
+  const { orgId } = assertOrg(req);
+  const reviewActions = await reviewWorkflowService.listReviewActions(
+    orgId,
+    String(req.params.id ?? ''),
+  );
+  ok(res, { reviewActions });
 }

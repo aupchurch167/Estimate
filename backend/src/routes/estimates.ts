@@ -12,3 +12,10 @@ estimatesRouter.post('/', asyncHandler(controller.createEstimate));
 estimatesRouter.get('/:id', asyncHandler(controller.getEstimate));
 estimatesRouter.patch('/:id', asyncHandler(controller.patchEstimate));
 estimatesRouter.delete('/:id', asyncHandler(controller.deleteEstimate));
+
+// Review workflow (Phase 4.1)
+estimatesRouter.get('/:id/review-actions', asyncHandler(controller.listReviewActions));
+estimatesRouter.post('/:id/submit', asyncHandler(controller.submitForReview));
+estimatesRouter.post('/:id/approve', asyncHandler(controller.approveEstimate));
+estimatesRouter.post('/:id/request-changes', asyncHandler(controller.requestChanges));
+estimatesRouter.post('/:id/unlock', asyncHandler(controller.unlockEstimate));
