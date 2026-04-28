@@ -7,6 +7,7 @@ import { asyncHandler } from '../middleware/asyncHandler.js';
 export const estimateAiRouter = Router();
 estimateAiRouter.use(requireAuth);
 estimateAiRouter.get('/:id/ai-runs', asyncHandler(controller.listForEstimate));
+estimateAiRouter.post('/:id/ai-runs', asyncHandler(controller.createRun));
 
 // /api/ai-runs/:id — read-only access to a single run + messages.
 export const aiRunsRouter = Router();
