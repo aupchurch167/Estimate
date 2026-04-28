@@ -16,6 +16,12 @@ import { authRouter } from './routes/auth.js';
 import { usersRouter } from './routes/users.js';
 import { organizationsRouter } from './routes/organizations.js';
 import { invitationsRouter } from './routes/invitations.js';
+import {
+  categoriesRouter,
+  entriesRouter,
+  markupRulesRouter,
+  priceBooksRouter,
+} from './routes/pricing.js';
 
 export function createApp(): Express {
   const app = express();
@@ -41,6 +47,10 @@ export function createApp(): Express {
   app.use('/api/users', usersRouter);
   app.use('/api/organizations', organizationsRouter);
   app.use('/api/invitations', invitationsRouter);
+  app.use('/api/price-books', priceBooksRouter);
+  app.use('/api/categories', categoriesRouter);
+  app.use('/api/entries', entriesRouter);
+  app.use('/api/markup-rules', markupRulesRouter);
 
   app.get('/', (_req, res) => {
     res.json({ app: 'Quill', status: 'ok' });
