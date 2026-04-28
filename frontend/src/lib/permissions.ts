@@ -107,3 +107,15 @@ export function canReviewEstimate(
 export function canUnlockApprovedEstimate(role: UserRole): boolean {
   return ADMIN_ROLES.has(role);
 }
+
+export function canCloseOutEstimate(
+  user: PermissionUser,
+  estimate: PermissionEstimate,
+): boolean {
+  if (estimate.status !== 'SENT') return false;
+  if (ADMIN_ROLES.has(user.role)) return true;
+  if (user.role === 'ESTIMATOR') {
+    return estimate.drafterId === user.id || estimate.reviewerId === user.id;
+  }
+  return false;
+}

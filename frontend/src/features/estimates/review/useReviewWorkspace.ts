@@ -116,8 +116,17 @@ export interface TransitionResult {
   reviewAction: ReviewAction;
 }
 
-function review(estimateId: string, action: 'submit' | 'approve' | 'request-changes' | 'unlock') {
-  return async (body: { note?: string | null; reviewerId?: string | null } = {}) => {
+type TransitionAction =
+  | 'submit'
+  | 'approve'
+  | 'request-changes'
+  | 'unlock'
+  | 'mark-won'
+  | 'mark-lost'
+  | 'revise';
+
+function review(estimateId: string, action: TransitionAction) {
+  return async (body: Record<string, unknown> = {}) => {
     const res = await api.post<TransitionResult>(
       `/api/estimates/${estimateId}/${action}`,
       body,
@@ -126,10 +135,7 @@ function review(estimateId: string, action: 'submit' | 'approve' | 'request-chan
   };
 }
 
-function transitionMutation(
-  estimateId: string,
-  action: 'submit' | 'approve' | 'request-changes' | 'unlock',
-) {
+function transitionMutation(estimateId: string, action: TransitionAction) {
   return {
     mutationFn: review(estimateId, action),
     onSuccessKeys: [
@@ -180,6 +186,43 @@ export function useRequestChanges(estimateId: string) {
 export function useUnlockEstimate(estimateId: string) {
   const qc = useQueryClient();
   const cfg = transitionMutation(estimateId, 'unlock');
+  return useMutation<TransitionResult, AxiosError, { note?: string | null } | void>({
+    mutationFn: async (body) => cfg.mutationFn(body ?? {}),
+    onSuccess: () => {
+      cfg.onSuccessKeys.forEach((k) => qc.invalidateQueries({ queryKey: k }));
+    },
+  });
+}
+
+export function useMarkWon(estimateId: string) {
+  const qc = useQueryClient();
+  const cfg = transitionMutation(estimateId, 'mark-won');
+  return useMutation<TransitionResult, AxiosError, { note?: string | null } | void>({
+    mutationFn: async (body) => cfg.mutationFn(body ?? {}),
+    onSuccess: () => {
+      cfg.onSuccessKeys.forEach((k) => qc.invalidateQueries({ queryKey: k }));
+    },
+  });
+}
+
+export function useMarkLost(estimateId: string) {
+  const qc = useQueryClient();
+  const cfg = transitionMutation(estimateId, 'mark-lost');
+  return useMutation<
+    TransitionResult,
+    AxiosError,
+    { lostReason: string; note?: string | null }
+  >({
+    mutationFn: async (body) => cfg.mutationFn(body),
+    onSuccess: () => {
+      cfg.onSuccessKeys.forEach((k) => qc.invalidateQueries({ queryKey: k }));
+    },
+  });
+}
+
+export function useReviseFromSent(estimateId: string) {
+  const qc = useQueryClient();
+  const cfg = transitionMutation(estimateId, 'revise');
   return useMutation<TransitionResult, AxiosError, { note?: string | null } | void>({
     mutationFn: async (body) => cfg.mutationFn(body ?? {}),
     onSuccess: () => {

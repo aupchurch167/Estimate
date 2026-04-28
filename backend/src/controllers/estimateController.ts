@@ -195,6 +195,49 @@ export async function unlockEstimate(req: Request, res: Response): Promise<void>
   res.status(200).json(result);
 }
 
+// ─── Close-out / lease (Phase 4.7) ───────────────────────────────────────
+
+const lostBody = z.object({
+  lostReason: z.string().min(1, 'Required').max(2000),
+  note: z.string().max(2000).nullable().optional(),
+});
+
+export async function markWon(req: Request, res: Response): Promise<void> {
+  const { orgId, user } = assertOrg(req);
+  const input = parse(optionalNoteBody, req.body ?? {});
+  const result = await reviewWorkflowService.markWon(
+    orgId,
+    { id: user.id, role: user.role },
+    String(req.params.id ?? ''),
+    { note: input.note },
+  );
+  res.status(200).json(result);
+}
+
+export async function markLost(req: Request, res: Response): Promise<void> {
+  const { orgId, user } = assertOrg(req);
+  const input = parse(lostBody, req.body ?? {});
+  const result = await reviewWorkflowService.markLost(
+    orgId,
+    { id: user.id, role: user.role },
+    String(req.params.id ?? ''),
+    { lostReason: input.lostReason, note: input.note },
+  );
+  res.status(200).json(result);
+}
+
+export async function reviseFromSent(req: Request, res: Response): Promise<void> {
+  const { orgId, user } = assertOrg(req);
+  const input = parse(optionalNoteBody, req.body ?? {});
+  const result = await reviewWorkflowService.reviseFromSent(
+    orgId,
+    { id: user.id, role: user.role },
+    String(req.params.id ?? ''),
+    { note: input.note },
+  );
+  res.status(200).json(result);
+}
+
 export async function listReviewActions(req: Request, res: Response): Promise<void> {
   const { orgId } = assertOrg(req);
   const reviewActions = await reviewWorkflowService.listReviewActions(

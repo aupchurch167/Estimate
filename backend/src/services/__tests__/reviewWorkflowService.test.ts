@@ -11,7 +11,10 @@ import { signup as serviceSignup } from '../../services/authService.js';
 import {
   approve,
   listReviewActions,
+  markLost,
+  markWon,
   requestChanges,
+  reviseFromSent,
   submitForReview,
   unlock,
 } from '../reviewWorkflowService.js';
@@ -261,6 +264,88 @@ describe('reviewWorkflowService.unlock', () => {
     await expect(
       unlock(ctx.organizationId, ctx.admin, ctx.estimateId),
     ).rejects.toThrow();
+  });
+});
+
+describe('reviewWorkflowService close-out (Phase 4.7)', () => {
+  async function moveToSent(ctx: Awaited<ReturnType<typeof setup>>) {
+    await submitForReview(ctx.organizationId, ctx.drafter, ctx.estimateId);
+    await approve(ctx.organizationId, ctx.reviewer, ctx.estimateId);
+    await prisma.estimate.update({
+      where: { id: ctx.estimateId },
+      data: { status: 'SENT', sentAt: new Date() },
+    });
+  }
+
+  it('markWon: SENT → WON, sets wonAt, writes ESTIMATE_WON activity', async () => {
+    const ctx = await setup();
+    await moveToSent(ctx);
+    const result = await markWon(ctx.organizationId, ctx.reviewer, ctx.estimateId);
+    expect(result.estimate.status).toBe('WON');
+    expect(result.estimate.wonAt).toBeInstanceOf(Date);
+    const ev = await prisma.activityEvent.findFirst({
+      where: { estimateId: ctx.estimateId, eventType: 'ESTIMATE_WON' },
+    });
+    expect(ev).toBeTruthy();
+  });
+
+  it('markLost: SENT → LOST, requires lostReason, persists it on the estimate', async () => {
+    const ctx = await setup();
+    await moveToSent(ctx);
+    await expect(
+      markLost(ctx.organizationId, ctx.reviewer, ctx.estimateId, { lostReason: '   ' }),
+    ).rejects.toThrow(/required/i);
+    const result = await markLost(ctx.organizationId, ctx.reviewer, ctx.estimateId, {
+      lostReason: 'Client picked another GC',
+    });
+    expect(result.estimate.status).toBe('LOST');
+    expect(result.estimate.lostAt).toBeInstanceOf(Date);
+    expect(result.estimate.lostReason).toBe('Client picked another GC');
+  });
+
+  it('reviseFromSent: SENT → REVISED, takes a REVISION snapshot, links it on the ReviewAction', async () => {
+    const ctx = await setup();
+    await moveToSent(ctx);
+    const result = await reviseFromSent(ctx.organizationId, ctx.reviewer, ctx.estimateId);
+    expect(result.estimate.status).toBe('REVISED');
+    expect(result.reviewAction.snapshotId).toBeTruthy();
+    const snap = await prisma.estimateSnapshot.findUniqueOrThrow({
+      where: { id: result.reviewAction.snapshotId! },
+    });
+    expect(snap.snapshotType).toBe('REVISION');
+  });
+
+  it('rejects when status is not SENT', async () => {
+    const ctx = await setup();
+    await expect(
+      markWon(ctx.organizationId, ctx.admin, ctx.estimateId),
+    ).rejects.toThrow();
+    await expect(
+      reviseFromSent(ctx.organizationId, ctx.admin, ctx.estimateId),
+    ).rejects.toThrow();
+  });
+
+  it('PM cannot close out (role gate)', async () => {
+    const ctx = await setup();
+    await moveToSent(ctx);
+    const pmSignup = await prisma.user.create({
+      data: {
+        organizationId: ctx.organizationId,
+        email: `pm-cls-${Date.now()}-${Math.random()}@example.test`,
+        firstName: 'P',
+        lastName: 'M',
+        role: 'PM',
+        passwordHash: 'x',
+        tokenVersion: 0,
+      },
+    });
+    await expect(
+      markWon(
+        ctx.organizationId,
+        { id: pmSignup.id, role: 'PM' },
+        ctx.estimateId,
+      ),
+    ).rejects.toThrow(/cannot/i);
   });
 });
 

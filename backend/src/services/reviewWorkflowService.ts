@@ -32,6 +32,7 @@ import type {
 import { prisma } from '../lib/prisma.js';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../lib/errors.js';
 import {
+  canCloseOutEstimate,
   canReviewEstimate,
   canSubmitEstimateForReview,
   canUnlockApprovedEstimate,
@@ -93,6 +94,8 @@ async function commitTransition(args: {
   summary: string;
   note: string | null;
   reviewerId?: string | null;
+  /** Extra columns to set on the estimate alongside status (wonAt, etc.). */
+  extraEstimateData?: Prisma.EstimateUpdateInput;
   /** When set, take a snapshot of the post-update estimate state and
    * link its id on the ReviewAction. */
   snapshotType?: SnapshotType;
@@ -111,7 +114,10 @@ async function commitTransition(args: {
       );
     }
 
-    const data: Prisma.EstimateUpdateInput = { status: args.toStatus };
+    const data: Prisma.EstimateUpdateInput = {
+      status: args.toStatus,
+      ...(args.extraEstimateData ?? {}),
+    };
     if (args.reviewerId !== undefined) {
       data.reviewer = args.reviewerId
         ? { connect: { id: args.reviewerId } }
@@ -344,6 +350,119 @@ export async function unlock(
     actionType: 'UNLOCKED',
     activityType: 'ESTIMATE_UPDATED',
     summary: `Unlocked estimate ${estimate.number} for revision`,
+    note,
+    snapshotType: 'REVISION',
+  });
+}
+
+// ─── Close-out (Phase 4.7) ────────────────────────────────────────────────
+//
+// Branded "Lease won / Lease lost / Revise" in the UI; backend keeps the
+// neutral WON/LOST enum so existing snapshots, exports, and reports
+// don't churn.
+
+export async function markWon(
+  organizationId: string,
+  actor: Actor,
+  estimateId: string,
+  opts: CommonOpts = {},
+): Promise<TransitionResult> {
+  const estimate = await loadEstimateOrThrow(organizationId, estimateId);
+  if (
+    !canCloseOutEstimate(
+      { id: actor.id, role: actor.role },
+      {
+        drafterId: estimate.drafterId,
+        reviewerId: estimate.reviewerId,
+        status: estimate.status,
+      },
+    )
+  ) {
+    throw new ForbiddenError('You cannot close out this estimate');
+  }
+  const note = trimNote(opts.note, false, 'Lease-won');
+  return commitTransition({
+    organizationId,
+    actor,
+    estimate,
+    expectedStatus: ['SENT'],
+    toStatus: 'WON',
+    actionType: 'APPROVED', // Re-uses APPROVED ReviewActionType — no WON enum value.
+    activityType: 'ESTIMATE_WON',
+    summary: `Lease won — ${estimate.number}`,
+    note,
+    extraEstimateData: { wonAt: new Date() },
+  });
+}
+
+export interface MarkLostOpts extends CommonOpts {
+  lostReason: string;
+}
+
+export async function markLost(
+  organizationId: string,
+  actor: Actor,
+  estimateId: string,
+  opts: MarkLostOpts,
+): Promise<TransitionResult> {
+  const estimate = await loadEstimateOrThrow(organizationId, estimateId);
+  if (
+    !canCloseOutEstimate(
+      { id: actor.id, role: actor.role },
+      {
+        drafterId: estimate.drafterId,
+        reviewerId: estimate.reviewerId,
+        status: estimate.status,
+      },
+    )
+  ) {
+    throw new ForbiddenError('You cannot close out this estimate');
+  }
+  const lostReason = trimNote(opts.lostReason, true, 'Lost-reason');
+  const note = trimNote(opts.note, false, 'Lease-lost');
+  return commitTransition({
+    organizationId,
+    actor,
+    estimate,
+    expectedStatus: ['SENT'],
+    toStatus: 'LOST',
+    actionType: 'REQUESTED_CHANGES', // Closest existing ReviewActionType.
+    activityType: 'ESTIMATE_LOST',
+    summary: `Lease lost — ${estimate.number}: ${lostReason}`,
+    note,
+    extraEstimateData: { lostAt: new Date(), lostReason },
+  });
+}
+
+export async function reviseFromSent(
+  organizationId: string,
+  actor: Actor,
+  estimateId: string,
+  opts: CommonOpts = {},
+): Promise<TransitionResult> {
+  const estimate = await loadEstimateOrThrow(organizationId, estimateId);
+  if (
+    !canCloseOutEstimate(
+      { id: actor.id, role: actor.role },
+      {
+        drafterId: estimate.drafterId,
+        reviewerId: estimate.reviewerId,
+        status: estimate.status,
+      },
+    )
+  ) {
+    throw new ForbiddenError('You cannot revise this estimate');
+  }
+  const note = trimNote(opts.note, false, 'Revise');
+  return commitTransition({
+    organizationId,
+    actor,
+    estimate,
+    expectedStatus: ['SENT'],
+    toStatus: 'REVISED',
+    actionType: 'REVISED',
+    activityType: 'ESTIMATE_REVISED',
+    summary: `Revised estimate ${estimate.number} after send`,
     note,
     snapshotType: 'REVISION',
   });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { UserRole } from '@prisma/client';
 import {
+  canCloseOutEstimate,
   canCreateEstimate,
   canDeleteEstimate,
   canEditEstimate,
@@ -200,5 +201,37 @@ describe('canUnlockApprovedEstimate', () => {
     ['VIEWER', false],
   ])('canUnlockApprovedEstimate(%s) → %s', (role, expected) => {
     expect(canUnlockApprovedEstimate(role)).toBe(expected);
+  });
+});
+
+describe('canCloseOutEstimate', () => {
+  const sent = estimate({ status: 'SENT' });
+
+  it('admin can always close out a SENT estimate', () => {
+    expect(canCloseOutEstimate(adminUser('OWNER', 'u-other'), sent)).toBe(true);
+    expect(canCloseOutEstimate(adminUser('ADMIN', 'u-other'), sent)).toBe(true);
+  });
+
+  it('ESTIMATOR drafter or reviewer can close out', () => {
+    expect(canCloseOutEstimate(adminUser('ESTIMATOR', 'u-drafter'), sent)).toBe(true);
+    expect(canCloseOutEstimate(adminUser('ESTIMATOR', 'u-reviewer'), sent)).toBe(true);
+  });
+
+  it('ESTIMATOR unrelated to the estimate cannot close out', () => {
+    expect(canCloseOutEstimate(adminUser('ESTIMATOR', 'u-other'), sent)).toBe(false);
+  });
+
+  it('PM and VIEWER never close out', () => {
+    expect(canCloseOutEstimate(adminUser('PM', 'u-drafter'), sent)).toBe(false);
+    expect(canCloseOutEstimate(adminUser('VIEWER', 'u-drafter'), sent)).toBe(false);
+  });
+
+  it('returns false when status is not SENT', () => {
+    expect(
+      canCloseOutEstimate(adminUser('OWNER', 'u-other'), estimate({ status: 'APPROVED' })),
+    ).toBe(false);
+    expect(
+      canCloseOutEstimate(adminUser('OWNER', 'u-other'), estimate({ status: 'WON' })),
+    ).toBe(false);
   });
 });

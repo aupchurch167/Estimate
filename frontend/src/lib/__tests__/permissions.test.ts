@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  canCloseOutEstimate,
   canCreateEstimate,
   canDeleteEstimate,
   canEditEstimate,
@@ -172,6 +173,24 @@ describe('frontend permissions mirror', () => {
       ['VIEWER', false],
     ])('canUnlockApprovedEstimate(%s) → %s', (role, expected) => {
       expect(canUnlockApprovedEstimate(role)).toBe(expected);
+    });
+  });
+
+  describe('canCloseOutEstimate', () => {
+    const sent = estimate({ status: 'SENT' });
+    it('admin always; ESTIMATOR drafter or reviewer; PM/VIEWER never', () => {
+      expect(canCloseOutEstimate(userOf('OWNER', 'u-other'), sent)).toBe(true);
+      expect(canCloseOutEstimate(userOf('ADMIN', 'u-other'), sent)).toBe(true);
+      expect(canCloseOutEstimate(userOf('ESTIMATOR', 'u-drafter'), sent)).toBe(true);
+      expect(canCloseOutEstimate(userOf('ESTIMATOR', 'u-reviewer'), sent)).toBe(true);
+      expect(canCloseOutEstimate(userOf('ESTIMATOR', 'u-other'), sent)).toBe(false);
+      expect(canCloseOutEstimate(userOf('PM', 'u-drafter'), sent)).toBe(false);
+      expect(canCloseOutEstimate(userOf('VIEWER', 'u-drafter'), sent)).toBe(false);
+    });
+    it('returns false when status is not SENT', () => {
+      expect(
+        canCloseOutEstimate(userOf('OWNER', 'u-other'), estimate({ status: 'APPROVED' })),
+      ).toBe(false);
     });
   });
 });

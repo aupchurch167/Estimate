@@ -112,3 +112,22 @@ export function canReviewEstimate(
 export function canUnlockApprovedEstimate(role: UserRole): boolean {
   return ADMIN_ROLES.has(role);
 }
+
+/**
+ * Close-out actions on a SENT estimate (Lease won / Lease lost / Revise
+ * from sent). Same gate as canEditEstimate-on-SENT-modulo-status: admin
+ * always; ESTIMATOR drafter or reviewer. drafterCanSend is NOT consulted
+ * here — once the estimate is in front of the client, the people who
+ * sent it should be able to close it out without an admin in the loop.
+ */
+export function canCloseOutEstimate(
+  user: PermissionUser,
+  estimate: PermissionEstimate,
+): boolean {
+  if (estimate.status !== 'SENT') return false;
+  if (ADMIN_ROLES.has(user.role)) return true;
+  if (user.role === 'ESTIMATOR') {
+    return estimate.drafterId === user.id || estimate.reviewerId === user.id;
+  }
+  return false;
+}

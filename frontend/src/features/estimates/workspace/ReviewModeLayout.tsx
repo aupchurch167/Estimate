@@ -7,6 +7,7 @@ import {
 } from '@/features/estimates/review/ReviewActions';
 import { ExportPdfButton } from '@/features/estimates/review/ExportPdfButton';
 import { SendButton } from '@/features/estimates/review/SendButton';
+import { CloseOutActions } from '@/features/estimates/review/CloseOutActions';
 import type { EstimateDetail, EstimateStatus } from '@/features/estimates/types';
 
 interface ReviewModeLayoutProps {
@@ -30,7 +31,9 @@ export function ReviewModeLayout({ estimate, readOnly, modeSwitch }: ReviewModeL
                 <UnlockButton estimate={estimate} />
                 <ExportPdfButton estimate={estimate} />
                 <SendButton estimate={estimate} />
-                <ReadOnlyActions status={estimate.status} />
+                {estimate.status === 'SENT' ? (
+                  <CloseOutActions estimate={estimate} />
+                ) : null}
               </>
             ) : (
               <>
@@ -67,34 +70,6 @@ export function ReviewModeLayout({ estimate, readOnly, modeSwitch }: ReviewModeL
   );
 }
 
-function ReadOnlyActions({ status }: { status: EstimateStatus }) {
-  const actions: { label: string; tone: 'primary' | 'neutral' }[] = [];
-  if (status === 'SENT') {
-    actions.push({ label: 'Mark won', tone: 'primary' });
-    actions.push({ label: 'Mark lost', tone: 'neutral' });
-    actions.push({ label: 'Revise', tone: 'neutral' });
-  }
-  return (
-    <>
-      {actions.map((a) => (
-        <button
-          key={a.label}
-          type="button"
-          disabled
-          title={`${a.label} lands in Phase 5.x`}
-          className={`border px-4 py-2 font-mono text-[11px] uppercase tracking-label disabled:cursor-not-allowed disabled:opacity-50 ${
-            a.tone === 'primary'
-              ? 'border-ink bg-ink text-ink-inverse'
-              : 'border-rule text-ink hover:border-ink'
-          }`}
-        >
-          {a.label}
-        </button>
-      ))}
-    </>
-  );
-}
-
 function readOnlyLabel(status: EstimateStatus): string {
   switch (status) {
     case 'APPROVED':
@@ -102,7 +77,7 @@ function readOnlyLabel(status: EstimateStatus): string {
     case 'SENT':
       return 'Sent · Read-only';
     case 'WON':
-      return 'Won · Read-only';
+      return 'Leased · Read-only';
     case 'LOST':
       return 'Lost · Read-only';
     default:
