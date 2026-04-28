@@ -3,6 +3,7 @@ import { LoginPage } from '@/pages/Login';
 import { SignupPage } from '@/pages/Signup';
 import { AppShell } from '@/pages/AppShell';
 import { AccountPage } from '@/pages/Account';
+import { SettingsPage } from '@/pages/Settings';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { PublicRoute } from '@/components/PublicRoute';
 
@@ -38,6 +39,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <AccountPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/app/settings"
+        element={
+          <ProtectedRoute>
+            <SettingsPage />
           </ProtectedRoute>
         }
       />

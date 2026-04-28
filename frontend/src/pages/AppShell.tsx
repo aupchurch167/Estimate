@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthContext } from '@/context/useAuthContext';
 import { useLogout } from '@/features/auth/useAuth';
+import { RoleGate } from '@/components/RoleGate';
 
 export function AppShell() {
   const navigate = useNavigate();
@@ -25,6 +26,14 @@ export function AppShell() {
             ) : null}
           </div>
           <div className="flex items-center gap-4 py-4">
+            <RoleGate allowedRoles={['OWNER', 'ADMIN']}>
+              <Link
+                to="/app/settings"
+                className="font-mono text-[10px] uppercase tracking-label text-dim hover:text-ink"
+              >
+                Settings
+              </Link>
+            </RoleGate>
             {user ? (
               <Link
                 to="/app/account"
