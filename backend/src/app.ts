@@ -28,6 +28,10 @@ import {
   lineItemsRouter,
   scopeSectionsRouter,
 } from './routes/scope.js';
+import {
+  estimateSourcesRouter,
+  sourceInputsRouter,
+} from './routes/sourceInputs.js';
 
 export function createApp(): Express {
   const app = express();
@@ -63,6 +67,8 @@ export function createApp(): Express {
   app.use('/api/estimates', estimateScopeRouter);
   app.use('/api/scope-sections', scopeSectionsRouter);
   app.use('/api/line-items', lineItemsRouter);
+  app.use('/api/estimates', estimateSourcesRouter);
+  app.use('/api/source-inputs', sourceInputsRouter);
 
   app.get('/', (_req, res) => {
     res.json({ app: 'Quill', status: 'ok' });
