@@ -52,6 +52,13 @@ export interface GenerateLineItemsOutput {
   }[];
 }
 
+export interface AskFollowupOutput {
+  assistantMessage: string;
+  suggestedAction: 'none' | 'regenerate_line_items';
+}
+
+export type AIRunOutput = GenerateLineItemsOutput | AskFollowupOutput | Record<string, unknown>;
+
 export interface AIRun {
   id: string;
   conversationId: string;
@@ -60,7 +67,7 @@ export interface AIRun {
   runType: AIRunType;
   status: AIRunStatus;
   inputs: unknown;
-  outputs: GenerateLineItemsOutput | null;
+  outputs: AIRunOutput | null;
   errorMessage: string | null;
   modelVersion: string;
   tokensInput: number | null;

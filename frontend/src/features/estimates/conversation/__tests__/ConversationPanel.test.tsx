@@ -331,6 +331,63 @@ describe('ConversationPanel — generate flow', () => {
     expect(input).toBeDisabled();
   });
 
+  it('renders an ASK_FOLLOWUP succeeded run without crashing on the missing sections key', async () => {
+    setupApi({
+      conversation: { id: 'c1' },
+      messages: [
+        {
+          id: 'msg-u',
+          conversationId: 'c1',
+          role: 'USER',
+          content: 'Does this include HVAC?',
+          runId: null,
+          authorUserId: 'u1',
+          order: 0,
+          createdAt: '2026-04-28T00:00:00.000Z',
+        },
+        {
+          id: 'msg-a',
+          conversationId: 'c1',
+          role: 'ASSISTANT',
+          content: 'No — HVAC is a separate sub-quote.',
+          runId: 'run-ask',
+          authorUserId: null,
+          order: 1,
+          createdAt: '2026-04-28T00:00:01.000Z',
+        },
+      ],
+      runs: [
+        {
+          id: 'run-ask',
+          conversationId: 'c1',
+          estimateId: 'e1',
+          status: 'SUCCEEDED',
+          runType: 'ASK_FOLLOWUP',
+          outputs: {
+            assistantMessage: 'No — HVAC is a separate sub-quote.',
+            suggestedAction: 'none',
+          },
+          inputs: {},
+          errorMessage: null,
+          modelVersion: 'claude-haiku-4-5-20251001',
+          tokensInput: 0,
+          tokensOutput: 0,
+          costUsd: '0',
+          durationMs: 0,
+          createdAt: '2026-04-28T00:00:00.000Z',
+          completedAt: '2026-04-28T00:00:01.000Z',
+          triggeredById: 'u1',
+        },
+      ],
+    });
+    renderPanel(buildEstimate());
+    await waitFor(() => {
+      expect(screen.getByText(/separate sub-quote/i)).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/lines/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/sections/i)).not.toBeInTheDocument();
+  });
+
   it('surfaces a friendly cost-cap error and shows a retry button', async () => {
     setupApi(
       { conversation: null, messages: [], runs: [] },

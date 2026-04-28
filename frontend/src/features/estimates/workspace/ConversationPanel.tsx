@@ -228,8 +228,10 @@ function MessageBubble({
         } px-4 py-2 font-sans text-[13px] leading-relaxed`}
       >
         <p className="whitespace-pre-wrap">{message.content}</p>
-        {run?.status === 'SUCCEEDED' && run.outputs ? (
-          <RunSummary output={run.outputs} />
+        {run?.status === 'SUCCEEDED' &&
+        run.runType === 'GENERATE_LINE_ITEMS' &&
+        run.outputs ? (
+          <RunSummary output={run.outputs as GenerateLineItemsOutput} />
         ) : null}
       </div>
     </div>
