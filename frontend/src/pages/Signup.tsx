@@ -1,18 +1,6 @@
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useCurrentUser } from '@/features/auth/useAuth';
 import { SignupForm } from '@/features/auth/SignupForm';
 
 export function SignupPage() {
-  const navigate = useNavigate();
-  const { data, isLoading } = useCurrentUser();
-
-  useEffect(() => {
-    if (!isLoading && data?.user) {
-      navigate('/app', { replace: true });
-    }
-  }, [data, isLoading, navigate]);
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-paper p-6">
       <div className="w-full max-w-[440px] border border-ink bg-paper-elevated p-8">

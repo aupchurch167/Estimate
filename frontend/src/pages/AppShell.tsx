@@ -1,9 +1,10 @@
 import { useNavigate } from 'react-router-dom';
-import { useCurrentUser, useLogout } from '@/features/auth/useAuth';
+import { useAuthContext } from '@/context/useAuthContext';
+import { useLogout } from '@/features/auth/useAuth';
 
 export function AppShell() {
   const navigate = useNavigate();
-  const { data } = useCurrentUser();
+  const { user, organization } = useAuthContext();
   const logout = useLogout();
 
   const handleLogout = async () => {
@@ -11,18 +12,15 @@ export function AppShell() {
     navigate('/login', { replace: true });
   };
 
-  const user = data?.user;
-  const org = data?.organization;
-
   return (
     <div className="min-h-screen bg-paper">
       <header className="border-b-[1.5px] border-ink bg-paper">
         <div className="mx-auto flex max-w-[1280px] items-stretch justify-between px-6">
           <div className="flex items-center gap-6 py-4">
             <span className="font-mono text-[16px] uppercase tracking-title text-ink">Quill</span>
-            {org ? (
+            {organization ? (
               <span className="border-l border-rule-soft pl-6 font-mono text-[10px] uppercase tracking-label text-dim">
-                {org.name}
+                {organization.name}
               </span>
             ) : null}
           </div>

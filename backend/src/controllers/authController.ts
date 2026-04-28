@@ -8,7 +8,6 @@ import { z } from 'zod';
 import * as authService from '../services/authService.js';
 import { AuthError, ValidationError } from '../lib/errors.js';
 import { ACCESS_COOKIE, REFRESH_COOKIE, clearAuthCookies, setAuthCookies } from '../lib/cookies.js';
-import { prisma } from '../lib/prisma.js';
 import { ok } from '../lib/response.js';
 
 const signupBody = z.object({
@@ -77,24 +76,13 @@ export async function logout(req: Request, res: Response): Promise<void> {
 }
 
 export async function me(req: Request, res: Response): Promise<void> {
-  const accessToken = req.cookies?.[ACCESS_COOKIE];
-  if (!accessToken || typeof accessToken !== 'string') {
+  // requireAuth middleware has populated these.
+  if (!req.user || !req.organization || !req.settings) {
     throw new AuthError('Not authenticated', 'not_authenticated');
   }
-  const payload = authService.verifyAccessToken(accessToken);
-
-  const userWithOrg = await prisma.user.findUnique({
-    where: { id: payload.sub },
-    include: { organization: { include: { settings: true } } },
-  });
-  if (!userWithOrg || !userWithOrg.isActive || userWithOrg.deletedAt) {
-    throw new AuthError('Not authenticated', 'not_authenticated');
-  }
-  const { organization, ...userOnly } = userWithOrg;
-  const { settings, ...orgOnly } = organization;
   ok(res, {
-    user: authService.toSafeUser(userOnly),
-    organization: orgOnly,
-    settings,
+    user: authService.toSafeUser(req.user),
+    organization: req.organization,
+    settings: req.settings,
   });
 }

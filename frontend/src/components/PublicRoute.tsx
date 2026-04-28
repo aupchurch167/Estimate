@@ -1,12 +1,20 @@
+/**
+ * Public auth routes (/login, /signup) wrap their children in this so
+ * already-authenticated users get bounced to /app instead of seeing a
+ * flash of the login form. While the /me query is still resolving we
+ * show a minimal loading splash so we don't render the form for a
+ * moment and then redirect.
+ */
+
 import { Navigate } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { useAuthContext } from '@/context/useAuthContext';
 
-interface ProtectedRouteProps {
+interface PublicRouteProps {
   children: ReactNode;
 }
 
-export function ProtectedRoute({ children }: ProtectedRouteProps) {
+export function PublicRoute({ children }: PublicRouteProps) {
   const { isAuthenticated, isLoading } = useAuthContext();
 
   if (isLoading) {
@@ -17,8 +25,8 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+  if (isAuthenticated) {
+    return <Navigate to="/app" replace />;
   }
 
   return <>{children}</>;
