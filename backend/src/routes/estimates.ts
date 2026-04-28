@@ -35,7 +35,7 @@ estimatesRouter.post('/:id/exports', asyncHandler(controller.createExport));
 // Send (Phase 4.6)
 estimatesRouter.post('/:id/send', asyncHandler(controller.sendEstimate));
 
-// Lease close-out (Phase 4.7)
+// Close-out (Phase 4.7)
 estimatesRouter.post('/:id/mark-won', asyncHandler(controller.markWon));
 estimatesRouter.post('/:id/mark-lost', asyncHandler(controller.markLost));
 estimatesRouter.post('/:id/revise', asyncHandler(controller.reviseFromSent));

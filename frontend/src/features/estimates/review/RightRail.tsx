@@ -377,9 +377,9 @@ function eventLabel(t: ActivityEventType): string {
     case 'ESTIMATE_SENT':
       return 'Sent';
     case 'ESTIMATE_WON':
-      return 'Lease won';
+      return 'Won';
     case 'ESTIMATE_LOST':
-      return 'Lease lost';
+      return 'Lost';
     case 'ESTIMATE_REVISED':
       return 'Revised';
     case 'ESTIMATE_CREATED':

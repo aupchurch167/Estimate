@@ -18,9 +18,4 @@ describe('StatusStamp', () => {
     render(<StatusStamp status="IN_REVIEW" />);
     expect(screen.getByText(/in review/i)).toBeInTheDocument();
   });
-
-  it('renders WON as "Leased"', () => {
-    render(<StatusStamp status="WON" />);
-    expect(screen.getByText(/^Leased$/)).toBeInTheDocument();
-  });
 });

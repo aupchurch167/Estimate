@@ -357,9 +357,8 @@ export async function unlock(
 
 // ─── Close-out (Phase 4.7) ────────────────────────────────────────────────
 //
-// Branded "Lease won / Lease lost / Revise" in the UI; backend keeps the
-// neutral WON/LOST enum so existing snapshots, exports, and reports
-// don't churn.
+// SENT → WON / LOST / REVISED. Drives the "Mark won / Mark lost /
+// Revise" buttons in the read-only review-mode header.
 
 export async function markWon(
   organizationId: string,
@@ -380,7 +379,7 @@ export async function markWon(
   ) {
     throw new ForbiddenError('You cannot close out this estimate');
   }
-  const note = trimNote(opts.note, false, 'Lease-won');
+  const note = trimNote(opts.note, false, 'Mark-won');
   return commitTransition({
     organizationId,
     actor,
@@ -389,7 +388,7 @@ export async function markWon(
     toStatus: 'WON',
     actionType: 'APPROVED', // Re-uses APPROVED ReviewActionType — no WON enum value.
     activityType: 'ESTIMATE_WON',
-    summary: `Lease won — ${estimate.number}`,
+    summary: `Marked estimate ${estimate.number} as won`,
     note,
     extraEstimateData: { wonAt: new Date() },
   });
@@ -419,7 +418,7 @@ export async function markLost(
     throw new ForbiddenError('You cannot close out this estimate');
   }
   const lostReason = trimNote(opts.lostReason, true, 'Lost-reason');
-  const note = trimNote(opts.note, false, 'Lease-lost');
+  const note = trimNote(opts.note, false, 'Mark-lost');
   return commitTransition({
     organizationId,
     actor,
@@ -428,7 +427,7 @@ export async function markLost(
     toStatus: 'LOST',
     actionType: 'REQUESTED_CHANGES', // Closest existing ReviewActionType.
     activityType: 'ESTIMATE_LOST',
-    summary: `Lease lost — ${estimate.number}: ${lostReason}`,
+    summary: `Marked estimate ${estimate.number} as lost: ${lostReason}`,
     note,
     extraEstimateData: { lostAt: new Date(), lostReason },
   });

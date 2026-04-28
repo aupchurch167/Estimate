@@ -135,13 +135,13 @@ describe('EstimateWorkspace mode selection', () => {
     expect(screen.getByRole('button', { name: /request changes/i })).toBeInTheDocument();
   });
 
-  it('SENT renders Review Mode read-only with Lease won / Lease lost / Revise', async () => {
+  it('SENT renders Review Mode read-only with Mark won / Mark lost / Revise', async () => {
     setupApi(buildEstimate('SENT'));
     renderAt('e1');
     await waitFor(() => screen.getByText(/Sent · Read-only/));
     expect(screen.getByRole('button', { name: /export pdf/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /lease won/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /lease lost/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /mark won/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /mark lost/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^revise$/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Approve$/ })).not.toBeInTheDocument();
   });

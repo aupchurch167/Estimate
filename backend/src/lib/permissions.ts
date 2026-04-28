@@ -114,7 +114,7 @@ export function canUnlockApprovedEstimate(role: UserRole): boolean {
 }
 
 /**
- * Close-out actions on a SENT estimate (Lease won / Lease lost / Revise
+ * Close-out actions on a SENT estimate (Mark won / Mark lost / Revise
  * from sent). Same gate as canEditEstimate-on-SENT-modulo-status: admin
  * always; ESTIMATOR drafter or reviewer. drafterCanSend is NOT consulted
  * here — once the estimate is in front of the client, the people who

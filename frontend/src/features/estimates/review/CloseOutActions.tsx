@@ -14,9 +14,8 @@ import {
 } from './useReviewWorkspace';
 
 /**
- * SENT-state close-out actions: Lease won, Lease lost (reason required),
- * Revise. The terminology is "lease" rather than "mark" — same DB
- * state machine underneath.
+ * SENT-state close-out actions: Mark won, Mark lost (reason required),
+ * Revise.
  *
  * Visibility: admin always; ESTIMATOR drafter or reviewer. Backend
  * canCloseOutEstimate is the source of truth; this is just the
@@ -73,19 +72,19 @@ export function CloseOutActions({ estimate }: { estimate: EstimateDetail }) {
           type="button"
           onClick={onWon}
           disabled={won.isPending}
-          data-testid="lease-won"
+          data-testid="mark-won"
           className="border border-mark-green bg-mark-green/10 px-4 py-2 font-mono text-[11px] uppercase tracking-label text-mark-green hover:bg-mark-green hover:text-ink-inverse disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {won.isPending ? 'Saving…' : 'Lease won'}
+          {won.isPending ? 'Saving…' : 'Mark won'}
         </button>
         <button
           type="button"
           onClick={() => setLostOpen(true)}
           disabled={lost.isPending}
-          data-testid="lease-lost"
+          data-testid="mark-lost"
           className="border border-mark-red px-4 py-2 font-mono text-[11px] uppercase tracking-label text-mark-red hover:bg-mark-red hover:text-ink-inverse disabled:cursor-not-allowed disabled:opacity-60"
         >
-          Lease lost
+          Mark lost
         </button>
         <button
           type="button"
@@ -102,13 +101,13 @@ export function CloseOutActions({ estimate }: { estimate: EstimateDetail }) {
           role="alert"
           className="font-mono text-[10px] uppercase tracking-label text-mark-red"
         >
-          {mapCloseOutError(error as AxiosError, 'Could not record lease win.')}
+          {mapCloseOutError(error as AxiosError, 'Could not mark as won.')}
         </p>
       ) : null}
 
       {lostOpen ? (
         <CloseOutDialog
-          title="Lease lost"
+          title="Mark as lost"
           submitLabel={lost.isPending ? 'Saving…' : 'Mark as lost'}
           placeholder="Why did this lose? Price, scope, timing, competitor…"
           required

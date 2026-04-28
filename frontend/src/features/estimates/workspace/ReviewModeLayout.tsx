@@ -77,7 +77,7 @@ function readOnlyLabel(status: EstimateStatus): string {
     case 'SENT':
       return 'Sent · Read-only';
     case 'WON':
-      return 'Leased · Read-only';
+      return 'Won · Read-only';
     case 'LOST':
       return 'Lost · Read-only';
     default:

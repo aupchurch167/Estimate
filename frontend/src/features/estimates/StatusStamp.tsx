@@ -28,7 +28,5 @@ const STATUS_TONE: Record<EstimateStatus, string> = {
 };
 
 function label(status: EstimateStatus): string {
-  if (status === 'IN_REVIEW') return 'In Review';
-  if (status === 'WON') return 'Leased';
-  return status.charAt(0) + status.slice(1).toLowerCase();
+  return status === 'IN_REVIEW' ? 'In Review' : status.charAt(0) + status.slice(1).toLowerCase();
 }

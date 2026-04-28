@@ -104,8 +104,8 @@ describe('CloseOutActions', () => {
   it('admin sees all three buttons on SENT', async () => {
     setMe('u-admin', 'ADMIN');
     renderInClient(<CloseOutActions estimate={buildEstimate()} />);
-    expect(await screen.findByTestId('lease-won')).toBeInTheDocument();
-    expect(screen.getByTestId('lease-lost')).toBeInTheDocument();
+    expect(await screen.findByTestId('mark-won')).toBeInTheDocument();
+    expect(screen.getByTestId('mark-lost')).toBeInTheDocument();
     expect(screen.getByTestId('revise-from-sent')).toBeInTheDocument();
   });
 
@@ -113,37 +113,37 @@ describe('CloseOutActions', () => {
     setMe('u-admin', 'ADMIN');
     renderInClient(<CloseOutActions estimate={buildEstimate({ status: 'APPROVED' })} />);
     await new Promise((r) => setTimeout(r, 0));
-    expect(screen.queryByTestId('lease-won')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('mark-won')).not.toBeInTheDocument();
   });
 
   it('PM does not see the buttons (role gate)', async () => {
     setMe('u-pm', 'PM');
     renderInClient(<CloseOutActions estimate={buildEstimate()} />);
     await new Promise((r) => setTimeout(r, 0));
-    expect(screen.queryByTestId('lease-won')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('mark-won')).not.toBeInTheDocument();
   });
 
-  it('Lease won posts immediately to /mark-won', async () => {
+  it('Mark won posts immediately to /mark-won', async () => {
     setMe('u-admin', 'ADMIN');
     mockedPost.mockResolvedValue({
       data: { estimate: { id: 'e1', status: 'WON' }, reviewAction: { id: 'ra' } },
     } as never);
     const user = userEvent.setup();
     renderInClient(<CloseOutActions estimate={buildEstimate()} />);
-    await user.click(await screen.findByTestId('lease-won'));
+    await user.click(await screen.findByTestId('mark-won'));
     await waitFor(() => {
       expect(mockedPost).toHaveBeenCalledWith('/api/estimates/e1/mark-won', {});
     });
   });
 
-  it('Lease lost opens a dialog that requires a non-empty reason before posting', async () => {
+  it('Mark lost opens a dialog that requires a non-empty reason before posting', async () => {
     setMe('u-admin', 'ADMIN');
     mockedPost.mockResolvedValue({
       data: { estimate: { id: 'e1', status: 'LOST' }, reviewAction: { id: 'ra' } },
     } as never);
     const user = userEvent.setup();
     renderInClient(<CloseOutActions estimate={buildEstimate()} />);
-    await user.click(await screen.findByTestId('lease-lost'));
+    await user.click(await screen.findByTestId('mark-lost'));
 
     const submit = await screen.findByTestId('closeout-submit');
     expect(submit).toBeDisabled();
@@ -188,7 +188,7 @@ describe('CloseOutActions', () => {
     });
     const user = userEvent.setup();
     renderInClient(<CloseOutActions estimate={buildEstimate()} />);
-    await user.click(await screen.findByTestId('lease-lost'));
+    await user.click(await screen.findByTestId('mark-lost'));
     await user.type(screen.getByTestId('closeout-input'), 'reason');
     await user.click(screen.getByTestId('closeout-submit'));
     await waitFor(() => {
