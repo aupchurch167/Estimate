@@ -6,6 +6,9 @@ export default defineConfig({
     include: ['src/**/__tests__/**/*.test.ts', 'src/**/*.test.ts'],
     globals: false,
     clearMocks: true,
+    env: {
+      NODE_ENV: 'test',
+    },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
