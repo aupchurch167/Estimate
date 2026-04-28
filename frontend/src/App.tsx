@@ -6,6 +6,8 @@ import { AccountPage } from '@/pages/Account';
 import { SettingsPage } from '@/pages/Settings';
 import { TeamPage } from '@/pages/Team';
 import { PricingPage } from '@/pages/Pricing';
+import { EstimatesPage } from '@/pages/Estimates';
+import { EstimateWorkspacePlaceholder } from '@/pages/EstimateWorkspacePlaceholder';
 import { InvitationAcceptPage } from '@/pages/InvitationAccept';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { PublicRoute } from '@/components/PublicRoute';
@@ -66,6 +68,22 @@ export default function App() {
         element={
           <ProtectedRoute>
             <PricingPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/app/estimates"
+        element={
+          <ProtectedRoute>
+            <EstimatesPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/app/estimates/:id"
+        element={
+          <ProtectedRoute>
+            <EstimateWorkspacePlaceholder />
           </ProtectedRoute>
         }
       />

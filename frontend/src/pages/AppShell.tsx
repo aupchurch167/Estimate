@@ -26,6 +26,12 @@ export function AppShell() {
             ) : null}
           </div>
           <div className="flex items-center gap-4 py-4">
+            <Link
+              to="/app/estimates"
+              className="font-mono text-[10px] uppercase tracking-label text-dim hover:text-ink"
+            >
+              Estimates
+            </Link>
             <RoleGate allowedRoles={['OWNER', 'ADMIN']}>
               <Link
                 to="/app/pricing"
