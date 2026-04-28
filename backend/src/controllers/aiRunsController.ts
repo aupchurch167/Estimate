@@ -21,6 +21,15 @@ export async function listForEstimate(req: Request, res: Response): Promise<void
   ok(res, { runs });
 }
 
+export async function getConversation(req: Request, res: Response): Promise<void> {
+  const { orgId } = actorFrom(req);
+  const data = await aiService.getConversationForEstimate(
+    orgId,
+    String(req.params.id ?? ''),
+  );
+  ok(res, data);
+}
+
 export async function getOne(req: Request, res: Response): Promise<void> {
   const { orgId } = actorFrom(req);
   const run = await aiService.getRun(orgId, String(req.params.id ?? ''));

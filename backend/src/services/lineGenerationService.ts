@@ -20,7 +20,7 @@ import {
   type GenerateLineItemsContext,
   type GenerateLineItemsOutput,
 } from '../prompts/generateLineItems.js';
-import { createRun } from './aiService.js';
+import { appendMessage, createRun, ensureConversation } from './aiService.js';
 
 const LOCKED_STATUSES = new Set(['SENT', 'WON', 'LOST']);
 
@@ -168,6 +168,19 @@ export async function generate(
   });
 
   await recomputeTotals(estimateId);
+
+  // Append a single ASSISTANT message to the conversation so the chat UI
+  // has something to render. Detail (assumptions, line counts, etc.) lives
+  // on the AIRun so the panel can render a structured card by joining
+  // message.runId → run.outputs.
+  const conv = await ensureConversation(organizationId, estimateId);
+  await appendMessage({
+    organizationId,
+    conversationId: conv.id,
+    role: 'ASSISTANT',
+    content: output.scopeSummary,
+    runId: run.id,
+  });
 
   return {
     runId: run.id,

@@ -1,35 +1,295 @@
+import { useEffect, useMemo, useRef } from 'react';
+import type { AxiosError } from 'axios';
+import { backendErrorCode, backendErrorMessage } from '@/features/auth/useAuth';
+import {
+  conversationKey,
+  useConversation,
+  useGenerateLineItems,
+} from '@/features/estimates/conversation/useConversation';
+import type {
+  AIMessage,
+  AIRun,
+  GenerateLineItemsOutput,
+} from '@/features/estimates/conversation/types';
 import type { EstimateDetail } from '@/features/estimates/types';
+import { useAuthContext } from '@/context/useAuthContext';
+import { useQueryClient } from '@tanstack/react-query';
 
-/**
- * Phase 2.10 placeholder — real AI conversation lands in 3.3.
- */
+const READ_ONLY_STATUSES = new Set(['SENT', 'WON', 'LOST']);
+
 export function ConversationPanel({ estimate }: { estimate: EstimateDetail }) {
-  void estimate;
+  const qc = useQueryClient();
+  const { user } = useAuthContext();
+  const { data, isLoading } = useConversation(estimate.id);
+  const generate = useGenerateLineItems(estimate.id);
+  const readOnly = READ_ONLY_STATUSES.has(estimate.status);
+
+  const messages = data?.messages ?? [];
+  const runById = useMemo(() => {
+    const runs = data?.runs ?? [];
+    return new Map(runs.map((r) => [r.id, r]));
+  }, [data?.runs]);
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || typeof el.scrollTo !== 'function') return;
+    el.scrollTo({ top: el.scrollHeight });
+  }, [messages.length, generate.isPending]);
+
+  const isEmpty = !isLoading && messages.length === 0;
+  const banner = generate.error
+    ? mapGenerateError(generate.error as AxiosError)
+    : null;
+
+  // Optimistic re-fetch handle for the manual retry button.
+  const onGenerate = async () => {
+    await generate.mutateAsync().catch(() => {});
+    qc.invalidateQueries({ queryKey: conversationKey(estimate.id) });
+  };
+
   return (
     <section className="flex h-full flex-col border border-rule bg-paper-elevated">
-      <header className="border-b border-rule-soft px-4 py-3">
-        <p className="font-mono text-[10px] uppercase tracking-label text-dim">
-          B · Draft Session
-        </p>
-        <p className="mt-1 font-sans text-[12px] text-dim">
-          Generate + refine line items with Quill
-        </p>
-      </header>
-      <div className="flex-1 overflow-auto p-4">
-        <div className="border border-dashed border-rule p-6 text-center">
+      <header className="flex items-baseline justify-between border-b border-rule-soft px-4 py-3">
+        <div>
           <p className="font-mono text-[10px] uppercase tracking-label text-dim">
-            AI conversation
+            B · Draft Session
           </p>
-          <p className="mt-2 font-sans text-[12px] text-dim">
-            The chat interface and "Draft from sources" action ship in Phase 3.3.
+          <p className="mt-1 font-sans text-[12px] text-dim">
+            Generate + refine line items with Quill
           </p>
         </div>
+        {!isEmpty && !readOnly ? (
+          <button
+            type="button"
+            onClick={onGenerate}
+            disabled={generate.isPending}
+            className="border border-rule px-2 py-0.5 font-mono text-[10px] uppercase tracking-label text-dim hover:border-ink hover:text-ink disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {generate.isPending ? 'Drafting…' : 'Regenerate'}
+          </button>
+        ) : null}
+      </header>
+
+      <div ref={scrollRef} className="flex-1 overflow-auto p-4">
+        {banner ? (
+          <div className="mb-4">
+            <ErrorBubble message={banner} onRetry={onGenerate} />
+          </div>
+        ) : null}
+        {isLoading ? (
+          <p className="font-mono text-[10px] uppercase tracking-label text-dim">Loading…</p>
+        ) : isEmpty ? (
+          <EmptyState
+            disabled={generate.isPending || readOnly}
+            pending={generate.isPending}
+            onClick={onGenerate}
+            hasSources={estimate.sourceInputs.length > 0}
+          />
+        ) : (
+          <ul className="flex flex-col gap-3">
+            {messages.map((m) => (
+              <li key={m.id}>
+                <MessageBubble
+                  message={m}
+                  run={m.runId ? runById.get(m.runId) : undefined}
+                  authorIsMe={m.authorUserId === user?.id}
+                />
+              </li>
+            ))}
+            {generate.isPending ? (
+              <li>
+                <Pending />
+              </li>
+            ) : null}
+          </ul>
+        )}
       </div>
+
       <footer className="border-t border-rule-soft px-4 py-3">
-        <p className="font-mono text-[10px] uppercase tracking-label text-dim">
-          Type a follow-up… (3.3)
-        </p>
+        <div className="border border-dashed border-rule p-2 text-center">
+          <p className="font-mono text-[10px] uppercase tracking-label text-dim">
+            Type a follow-up… (lands in Phase 3.4)
+          </p>
+        </div>
       </footer>
     </section>
   );
+}
+
+// ─── Components ───────────────────────────────────────────────────────────
+
+interface EmptyStateProps {
+  hasSources: boolean;
+  disabled: boolean;
+  pending: boolean;
+  onClick: () => void;
+}
+
+function EmptyState({ hasSources, disabled, pending, onClick }: EmptyStateProps) {
+  return (
+    <div className="flex h-full flex-col items-center justify-center text-center">
+      <p className="font-mono text-[10px] uppercase tracking-label text-dim">Draft an estimate</p>
+      <h2 className="mt-2 max-w-[40ch] font-sans text-[18px] text-ink">
+        {hasSources
+          ? "Quill will produce an 80% first-draft from your sources. You'll review and finalize."
+          : 'Add at least one source on the left, then ask Quill to draft an estimate.'}
+      </h2>
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled || !hasSources}
+        title={!hasSources ? 'Add a source on the left first' : ''}
+        data-testid="generate-draft"
+        className="mt-6 border border-ink bg-ink px-5 py-3 font-mono text-[11px] uppercase tracking-label text-ink-inverse transition hover:bg-ink/90 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {pending ? 'Drafting…' : 'Generate draft'}
+      </button>
+    </div>
+  );
+}
+
+function MessageBubble({
+  message,
+  run,
+  authorIsMe,
+}: {
+  message: AIMessage;
+  run: AIRun | undefined;
+  authorIsMe: boolean;
+}) {
+  const isUser = message.role === 'USER';
+  const stamp = formatStamp(message.createdAt);
+  return (
+    <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
+      <p className="mb-1 font-mono text-[10px] uppercase tracking-label text-dim">
+        {(authorIsMe ? 'You' : labelRole(message.role))} · {stamp}
+      </p>
+      <div
+        className={`max-w-[80%] border ${
+          isUser
+            ? 'border-ink bg-ink text-ink-inverse'
+            : 'border-rule bg-paper text-ink'
+        } px-4 py-2 font-sans text-[13px] leading-relaxed`}
+      >
+        <p className="whitespace-pre-wrap">{message.content}</p>
+        {run?.status === 'SUCCEEDED' && run.outputs ? (
+          <RunSummary output={run.outputs} />
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function RunSummary({ output }: { output: GenerateLineItemsOutput }) {
+  const totalLines = output.sections.reduce((acc, s) => acc + s.lineItems.length, 0);
+  const unpriced = output.sections.reduce(
+    (acc, s) => acc + s.lineItems.filter((li) => li.priceBookEntryCode === null).length,
+    0,
+  );
+  return (
+    <div className="mt-3 flex flex-col gap-2">
+      {output.assumptions.length > 0 ? (
+        <div className="border border-dashed border-mark-amber/70 bg-paper-elevated p-2">
+          <p className="font-mono text-[10px] uppercase tracking-label text-mark-amber">
+            Assumptions
+          </p>
+          <ul className="mt-1 ml-4 list-disc font-sans text-[12px] text-ink">
+            {output.assumptions.map((a, i) => (
+              <li key={i}>{a}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      <p className="font-mono text-[10px] uppercase tracking-label text-dim tabular-nums">
+        {totalLines} {totalLines === 1 ? 'line' : 'lines'} ·{' '}
+        {output.sections.length} {output.sections.length === 1 ? 'section' : 'sections'}
+        {unpriced > 0 ? (
+          <>
+            {' '}
+            ·{' '}
+            <span className="text-mark-red">
+              {unpriced} unpriced
+            </span>
+          </>
+        ) : null}
+      </p>
+    </div>
+  );
+}
+
+function Pending() {
+  return (
+    <div className="flex flex-col items-start">
+      <p className="mb-1 font-mono text-[10px] uppercase tracking-label text-dim">
+        Quill · drafting…
+      </p>
+      <div className="border border-rule bg-paper px-4 py-2 font-mono text-[12px] text-dim">
+        <span className="inline-block h-1 w-1 animate-pulse rounded-full bg-dim" />{' '}
+        <span className="inline-block h-1 w-1 animate-pulse rounded-full bg-dim" />{' '}
+        <span className="inline-block h-1 w-1 animate-pulse rounded-full bg-dim" />
+      </div>
+    </div>
+  );
+}
+
+function ErrorBubble({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="flex flex-col items-start gap-2">
+      <p className="font-mono text-[10px] uppercase tracking-label text-mark-red">
+        Quill · error
+      </p>
+      <div
+        role="alert"
+        className="border border-mark-red/60 bg-paper px-4 py-2 font-mono text-[11px] uppercase tracking-label text-mark-red"
+      >
+        {message}
+      </div>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="border border-rule px-3 py-0.5 font-mono text-[10px] uppercase tracking-label text-ink hover:border-ink"
+      >
+        Retry
+      </button>
+    </div>
+  );
+}
+
+function labelRole(role: string): string {
+  switch (role) {
+    case 'USER':
+      return 'You';
+    case 'ASSISTANT':
+      return 'Quill';
+    case 'SYSTEM':
+      return 'System';
+    default:
+      return role;
+  }
+}
+
+function formatStamp(iso: string): string {
+  return new Date(iso).toLocaleTimeString(undefined, {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function mapGenerateError(err: AxiosError): string {
+  const status = err.response?.status;
+  const code = backendErrorCode(err);
+  if (code === 'monthly_ai_limit_reached') {
+    return 'Monthly AI cost cap reached. Contact an admin to raise the cap.';
+  }
+  if (code === 'no_default_pricebook') {
+    return 'No default price book set. An admin needs to mark a price book as default in /app/pricing.';
+  }
+  if (code === 'cannot_edit_in_current_status') {
+    return 'Cannot draft while the estimate is locked.';
+  }
+  if (status === 403) {
+    return 'Your role cannot trigger AI generation.';
+  }
+  return backendErrorMessage(err, 'Could not generate draft.');
 }

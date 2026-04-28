@@ -343,3 +343,26 @@ export async function getRun(organizationId: string, id: string) {
   if (!run) throw new NotFoundError('AIRun', id);
   return run;
 }
+
+export async function getConversationForEstimate(
+  organizationId: string,
+  estimateId: string,
+) {
+  const conversation = await prisma.aIConversation.findFirst({
+    where: { organizationId, estimateId },
+  });
+  if (!conversation) {
+    return { conversation: null, messages: [], runs: [] };
+  }
+  const [messages, runs] = await Promise.all([
+    prisma.aIMessage.findMany({
+      where: { conversationId: conversation.id },
+      orderBy: { order: 'asc' },
+    }),
+    prisma.aIRun.findMany({
+      where: { organizationId, estimateId },
+      orderBy: { createdAt: 'asc' },
+    }),
+  ]);
+  return { conversation, messages, runs };
+}
