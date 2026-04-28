@@ -28,15 +28,19 @@ describe('date helpers', () => {
   });
 
   it('daysBetween: counts calendar days regardless of order', () => {
-    const a = new Date('2026-04-28T00:00:00.000Z');
-    const b = new Date('2026-05-05T00:00:00.000Z');
+    // Use local-time constructors so the test is timezone-independent —
+    // differenceInCalendarDays operates on local calendar days.
+    const a = new Date(2026, 3, 28, 12, 0); // Apr 28 12:00 local
+    const b = new Date(2026, 4, 5, 12, 0); // May 5  12:00 local
     expect(daysBetween(a, b)).toBe(7);
     expect(daysBetween(b, a)).toBe(7);
   });
 
   it('daysBetween: returns 0 for the same calendar day', () => {
-    const a = new Date('2026-04-28T01:00:00.000Z');
-    const b = new Date('2026-04-28T23:30:00.000Z');
+    // Local-time constructor → both stamps live on the same local
+    // calendar day in any timezone.
+    const a = new Date(2026, 3, 28, 1, 0); // Apr 28 01:00 local
+    const b = new Date(2026, 3, 28, 23, 30); // Apr 28 23:30 local
     expect(daysBetween(a, b)).toBe(0);
   });
 });
