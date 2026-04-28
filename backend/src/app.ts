@@ -23,6 +23,11 @@ import {
   priceBooksRouter,
 } from './routes/pricing.js';
 import { estimatesRouter } from './routes/estimates.js';
+import {
+  estimateScopeRouter,
+  lineItemsRouter,
+  scopeSectionsRouter,
+} from './routes/scope.js';
 
 export function createApp(): Express {
   const app = express();
@@ -53,6 +58,11 @@ export function createApp(): Express {
   app.use('/api/entries', entriesRouter);
   app.use('/api/markup-rules', markupRulesRouter);
   app.use('/api/estimates', estimatesRouter);
+  // Sub-paths under /api/estimates/:id for scope sections (mount AFTER the
+  // estimatesRouter so the bare PATCH/GET/DELETE at /api/estimates/:id wins).
+  app.use('/api/estimates', estimateScopeRouter);
+  app.use('/api/scope-sections', scopeSectionsRouter);
+  app.use('/api/line-items', lineItemsRouter);
 
   app.get('/', (_req, res) => {
     res.json({ app: 'Quill', status: 'ok' });
