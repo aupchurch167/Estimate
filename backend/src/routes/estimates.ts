@@ -28,6 +28,10 @@ estimatesRouter.get(
   asyncHandler(controller.getSnapshot),
 );
 
+// PDF / XLSX exports (Phase 4.5)
+estimatesRouter.get('/:id/exports', asyncHandler(controller.listExports));
+estimatesRouter.post('/:id/exports', asyncHandler(controller.createExport));
+
 // Comments + activity feed (Phase 4.2)
 estimatesRouter.get('/:id/comments', asyncHandler(commentController.listForEstimate));
 estimatesRouter.post('/:id/comments', asyncHandler(commentController.createForEstimate));

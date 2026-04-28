@@ -7,8 +7,9 @@ import { z } from 'zod';
 import * as estimateService from '../services/estimateService.js';
 import * as reviewWorkflowService from '../services/reviewWorkflowService.js';
 import * as snapshotService from '../services/snapshotService.js';
+import * as exportService from '../services/exportService.js';
 import { canCreateEstimate } from '../lib/permissions.js';
-import { ForbiddenError, ValidationError } from '../lib/errors.js';
+import { ConflictError, ForbiddenError, ValidationError } from '../lib/errors.js';
 import { ok } from '../lib/response.js';
 
 const STATUSES = ['DRAFT', 'IN_REVIEW', 'APPROVED', 'SENT', 'WON', 'LOST', 'REVISED'] as const;
@@ -220,4 +221,46 @@ export async function getSnapshot(req: Request, res: Response): Promise<void> {
     String(req.params.snapshotId ?? ''),
   );
   ok(res, { snapshot });
+}
+
+// ─── Exports (Phase 4.5) ─────────────────────────────────────────────────
+
+const exportBody = z.object({
+  format: z.enum(['PDF', 'XLSX']).default('PDF'),
+  snapshotId: z.string().min(1).nullable().optional(),
+});
+
+export async function createExport(req: Request, res: Response): Promise<void> {
+  const { orgId, user } = assertOrg(req);
+  const input = parse(exportBody, req.body ?? {});
+  try {
+    const result = await exportService.createExport({
+      organizationId: orgId,
+      userId: user.id,
+      estimateId: String(req.params.id ?? ''),
+      format: input.format,
+      snapshotId: input.snapshotId ?? null,
+    });
+    res.status(201).json({
+      export: result.export,
+      downloadUrl: result.downloadUrl,
+    });
+  } catch (err) {
+    if (err instanceof ConflictError) {
+      res.status(409).json({
+        error: { code: err.code, message: err.message, details: err.details },
+      });
+      return;
+    }
+    throw err;
+  }
+}
+
+export async function listExports(req: Request, res: Response): Promise<void> {
+  const { orgId } = assertOrg(req);
+  const exports = await exportService.listForEstimate(
+    orgId,
+    String(req.params.id ?? ''),
+  );
+  ok(res, { exports });
 }

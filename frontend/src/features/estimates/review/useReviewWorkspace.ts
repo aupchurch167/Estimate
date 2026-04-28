@@ -187,3 +187,86 @@ export function useUnlockEstimate(estimateId: string) {
     },
   });
 }
+
+// ─── Exports (Phase 4.5) ─────────────────────────────────────────────────
+
+export interface ExportRow {
+  id: string;
+  estimateId: string;
+  snapshotId: string;
+  exportedById: string;
+  format: 'PDF' | 'XLSX';
+  fileSizeBytes: number;
+  createdAt: string;
+  downloadUrl: string;
+}
+
+export interface SnapshotMeta {
+  id: string;
+  estimateId: string;
+  snapshotType: 'APPROVAL' | 'SEND' | 'REVISION';
+  sequence: number;
+  createdById: string;
+  totalCost: string;
+  totalMarkup: string;
+  totalSellPrice: string;
+  createdAt: string;
+}
+
+export const exportsKey = (estimateId: string) =>
+  ['estimates', 'detail', estimateId, 'exports'] as const;
+export const snapshotsKey = (estimateId: string) =>
+  ['estimates', 'detail', estimateId, 'snapshots'] as const;
+
+export function useExports(estimateId: string | undefined) {
+  return useQuery<{ exports: ExportRow[] }, AxiosError>({
+    queryKey: estimateId ? exportsKey(estimateId) : ['exports', '_'],
+    queryFn: async () => {
+      const res = await api.get<{ exports: ExportRow[] }>(
+        `/api/estimates/${estimateId}/exports`,
+      );
+      return res.data;
+    },
+    enabled: Boolean(estimateId),
+  });
+}
+
+export function useSnapshots(estimateId: string | undefined) {
+  return useQuery<{ snapshots: SnapshotMeta[] }, AxiosError>({
+    queryKey: estimateId ? snapshotsKey(estimateId) : ['snapshots', '_'],
+    queryFn: async () => {
+      const res = await api.get<{ snapshots: SnapshotMeta[] }>(
+        `/api/estimates/${estimateId}/snapshots`,
+      );
+      return res.data;
+    },
+    enabled: Boolean(estimateId),
+  });
+}
+
+interface ExportInput {
+  format?: 'PDF' | 'XLSX';
+  snapshotId?: string | null;
+}
+
+export interface CreateExportResult {
+  export: ExportRow;
+  downloadUrl: string;
+}
+
+export function useCreateExport(estimateId: string) {
+  const qc = useQueryClient();
+  return useMutation<CreateExportResult, AxiosError, ExportInput | void>({
+    mutationFn: async (body) => {
+      const res = await api.post<CreateExportResult>(
+        `/api/estimates/${estimateId}/exports`,
+        { format: 'PDF', ...(body ?? {}) },
+      );
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: exportsKey(estimateId) });
+      qc.invalidateQueries({ queryKey: activityKey(estimateId) });
+    },
+  });
+}

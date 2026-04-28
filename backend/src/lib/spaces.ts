@@ -7,15 +7,37 @@
  * Spaces credentials still boot.
  */
 
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { env } from './env.js';
 
-let client: S3Client | undefined;
+/**
+ * Tests can override the storage backend with __setSpacesClientForTesting
+ * (mirrors the Anthropic test hook). The real S3Client is built lazily so
+ * dev environments without real Spaces credentials still boot.
+ */
+export interface SpacesLike {
+  uploadBuffer: (input: {
+    key: string;
+    body: Buffer;
+    contentType: string;
+    acl?: 'public-read' | 'private';
+  }) => Promise<void>;
+  signGetUrl: (input: { key: string; expiresIn: number }) => Promise<string>;
+  signPutUrl: (input: {
+    key: string;
+    contentType: string;
+    expiresIn: number;
+    acl: 'public-read' | 'private';
+  }) => Promise<string>;
+}
 
-function getClient(): S3Client {
-  if (!client) {
-    client = new S3Client({
+let realClient: S3Client | undefined;
+let override: SpacesLike | undefined;
+
+function s3(): S3Client {
+  if (!realClient) {
+    realClient = new S3Client({
       endpoint: env.SPACES_ENDPOINT,
       region: env.SPACES_REGION,
       credentials: {
@@ -25,7 +47,49 @@ function getClient(): S3Client {
       forcePathStyle: false,
     });
   }
-  return client;
+  return realClient;
+}
+
+const realBackend: SpacesLike = {
+  async uploadBuffer({ key, body, contentType, acl }) {
+    await s3().send(
+      new PutObjectCommand({
+        Bucket: env.SPACES_BUCKET,
+        Key: key,
+        Body: body,
+        ContentType: contentType,
+        ACL: acl ?? 'private',
+      }),
+    );
+  },
+  async signGetUrl({ key, expiresIn }) {
+    return getSignedUrl(
+      s3(),
+      new GetObjectCommand({ Bucket: env.SPACES_BUCKET, Key: key }),
+      { expiresIn },
+    );
+  },
+  async signPutUrl({ key, contentType, expiresIn, acl }) {
+    return getSignedUrl(
+      s3(),
+      new PutObjectCommand({
+        Bucket: env.SPACES_BUCKET,
+        Key: key,
+        ContentType: contentType,
+        ACL: acl,
+      }),
+      { expiresIn },
+    );
+  },
+};
+
+function backend(): SpacesLike {
+  return override ?? realBackend;
+}
+
+/** Tests only — pass undefined to restore the real backend. */
+export function __setSpacesClientForTesting(fake: SpacesLike | undefined): void {
+  override = fake;
 }
 
 export interface SignedUploadResult {
@@ -42,19 +106,41 @@ export async function generateSignedUploadUrl(opts: {
   acl?: 'public-read' | 'private';
 }): Promise<SignedUploadResult> {
   const expiresIn = opts.expiresIn ?? env.SIGNED_UPLOAD_EXPIRES_SECONDS;
-  const command = new PutObjectCommand({
-    Bucket: env.SPACES_BUCKET,
-    Key: opts.key,
-    ContentType: opts.contentType,
-    ACL: opts.acl ?? 'public-read',
+  const url = await backend().signPutUrl({
+    key: opts.key,
+    contentType: opts.contentType,
+    expiresIn,
+    acl: opts.acl ?? 'public-read',
   });
-  const url = await getSignedUrl(getClient(), command, { expiresIn });
   return {
     url,
     key: opts.key,
     expiresIn,
     publicUrl: publicUrlForKey(opts.key),
   };
+}
+
+/**
+ * Server-side put: backend renders/holds the bytes (PDFs, generated
+ * docs) and stores them in Spaces. Returns nothing — call
+ * generateSignedDownloadUrl with the same key to hand a short-lived URL
+ * back to the user.
+ */
+export async function uploadBuffer(opts: {
+  key: string;
+  body: Buffer;
+  contentType: string;
+  acl?: 'public-read' | 'private';
+}): Promise<void> {
+  await backend().uploadBuffer(opts);
+}
+
+export async function generateSignedDownloadUrl(opts: {
+  key: string;
+  expiresIn?: number;
+}): Promise<string> {
+  const expiresIn = opts.expiresIn ?? env.SIGNED_UPLOAD_EXPIRES_SECONDS;
+  return backend().signGetUrl({ key: opts.key, expiresIn });
 }
 
 export function publicUrlForKey(key: string): string {
