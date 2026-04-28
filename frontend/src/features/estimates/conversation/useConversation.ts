@@ -44,3 +44,25 @@ export function useGenerateLineItems(estimateId: string) {
     },
   });
 }
+
+export interface AskFollowupResponse {
+  runId: string;
+  assistantMessage: string;
+  suggestedAction: 'none' | 'regenerate_line_items';
+}
+
+export function useAskFollowup(estimateId: string) {
+  const qc = useQueryClient();
+  return useMutation<AskFollowupResponse, AxiosError, string>({
+    mutationFn: async (userText: string) => {
+      const res = await api.post<AskFollowupResponse>(
+        `/api/estimates/${estimateId}/ai-runs`,
+        { runType: 'ASK_FOLLOWUP', userText },
+      );
+      return res.data;
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: conversationKey(estimateId) });
+    },
+  });
+}

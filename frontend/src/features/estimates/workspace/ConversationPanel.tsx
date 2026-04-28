@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { AxiosError } from 'axios';
 import { backendErrorCode, backendErrorMessage } from '@/features/auth/useAuth';
 import {
   conversationKey,
+  useAskFollowup,
   useConversation,
   useGenerateLineItems,
 } from '@/features/estimates/conversation/useConversation';
@@ -22,7 +23,9 @@ export function ConversationPanel({ estimate }: { estimate: EstimateDetail }) {
   const { user } = useAuthContext();
   const { data, isLoading } = useConversation(estimate.id);
   const generate = useGenerateLineItems(estimate.id);
+  const ask = useAskFollowup(estimate.id);
   const readOnly = READ_ONLY_STATUSES.has(estimate.status);
+  const [draft, setDraft] = useState('');
 
   const messages = data?.messages ?? [];
   const runById = useMemo(() => {
@@ -35,17 +38,32 @@ export function ConversationPanel({ estimate }: { estimate: EstimateDetail }) {
     const el = scrollRef.current;
     if (!el || typeof el.scrollTo !== 'function') return;
     el.scrollTo({ top: el.scrollHeight });
-  }, [messages.length, generate.isPending]);
+  }, [messages.length, generate.isPending, ask.isPending]);
 
   const isEmpty = !isLoading && messages.length === 0;
   const banner = generate.error
     ? mapGenerateError(generate.error as AxiosError)
-    : null;
+    : ask.error
+      ? mapAskError(ask.error as AxiosError)
+      : null;
 
   // Optimistic re-fetch handle for the manual retry button.
   const onGenerate = async () => {
     await generate.mutateAsync().catch(() => {});
     qc.invalidateQueries({ queryKey: conversationKey(estimate.id) });
+  };
+
+  const onSubmitFollowup = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const text = draft.trim();
+    if (!text || ask.isPending || readOnly) return;
+    ask.reset();
+    try {
+      await ask.mutateAsync(text);
+      setDraft('');
+    } catch {
+      // banner surfaces the error; preserve the draft so the user can retry.
+    }
   };
 
   return (
@@ -97,7 +115,7 @@ export function ConversationPanel({ estimate }: { estimate: EstimateDetail }) {
                 />
               </li>
             ))}
-            {generate.isPending ? (
+            {generate.isPending || ask.isPending ? (
               <li>
                 <Pending />
               </li>
@@ -107,13 +125,50 @@ export function ConversationPanel({ estimate }: { estimate: EstimateDetail }) {
       </div>
 
       <footer className="border-t border-rule-soft px-4 py-3">
-        <div className="border border-dashed border-rule p-2 text-center">
-          <p className="font-mono text-[10px] uppercase tracking-label text-dim">
-            Type a follow-up… (lands in Phase 3.4)
-          </p>
-        </div>
+        <FollowupForm
+          value={draft}
+          onChange={setDraft}
+          onSubmit={onSubmitFollowup}
+          disabled={readOnly || generate.isPending}
+          pending={ask.isPending}
+        />
       </footer>
     </section>
+  );
+}
+
+interface FollowupFormProps {
+  value: string;
+  onChange: (v: string) => void;
+  onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
+  disabled: boolean;
+  pending: boolean;
+}
+
+function FollowupForm({ value, onChange, onSubmit, disabled, pending }: FollowupFormProps) {
+  const trimmed = value.trim();
+  const sendDisabled = disabled || pending || trimmed.length === 0;
+  return (
+    <form onSubmit={onSubmit} className="flex items-center gap-2">
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={disabled ? 'Conversation locked' : 'Ask a follow-up…'}
+        disabled={disabled || pending}
+        maxLength={2000}
+        data-testid="followup-input"
+        className="flex-1 border border-rule bg-paper px-3 py-2 font-sans text-[13px] text-ink placeholder:text-dim focus:border-ink focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+      />
+      <button
+        type="submit"
+        disabled={sendDisabled}
+        data-testid="followup-send"
+        className="border border-ink bg-ink px-3 py-2 font-mono text-[10px] uppercase tracking-label text-ink-inverse hover:bg-ink/90 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {pending ? 'Sending…' : 'Send'}
+      </button>
+    </form>
   );
 }
 
@@ -292,4 +347,19 @@ function mapGenerateError(err: AxiosError): string {
     return 'Your role cannot trigger AI generation.';
   }
   return backendErrorMessage(err, 'Could not generate draft.');
+}
+
+function mapAskError(err: AxiosError): string {
+  const status = err.response?.status;
+  const code = backendErrorCode(err);
+  if (code === 'monthly_ai_limit_reached') {
+    return 'Monthly AI cost cap reached. Contact an admin to raise the cap.';
+  }
+  if (code === 'cannot_edit_in_current_status') {
+    return 'Cannot reply while the estimate is locked.';
+  }
+  if (status === 403) {
+    return 'Your role cannot send follow-ups.';
+  }
+  return backendErrorMessage(err, 'Could not send the follow-up.');
 }

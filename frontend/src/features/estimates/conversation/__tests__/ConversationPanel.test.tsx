@@ -256,6 +256,81 @@ describe('ConversationPanel — generate flow', () => {
     expect(screen.getByText(/1 unpriced/i)).toBeInTheDocument();
   });
 
+  it('disables the Send button when the input is empty and enables it after typing', async () => {
+    setupApi({ conversation: { id: 'c1' }, messages: [], runs: [] });
+    const user = userEvent.setup();
+    renderPanel(buildEstimate());
+
+    const input = await screen.findByTestId('followup-input');
+    const send = screen.getByTestId('followup-send');
+    expect(send).toBeDisabled();
+
+    await user.type(input, 'What about HVAC?');
+    expect(send).toBeEnabled();
+  });
+
+  it('submitting a follow-up posts ASK_FOLLOWUP with the userText and clears the input', async () => {
+    setupApi(
+      { conversation: { id: 'c1' }, messages: [], runs: [] },
+      async () => ({
+        data: {
+          runId: 'run-2',
+          assistantMessage: 'Yes — HVAC is sub-quoted.',
+          suggestedAction: 'none',
+        },
+      }),
+    );
+    const user = userEvent.setup();
+    renderPanel(buildEstimate());
+
+    const input = await screen.findByTestId('followup-input');
+    await user.type(input, 'What about HVAC?');
+    await user.click(screen.getByTestId('followup-send'));
+
+    await waitFor(() => {
+      expect(mockedPost).toHaveBeenCalledWith('/api/estimates/e1/ai-runs', {
+        runType: 'ASK_FOLLOWUP',
+        userText: 'What about HVAC?',
+      });
+    });
+    await waitFor(() => {
+      expect((screen.getByTestId('followup-input') as HTMLInputElement).value).toBe('');
+    });
+  });
+
+  it('preserves the draft and surfaces an error when the follow-up fails', async () => {
+    setupApi(
+      { conversation: { id: 'c1' }, messages: [], runs: [] },
+      async () => {
+        throw {
+          isAxiosError: true,
+          response: {
+            status: 500,
+            data: { error: { code: 'internal_error', message: 'boom' } },
+          },
+        };
+      },
+    );
+    const user = userEvent.setup();
+    renderPanel(buildEstimate());
+
+    const input = await screen.findByTestId('followup-input');
+    await user.type(input, 'Add HVAC.');
+    await user.click(screen.getByTestId('followup-send'));
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+    });
+    expect((screen.getByTestId('followup-input') as HTMLInputElement).value).toBe('Add HVAC.');
+  });
+
+  it('locks the follow-up input when the estimate is read-only', async () => {
+    setupApi({ conversation: { id: 'c1' }, messages: [], runs: [] });
+    renderPanel(buildEstimate({ status: 'SENT' }));
+    const input = await screen.findByTestId('followup-input');
+    expect(input).toBeDisabled();
+  });
+
   it('surfaces a friendly cost-cap error and shows a retry button', async () => {
     setupApi(
       { conversation: null, messages: [], runs: [] },
