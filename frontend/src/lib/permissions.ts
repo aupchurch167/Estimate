@@ -81,3 +81,29 @@ export function canSendEstimate(
 export function canViewCostData(_role: UserRole): boolean {
   return true;
 }
+
+// ─── Review workflow ──────────────────────────────────────────────────────
+
+export function canSubmitEstimateForReview(
+  user: PermissionUser,
+  estimate: PermissionEstimate,
+): boolean {
+  if (estimate.status !== 'DRAFT' && estimate.status !== 'REVISED') return false;
+  if (ADMIN_ROLES.has(user.role)) return true;
+  if (user.role === 'ESTIMATOR') return estimate.drafterId === user.id;
+  return false;
+}
+
+export function canReviewEstimate(
+  user: PermissionUser,
+  estimate: PermissionEstimate,
+): boolean {
+  if (estimate.status !== 'IN_REVIEW') return false;
+  if (ADMIN_ROLES.has(user.role)) return true;
+  if (user.role === 'ESTIMATOR') return estimate.reviewerId === user.id;
+  return false;
+}
+
+export function canUnlockApprovedEstimate(role: UserRole): boolean {
+  return ADMIN_ROLES.has(role);
+}

@@ -7,7 +7,10 @@ import {
   canManageOrg,
   canManagePricing,
   canManageUsers,
+  canReviewEstimate,
   canSendEstimate,
+  canSubmitEstimateForReview,
+  canUnlockApprovedEstimate,
   canViewCostData,
 } from '../permissions.js';
 
@@ -120,5 +123,82 @@ describe('canSendEstimate', () => {
 describe('canViewCostData', () => {
   it.each(ALL_ROLES)('every role can view cost in MVP: %s', (role) => {
     expect(canViewCostData(role)).toBe(true);
+  });
+});
+
+describe('canSubmitEstimateForReview', () => {
+  it('drafter (ESTIMATOR) can submit own DRAFT or REVISED', () => {
+    expect(
+      canSubmitEstimateForReview(adminUser('ESTIMATOR', 'u-drafter'), estimate({ status: 'DRAFT' })),
+    ).toBe(true);
+    expect(
+      canSubmitEstimateForReview(
+        adminUser('ESTIMATOR', 'u-drafter'),
+        estimate({ status: 'REVISED' }),
+      ),
+    ).toBe(true);
+  });
+  it('admins can submit any DRAFT/REVISED regardless of relationship', () => {
+    expect(
+      canSubmitEstimateForReview(adminUser('OWNER', 'u-other'), estimate({ status: 'DRAFT' })),
+    ).toBe(true);
+    expect(
+      canSubmitEstimateForReview(adminUser('ADMIN', 'u-other'), estimate({ status: 'REVISED' })),
+    ).toBe(true);
+  });
+  it('non-drafter ESTIMATOR cannot submit', () => {
+    expect(
+      canSubmitEstimateForReview(adminUser('ESTIMATOR', 'u-reviewer'), estimate({ status: 'DRAFT' })),
+    ).toBe(false);
+  });
+  it('rejects when status is not DRAFT or REVISED', () => {
+    expect(
+      canSubmitEstimateForReview(adminUser('OWNER', 'u-other'), estimate({ status: 'IN_REVIEW' })),
+    ).toBe(false);
+    expect(
+      canSubmitEstimateForReview(adminUser('OWNER', 'u-other'), estimate({ status: 'APPROVED' })),
+    ).toBe(false);
+  });
+  it('PM and VIEWER cannot submit', () => {
+    expect(canSubmitEstimateForReview(adminUser('PM', 'u-drafter'), estimate())).toBe(false);
+    expect(canSubmitEstimateForReview(adminUser('VIEWER', 'u-drafter'), estimate())).toBe(false);
+  });
+});
+
+describe('canReviewEstimate', () => {
+  const inReview = estimate({ status: 'IN_REVIEW' });
+  it('assigned reviewer (ESTIMATOR) can review', () => {
+    expect(canReviewEstimate(adminUser('ESTIMATOR', 'u-reviewer'), inReview)).toBe(true);
+  });
+  it('admins can review any IN_REVIEW', () => {
+    expect(canReviewEstimate(adminUser('OWNER', 'u-other'), inReview)).toBe(true);
+    expect(canReviewEstimate(adminUser('ADMIN', 'u-other'), inReview)).toBe(true);
+  });
+  it('non-reviewer ESTIMATOR cannot review', () => {
+    expect(canReviewEstimate(adminUser('ESTIMATOR', 'u-drafter'), inReview)).toBe(false);
+  });
+  it('rejects when status is not IN_REVIEW', () => {
+    expect(canReviewEstimate(adminUser('OWNER', 'u-other'), estimate({ status: 'DRAFT' }))).toBe(
+      false,
+    );
+    expect(
+      canReviewEstimate(adminUser('OWNER', 'u-other'), estimate({ status: 'APPROVED' })),
+    ).toBe(false);
+  });
+  it('PM and VIEWER cannot review', () => {
+    expect(canReviewEstimate(adminUser('PM', 'u-reviewer'), inReview)).toBe(false);
+    expect(canReviewEstimate(adminUser('VIEWER', 'u-reviewer'), inReview)).toBe(false);
+  });
+});
+
+describe('canUnlockApprovedEstimate', () => {
+  it.each<[UserRole, boolean]>([
+    ['OWNER', true],
+    ['ADMIN', true],
+    ['ESTIMATOR', false],
+    ['PM', false],
+    ['VIEWER', false],
+  ])('canUnlockApprovedEstimate(%s) → %s', (role, expected) => {
+    expect(canUnlockApprovedEstimate(role)).toBe(expected);
   });
 });
