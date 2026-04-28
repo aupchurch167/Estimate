@@ -6,6 +6,7 @@ import {
   UnlockButton,
 } from '@/features/estimates/review/ReviewActions';
 import { ExportPdfButton } from '@/features/estimates/review/ExportPdfButton';
+import { SendButton } from '@/features/estimates/review/SendButton';
 import type { EstimateDetail, EstimateStatus } from '@/features/estimates/types';
 
 interface ReviewModeLayoutProps {
@@ -28,6 +29,7 @@ export function ReviewModeLayout({ estimate, readOnly, modeSwitch }: ReviewModeL
               <>
                 <UnlockButton estimate={estimate} />
                 <ExportPdfButton estimate={estimate} />
+                <SendButton estimate={estimate} />
                 <ReadOnlyActions status={estimate.status} />
               </>
             ) : (
@@ -67,7 +69,6 @@ export function ReviewModeLayout({ estimate, readOnly, modeSwitch }: ReviewModeL
 
 function ReadOnlyActions({ status }: { status: EstimateStatus }) {
   const actions: { label: string; tone: 'primary' | 'neutral' }[] = [];
-  if (status === 'APPROVED') actions.push({ label: 'Mark as sent', tone: 'primary' });
   if (status === 'SENT') {
     actions.push({ label: 'Mark won', tone: 'primary' });
     actions.push({ label: 'Mark lost', tone: 'neutral' });

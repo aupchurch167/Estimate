@@ -1,0 +1,230 @@
+import { useEffect, useState } from 'react';
+import type { AxiosError } from 'axios';
+import { useAuthContext } from '@/context/useAuthContext';
+import {
+  backendErrorCode,
+  backendErrorMessage,
+} from '@/features/auth/useAuth';
+import { canSendEstimate } from '@/lib/permissions';
+import type { EstimateDetail } from '@/features/estimates/types';
+import { useSendEstimate } from './useReviewWorkspace';
+
+const EMAIL_RX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * "Send to client" affordance on an APPROVED estimate. Renders only when
+ * the viewer is allowed to send (admin always; ESTIMATOR drafter or
+ * reviewer when OrgSettings.drafterCanSend — gated on the backend, but
+ * mirrored here so the button is hidden when the action would 403).
+ *
+ * Note: this component does NOT check OrgSettings.drafterCanSend on its
+ * own (it's not on EstimateDetail). The backend enforces it; if a
+ * disallowed user clicks Send they'll see the 403-mapped error.
+ */
+export function SendButton({ estimate }: { estimate: EstimateDetail }) {
+  const { user } = useAuthContext();
+  const [open, setOpen] = useState(false);
+
+  if (!user) return null;
+  if (estimate.status !== 'APPROVED') return null;
+
+  // Optimistic visibility: admins see it always; ESTIMATORs see it when
+  // they're related to the estimate (the backend enforces drafterCanSend).
+  const allowed = canSendEstimate(
+    { id: user.id, role: user.role },
+    {
+      drafterId: estimate.drafterId,
+      reviewerId: estimate.reviewerId,
+      status: estimate.status,
+    },
+    { drafterCanSend: true },
+  );
+  if (!allowed) return null;
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        data-testid="send-estimate"
+        className="border border-ink bg-ink px-4 py-2 font-mono text-[11px] uppercase tracking-label text-ink-inverse hover:bg-ink/90"
+      >
+        Send to client
+      </button>
+      {open ? (
+        <SendDialog
+          estimate={estimate}
+          onClose={() => setOpen(false)}
+        />
+      ) : null}
+    </>
+  );
+}
+
+function SendDialog({
+  estimate,
+  onClose,
+}: {
+  estimate: EstimateDetail;
+  onClose: () => void;
+}) {
+  const send = useSendEstimate(estimate.id);
+  const [recipients, setRecipients] = useState(estimate.clientContactEmail ?? '');
+  const [subject, setSubject] = useState(
+    `Estimate ${estimate.number} — ${estimate.title}`,
+  );
+  const [message, setMessage] = useState('');
+
+  // Close after success.
+  useEffect(() => {
+    if (send.isSuccess) onClose();
+  }, [send.isSuccess, onClose]);
+
+  const list = recipients
+    .split(/[,\n]/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+  const invalid = list.filter((r) => !EMAIL_RX.test(r));
+  const canSubmit = !send.isPending && list.length > 0 && invalid.length === 0;
+
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!canSubmit) return;
+    send.reset();
+    try {
+      await send.mutateAsync({
+        recipients: list,
+        subject: subject.trim() || null,
+        message: message.trim() || null,
+      });
+      // onClose triggered via the success effect.
+    } catch {
+      // banner inside the dialog
+    }
+  };
+
+  return (
+    <div
+      role="dialog"
+      aria-label="Send estimate to client"
+      className="fixed inset-0 z-40 flex items-center justify-center bg-ink/40 px-4"
+      data-testid="send-dialog"
+    >
+      <form
+        onSubmit={onSubmit}
+        className="w-full max-w-[560px] border border-ink bg-paper-elevated"
+      >
+        <header className="border-b border-rule-soft px-5 py-3">
+          <p className="font-mono text-[10px] uppercase tracking-label text-dim">
+            Send estimate {estimate.number}
+          </p>
+          <p className="mt-1 font-sans text-[14px] text-ink">
+            A SEND snapshot is taken and emailed as a PDF attachment.
+          </p>
+        </header>
+
+        <div className="flex flex-col gap-3 p-5">
+          <Field label="Recipients" hint="Comma- or newline-separated email addresses.">
+            <textarea
+              value={recipients}
+              onChange={(e) => setRecipients(e.target.value)}
+              rows={2}
+              disabled={send.isPending}
+              data-testid="send-recipients"
+              placeholder="client@example.com"
+              className="w-full border border-rule bg-paper px-3 py-2 font-sans text-[13px] text-ink placeholder:text-dim focus:border-ink focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+            />
+            {invalid.length > 0 ? (
+              <p className="mt-1 font-mono text-[10px] uppercase tracking-label text-mark-red">
+                Invalid: {invalid.join(', ')}
+              </p>
+            ) : null}
+          </Field>
+          <Field label="Subject">
+            <input
+              type="text"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              maxLength={200}
+              disabled={send.isPending}
+              data-testid="send-subject"
+              className="w-full border border-rule bg-paper px-3 py-2 font-sans text-[13px] text-ink focus:border-ink focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+            />
+          </Field>
+          <Field label="Message" hint="Optional note to the client.">
+            <textarea
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              rows={4}
+              maxLength={2000}
+              disabled={send.isPending}
+              data-testid="send-message"
+              className="w-full border border-rule bg-paper px-3 py-2 font-sans text-[13px] text-ink focus:border-ink focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+            />
+          </Field>
+          {send.error ? (
+            <p
+              role="alert"
+              className="font-mono text-[10px] uppercase tracking-label text-mark-red"
+            >
+              {mapSendError(send.error as AxiosError)}
+            </p>
+          ) : null}
+        </div>
+
+        <footer className="flex items-center justify-end gap-3 border-t border-rule-soft bg-paper px-5 py-3">
+          <button
+            type="button"
+            onClick={onClose}
+            data-testid="send-cancel"
+            className="font-mono text-[10px] uppercase tracking-label text-dim hover:text-ink"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={!canSubmit}
+            data-testid="send-submit"
+            className="border border-ink bg-ink px-4 py-2 font-mono text-[11px] uppercase tracking-label text-ink-inverse hover:bg-ink/90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {send.isPending ? 'Sending…' : 'Send & mark as sent'}
+          </button>
+        </footer>
+      </form>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="font-mono text-[10px] uppercase tracking-label text-dim">{label}</span>
+      {children}
+      {hint ? (
+        <span className="font-mono text-[10px] uppercase tracking-label text-dim">
+          {hint}
+        </span>
+      ) : null}
+    </label>
+  );
+}
+
+function mapSendError(err: AxiosError): string {
+  const status = err.response?.status;
+  const code = backendErrorCode(err);
+  if (code === 'invalid_status_transition') {
+    return 'Estimate state changed — refresh and try again.';
+  }
+  if (status === 403) {
+    return 'You do not have permission to send this estimate.';
+  }
+  return backendErrorMessage(err, 'Could not send the estimate.');
+}

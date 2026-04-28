@@ -32,6 +32,9 @@ estimatesRouter.get(
 estimatesRouter.get('/:id/exports', asyncHandler(controller.listExports));
 estimatesRouter.post('/:id/exports', asyncHandler(controller.createExport));
 
+// Send (Phase 4.6)
+estimatesRouter.post('/:id/send', asyncHandler(controller.sendEstimate));
+
 // Comments + activity feed (Phase 4.2)
 estimatesRouter.get('/:id/comments', asyncHandler(commentController.listForEstimate));
 estimatesRouter.post('/:id/comments', asyncHandler(commentController.createForEstimate));

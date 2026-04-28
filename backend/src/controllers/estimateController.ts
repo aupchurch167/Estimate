@@ -8,6 +8,7 @@ import * as estimateService from '../services/estimateService.js';
 import * as reviewWorkflowService from '../services/reviewWorkflowService.js';
 import * as snapshotService from '../services/snapshotService.js';
 import * as exportService from '../services/exportService.js';
+import * as sendService from '../services/sendService.js';
 import { canCreateEstimate } from '../lib/permissions.js';
 import { ConflictError, ForbiddenError, ValidationError } from '../lib/errors.js';
 import { ok } from '../lib/response.js';
@@ -263,4 +264,43 @@ export async function listExports(req: Request, res: Response): Promise<void> {
     String(req.params.id ?? ''),
   );
   ok(res, { exports });
+}
+
+// ─── Send (Phase 4.6) ────────────────────────────────────────────────────
+
+const sendBody = z.object({
+  recipients: z.array(z.string().min(1)).min(1).max(10),
+  subject: z.string().max(200).nullable().optional(),
+  message: z.string().max(2000).nullable().optional(),
+});
+
+export async function sendEstimate(req: Request, res: Response): Promise<void> {
+  const { orgId, user } = assertOrg(req);
+  const input = parse(sendBody, req.body ?? {});
+  try {
+    const result = await sendService.sendEstimate(
+      orgId,
+      { id: user.id, role: user.role },
+      String(req.params.id ?? ''),
+      {
+        recipients: input.recipients,
+        subject: input.subject ?? null,
+        message: input.message ?? null,
+      },
+    );
+    res.status(200).json({
+      estimate: result.estimate,
+      snapshotId: result.snapshot.id,
+      exportId: result.exportId,
+      email: result.email,
+    });
+  } catch (err) {
+    if (err instanceof ConflictError) {
+      res.status(409).json({
+        error: { code: err.code, message: err.message, details: err.details },
+      });
+      return;
+    }
+    throw err;
+  }
 }

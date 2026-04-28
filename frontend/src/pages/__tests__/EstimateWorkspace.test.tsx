@@ -146,11 +146,11 @@ describe('EstimateWorkspace mode selection', () => {
     expect(screen.queryByRole('button', { name: /^Approve$/ })).not.toBeInTheDocument();
   });
 
-  it('APPROVED renders read-only with Mark as sent', async () => {
+  it('APPROVED renders read-only with Send to client', async () => {
     setupApi(buildEstimate('APPROVED'));
     renderAt('e1');
     await waitFor(() => screen.getByText(/Approved · Read-only/));
-    expect(screen.getByRole('button', { name: /mark as sent/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /send to client/i })).toBeInTheDocument();
   });
 
   it('reviewer of a DRAFT can toggle into a read-only review peek and back', async () => {

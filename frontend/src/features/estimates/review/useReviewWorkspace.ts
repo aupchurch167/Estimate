@@ -249,6 +249,38 @@ interface ExportInput {
   snapshotId?: string | null;
 }
 
+export interface SendEstimateInput {
+  recipients: string[];
+  subject?: string | null;
+  message?: string | null;
+}
+
+export interface SendEstimateResult {
+  estimate: { id: string; status: string; sentAt: string | null };
+  snapshotId: string;
+  exportId: string;
+  email: { dispatched: boolean; reason?: string };
+}
+
+export function useSendEstimate(estimateId: string) {
+  const qc = useQueryClient();
+  return useMutation<SendEstimateResult, AxiosError, SendEstimateInput>({
+    mutationFn: async (body) => {
+      const res = await api.post<SendEstimateResult>(
+        `/api/estimates/${estimateId}/send`,
+        body,
+      );
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: estimateDetailKey(estimateId) });
+      qc.invalidateQueries({ queryKey: snapshotsKey(estimateId) });
+      qc.invalidateQueries({ queryKey: exportsKey(estimateId) });
+      qc.invalidateQueries({ queryKey: activityKey(estimateId) });
+    },
+  });
+}
+
 export interface CreateExportResult {
   export: ExportRow;
   downloadUrl: string;
