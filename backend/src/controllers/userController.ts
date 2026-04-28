@@ -74,3 +74,9 @@ export async function signAvatarUpload(req: Request, res: Response): Promise<voi
   });
   ok(res, signed);
 }
+
+export async function listUsers(req: Request, res: Response): Promise<void> {
+  if (!req.organization) throw new ForbiddenError('Not authenticated');
+  const users = await userService.listByOrganization(req.organization.id);
+  ok(res, { users });
+}

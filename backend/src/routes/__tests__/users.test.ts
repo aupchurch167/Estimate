@@ -191,3 +191,41 @@ describe('POST /api/users/:id/avatar', () => {
     expect(res.status).toBe(403);
   });
 });
+
+describe('GET /api/users', () => {
+  it('returns users in the authed user’s org and excludes other orgs', async () => {
+    const owner = await makeOwner();
+    // Move a side-org user into owner's org so we have ≥2 members.
+    counter += 1;
+    const memberEmail = `member-${counter}-${RUN_ID}@example.test`;
+    const fresh = await serviceSignup({
+      companyName: `Member Source ${counter} ${RUN_ID}`,
+      email: memberEmail,
+      password: PASSWORD,
+      firstName: 'Mem',
+      lastName: 'Ber',
+    });
+    orgIds.add(fresh.organization.id);
+    await prisma.user.update({
+      where: { id: fresh.user.id },
+      data: { organizationId: owner.organization.id, role: 'ESTIMATOR' },
+    });
+
+    const agent = await login(owner.user.email);
+    const res = await agent.get('/api/users');
+    expect(res.status).toBe(200);
+    const emails: string[] = res.body.users.map((u: { email: string }) => u.email);
+    expect(emails).toContain(owner.user.email);
+    expect(emails).toContain(memberEmail);
+    // Sensitive fields are stripped.
+    for (const u of res.body.users) {
+      expect(u).not.toHaveProperty('passwordHash');
+      expect(u).not.toHaveProperty('tokenVersion');
+    }
+  });
+
+  it('returns 401 unauthenticated', async () => {
+    const res = await request(app).get('/api/users');
+    expect(res.status).toBe(401);
+  });
+});

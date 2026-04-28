@@ -4,6 +4,8 @@ import { SignupPage } from '@/pages/Signup';
 import { AppShell } from '@/pages/AppShell';
 import { AccountPage } from '@/pages/Account';
 import { SettingsPage } from '@/pages/Settings';
+import { TeamPage } from '@/pages/Team';
+import { InvitationAcceptPage } from '@/pages/InvitationAccept';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { PublicRoute } from '@/components/PublicRoute';
 
@@ -50,6 +52,15 @@ export default function App() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/app/team"
+        element={
+          <ProtectedRoute>
+            <TeamPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route path="/invite/:token" element={<InvitationAcceptPage />} />
       <Route path="/" element={<Navigate to="/app" replace />} />
       <Route path="*" element={<Navigate to="/app" replace />} />
     </Routes>

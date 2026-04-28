@@ -28,6 +28,12 @@ export function AppShell() {
           <div className="flex items-center gap-4 py-4">
             <RoleGate allowedRoles={['OWNER', 'ADMIN']}>
               <Link
+                to="/app/team"
+                className="font-mono text-[10px] uppercase tracking-label text-dim hover:text-ink"
+              >
+                Team
+              </Link>
+              <Link
                 to="/app/settings"
                 className="font-mono text-[10px] uppercase tracking-label text-dim hover:text-ink"
               >

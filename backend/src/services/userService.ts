@@ -20,6 +20,14 @@ import { generateSignedUploadUrl, type SignedUploadResult } from '../lib/spaces.
 const ALLOWED_AVATAR_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024; // 5 MB
 
+export async function listByOrganization(organizationId: string): Promise<SafeUser[]> {
+  const users = await prisma.user.findMany({
+    where: { organizationId, deletedAt: null },
+    orderBy: [{ isActive: 'desc' }, { createdAt: 'asc' }],
+  });
+  return users.map(toSafeUser);
+}
+
 export interface UpdateProfileInput {
   firstName?: string;
   lastName?: string;
