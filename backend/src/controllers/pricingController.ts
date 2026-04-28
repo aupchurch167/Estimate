@@ -5,6 +5,7 @@
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 import * as pricingService from '../services/pricingService.js';
+import * as pricingImport from '../services/pricingImportService.js';
 import { ForbiddenError, ValidationError } from '../lib/errors.js';
 import { ok } from '../lib/response.js';
 
@@ -283,4 +284,22 @@ export async function deleteMarkupRule(req: Request, res: Response): Promise<voi
   const orgId = assertOrg(req);
   await pricingService.softDeleteMarkupRule(orgId, String(req.params.id ?? ''));
   res.status(204).end();
+}
+
+// ─── CSV import (Phase 2.6) ────────────────────────────────────────────────
+
+export async function importCsv(req: Request, res: Response): Promise<void> {
+  const orgId = assertOrg(req);
+  const file = req.file;
+  if (!file) {
+    throw new ValidationError('Missing file upload', { field: 'file' });
+  }
+  const result = await pricingImport.runImport({
+    organizationId: orgId,
+    priceBookId: String(req.params.id ?? ''),
+    buffer: file.buffer,
+    dryRun: req.query.dryRun === 'true',
+    actorId: req.user!.id,
+  });
+  ok(res, result);
 }

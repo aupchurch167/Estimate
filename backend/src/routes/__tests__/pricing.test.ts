@@ -334,6 +334,53 @@ describe('Entry CRUD, search, pagination, code-conflict', () => {
   });
 });
 
+// ─── CSV import HTTP surface ───────────────────────────────────────────────
+
+describe('POST /api/price-books/:id/import', () => {
+  it('accepts a clean CSV upload (commit) and returns the result envelope', async () => {
+    const { user } = await makeOwner();
+    const agent = await loginAs(user.email);
+    const book = (await agent.post('/api/price-books').send({ name: 'C' }).expect(201)).body
+      .priceBook;
+
+    const csv = [
+      'category,description,unit_of_measure,unit_cost_material,unit_cost_labor',
+      'Drywall,5/8 gypsum,SF,1.0,2.0',
+    ].join('\n');
+
+    const res = await agent
+      .post(`/api/price-books/${book.id}/import`)
+      .attach('file', Buffer.from(csv), { filename: 'pricing.csv', contentType: 'text/csv' });
+    expect(res.status).toBe(200);
+    expect(res.body.committed).toBe(true);
+    expect(res.body.entriesToCreate).toBe(1);
+    expect(res.body.categoriesToCreate).toEqual(['Drywall']);
+  });
+
+  it('returns 403 for non-admin members', async () => {
+    const { user, organization } = await makeOwner();
+    const agent = await loginAs(user.email);
+    const book = (await agent.post('/api/price-books').send({ name: 'C' }).expect(201)).body
+      .priceBook;
+    const memberEmail = await makeNonAdmin(organization.id, 'PM');
+    const member = await loginAs(memberEmail);
+    const csv = 'category,description,unit_of_measure,unit_cost_material,unit_cost_labor\n';
+    const res = await member
+      .post(`/api/price-books/${book.id}/import`)
+      .attach('file', Buffer.from(csv), 'pricing.csv');
+    expect(res.status).toBe(403);
+  });
+
+  it('returns 400 when no file is attached', async () => {
+    const { user } = await makeOwner();
+    const agent = await loginAs(user.email);
+    const book = (await agent.post('/api/price-books').send({ name: 'C' }).expect(201)).body
+      .priceBook;
+    const res = await agent.post(`/api/price-books/${book.id}/import`);
+    expect(res.status).toBe(400);
+  });
+});
+
 // ─── MarkupRule ────────────────────────────────────────────────────────────
 
 describe('MarkupRule CRUD', () => {

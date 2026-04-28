@@ -10,10 +10,28 @@
  */
 
 import { Router } from 'express';
+import multer from 'multer';
 import * as controller from '../controllers/pricingController.js';
 import { requireAuth } from '../middleware/requireAuth.js';
 import { requireRole } from '../middleware/requireRole.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
+import { csvUpload } from '../middleware/uploads.js';
+import { ValidationError } from '../lib/errors.js';
+import type { ErrorRequestHandler } from 'express';
+
+// Convert multer-thrown errors into our ValidationError envelope so the
+// global error handler renders the standard 400 response.
+const csvErrorBoundary: ErrorRequestHandler = (err, _req, _res, next) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      next(new ValidationError('Upload exceeds 10 MB', { code: err.code }));
+      return;
+    }
+    next(new ValidationError(err.message, { code: err.code }));
+    return;
+  }
+  next(err);
+};
 
 const adminWrites = requireRole('OWNER', 'ADMIN');
 
@@ -32,6 +50,13 @@ priceBooksRouter.post(
 );
 priceBooksRouter.get('/:id/entries', asyncHandler(controller.listEntries));
 priceBooksRouter.post('/:id/entries', adminWrites, asyncHandler(controller.createEntry));
+priceBooksRouter.post(
+  '/:id/import',
+  adminWrites,
+  csvUpload,
+  csvErrorBoundary,
+  asyncHandler(controller.importCsv),
+);
 
 // /api/categories — singular CRUD on existing categories.
 export const categoriesRouter = Router();
