@@ -6,6 +6,7 @@ import type { Request, Response } from 'express';
 import { z } from 'zod';
 import * as estimateService from '../services/estimateService.js';
 import * as reviewWorkflowService from '../services/reviewWorkflowService.js';
+import * as snapshotService from '../services/snapshotService.js';
 import { canCreateEstimate } from '../lib/permissions.js';
 import { ForbiddenError, ValidationError } from '../lib/errors.js';
 import { ok } from '../lib/response.js';
@@ -199,4 +200,24 @@ export async function listReviewActions(req: Request, res: Response): Promise<vo
     String(req.params.id ?? ''),
   );
   ok(res, { reviewActions });
+}
+
+// ─── Snapshots (Phase 4.4) ───────────────────────────────────────────────
+
+export async function listSnapshots(req: Request, res: Response): Promise<void> {
+  const { orgId } = assertOrg(req);
+  const snapshots = await snapshotService.listForEstimate(
+    orgId,
+    String(req.params.id ?? ''),
+  );
+  ok(res, { snapshots });
+}
+
+export async function getSnapshot(req: Request, res: Response): Promise<void> {
+  const { orgId } = assertOrg(req);
+  const snapshot = await snapshotService.getSnapshot(
+    orgId,
+    String(req.params.snapshotId ?? ''),
+  );
+  ok(res, { snapshot });
 }

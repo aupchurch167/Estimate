@@ -21,6 +21,13 @@ estimatesRouter.post('/:id/approve', asyncHandler(controller.approveEstimate));
 estimatesRouter.post('/:id/request-changes', asyncHandler(controller.requestChanges));
 estimatesRouter.post('/:id/unlock', asyncHandler(controller.unlockEstimate));
 
+// Snapshots (Phase 4.4)
+estimatesRouter.get('/:id/snapshots', asyncHandler(controller.listSnapshots));
+estimatesRouter.get(
+  '/:id/snapshots/:snapshotId',
+  asyncHandler(controller.getSnapshot),
+);
+
 // Comments + activity feed (Phase 4.2)
 estimatesRouter.get('/:id/comments', asyncHandler(commentController.listForEstimate));
 estimatesRouter.post('/:id/comments', asyncHandler(commentController.createForEstimate));

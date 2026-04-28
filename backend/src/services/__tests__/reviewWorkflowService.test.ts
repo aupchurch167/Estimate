@@ -90,6 +90,8 @@ afterAll(async () => {
   for (const orgId of orgIds) {
     await prisma.activityEvent.deleteMany({ where: { organizationId: orgId } });
     await prisma.reviewAction.deleteMany({ where: { organizationId: orgId } });
+    await prisma.estimateExport.deleteMany({ where: { organizationId: orgId } });
+    await prisma.estimateSnapshot.deleteMany({ where: { organizationId: orgId } });
     await prisma.estimate.deleteMany({ where: { organizationId: orgId } });
     await prisma.user.deleteMany({ where: { organizationId: orgId } });
     await prisma.orgSettings.deleteMany({ where: { organizationId: orgId } });

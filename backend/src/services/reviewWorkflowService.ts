@@ -26,6 +26,7 @@ import type {
   EstimateStatus,
   ReviewAction,
   ReviewActionType,
+  SnapshotType,
   UserRole,
 } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
@@ -35,6 +36,7 @@ import {
   canSubmitEstimateForReview,
   canUnlockApprovedEstimate,
 } from '../lib/permissions.js';
+import { createSnapshotInTx } from './snapshotService.js';
 
 export interface Actor {
   id: string;
@@ -91,6 +93,9 @@ async function commitTransition(args: {
   summary: string;
   note: string | null;
   reviewerId?: string | null;
+  /** When set, take a snapshot of the post-update estimate state and
+   * link its id on the ReviewAction. */
+  snapshotType?: SnapshotType;
 }): Promise<TransitionResult> {
   return prisma.$transaction(async (tx) => {
     // Re-read inside the tx to enforce the status precondition under a row lock.
@@ -118,6 +123,17 @@ async function commitTransition(args: {
       data,
     });
 
+    let snapshotId: string | undefined;
+    if (args.snapshotType) {
+      const snap = await createSnapshotInTx(tx, {
+        organizationId: args.organizationId,
+        estimateId: fresh.id,
+        userId: args.actor.id,
+        snapshotType: args.snapshotType,
+      });
+      snapshotId = snap.id;
+    }
+
     const reviewAction = await tx.reviewAction.create({
       data: {
         organizationId: args.organizationId,
@@ -127,6 +143,7 @@ async function commitTransition(args: {
         note: args.note,
         fromStatus: fresh.status,
         toStatus: args.toStatus,
+        snapshotId,
       },
     });
 
@@ -143,6 +160,7 @@ async function commitTransition(args: {
           fromStatus: fresh.status,
           toStatus: args.toStatus,
           ...(args.note ? { note: args.note } : {}),
+          ...(snapshotId ? { snapshotId } : {}),
         },
       },
     });
@@ -252,6 +270,7 @@ export async function approve(
     activityType: 'ESTIMATE_APPROVED',
     summary: `Approved estimate ${estimate.number}`,
     note,
+    snapshotType: 'APPROVAL',
   });
 }
 
@@ -326,6 +345,7 @@ export async function unlock(
     activityType: 'ESTIMATE_UPDATED',
     summary: `Unlocked estimate ${estimate.number} for revision`,
     note,
+    snapshotType: 'REVISION',
   });
 }
 
