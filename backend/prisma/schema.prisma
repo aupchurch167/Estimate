@@ -1,8 +1,7 @@
-// Quill — Prisma schema
+// Quill — Prisma schema (brief Section 3 verbatim).
 //
-// Phase 0.1 placeholder. The complete schema (21 models, 15 enums) lands in
-// Phase 0.3 per quill-build-playbook.md. Until then this file only declares
-// the generator and datasource so `prisma generate` works.
+// 21 models, 15 enums. Source of truth for the data layer. Any change here
+// must be paired with a brief update; the brief wins on conflicts.
 
 generator client {
   provider = "prisma-client-js"
@@ -11,4 +10,702 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+// ─── Enums ──────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  OWNER
+  ADMIN
+  ESTIMATOR
+  PM
+  VIEWER
+}
+
+enum EstimateStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  SENT
+  WON
+  LOST
+  REVISED
+}
+
+enum LineItemStatus {
+  DRAFT
+  CONFIRMED
+  NEEDS_REVIEW
+  ASSUMED
+  NO_PRICE
+  PENDING_SUB_QUOTE
+}
+
+enum LineItemSource {
+  AI_GENERATED
+  PRICEBOOK
+  MANUAL
+  TEMPLATE
+}
+
+enum SourceInputType {
+  TRANSCRIPT
+  EMAIL
+  SCOPE_NOTES
+  PLAN_PDF
+  COMPANYCAM_PROJECT
+  MANUAL_TEXT
+  REFERENCE_DOC
+}
+
+enum UnitOfMeasure {
+  SF
+  LF
+  CF
+  EA
+  HR
+  DY
+  LS
+  CY
+  SY
+  GAL
+  TON
+  CUSTOM
+}
+
+enum SnapshotType {
+  APPROVAL
+  SEND
+  REVISION
+}
+
+enum ExportFormat {
+  PDF
+  XLSX
+}
+
+enum MarkupRuleScope {
+  CATEGORY
+  SECTION_NAME_MATCH
+  LINE_DESCRIPTION_MATCH
+}
+
+enum AIMessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+  TOOL
+}
+
+enum AIRunType {
+  GENERATE_LINE_ITEMS
+  DRAFT_EXEC_SUMMARY
+  SUGGEST_PRICE
+  CLASSIFY_SCOPE
+  ASK_FOLLOWUP
+  OTHER
+}
+
+enum AIRunStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum ReviewActionType {
+  SUBMITTED_FOR_REVIEW
+  APPROVED
+  REQUESTED_CHANGES
+  RESUBMITTED
+  UNLOCKED
+  REVISED
+}
+
+enum ActivityEventType {
+  ESTIMATE_CREATED
+  ESTIMATE_UPDATED
+  ESTIMATE_DELETED
+  ESTIMATE_STATUS_CHANGED
+  LINE_ITEM_CREATED
+  LINE_ITEM_UPDATED
+  LINE_ITEM_DELETED
+  LINE_ITEM_FLAGGED
+  SOURCE_INPUT_ADDED
+  SOURCE_INPUT_REMOVED
+  AI_RUN_SUCCEEDED
+  AI_RUN_FAILED
+  ESTIMATE_SUBMITTED_FOR_REVIEW
+  ESTIMATE_APPROVED
+  ESTIMATE_CHANGES_REQUESTED
+  ESTIMATE_SENT
+  ESTIMATE_WON
+  ESTIMATE_LOST
+  ESTIMATE_REVISED
+  ESTIMATE_EXPORTED
+  COMMENT_ADDED
+  COMMENT_RESOLVED
+  USER_INVITED
+  USER_JOINED
+  USER_ROLE_CHANGED
+  USER_DEACTIVATED
+  PRICEBOOK_ENTRY_CREATED
+  PRICEBOOK_ENTRY_UPDATED
+  PRICEBOOK_BULK_IMPORTED
+}
+
+enum NotificationType {
+  ESTIMATE_ASSIGNED
+  REVIEW_REQUESTED
+  REVIEW_APPROVED
+  REVIEW_CHANGES_REQUESTED
+  COMMENT_MENTION
+  ESTIMATE_WON
+  ESTIMATE_LOST
+  AI_RUN_FAILED
+  INVITATION_ACCEPTED
+}
+
+// ─── Models ─────────────────────────────────────────────────────────────────
+
+model Organization {
+  id        String    @id @default(cuid())
+  name      String
+  slug      String    @unique
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  settings            OrgSettings?
+  users               User[]
+  invitations         Invitation[]
+  estimates           Estimate[]
+  priceBooks          PriceBook[]
+  priceBookCategories PriceBookCategory[]
+  priceBookEntries    PriceBookEntry[]
+  markupRules         MarkupRule[]
+  scopeSections       ScopeSection[]
+  lineItems           LineItem[]
+  sourceInputs        SourceInput[]
+  snapshots           EstimateSnapshot[]
+  exports             EstimateExport[]
+  conversations       AIConversation[]
+  messages            AIMessage[]
+  runs                AIRun[]
+  comments            Comment[]
+  reviewActions       ReviewAction[]
+  activityEvents      ActivityEvent[]
+  notifications       Notification[]
+
+  @@index([deletedAt])
+}
+
+model OrgSettings {
+  id                   String       @id @default(cuid())
+  organizationId       String       @unique
+  organization         Organization @relation(fields: [organizationId], references: [id])
+  companyLegalName     String?
+  logoUrl              String?
+  primaryColorHex      String       @default("#1A1A1A")
+  contactPhone         String?
+  contactEmail         String?
+  addressLine1         String?
+  addressLine2         String?
+  city                 String?
+  state                String?
+  postalCode           String?
+  estimateNumberPrefix String
+  defaultMarkupPercent Decimal?     @db.Decimal(6, 4)
+  drafterCanSend       Boolean      @default(true)
+  timezone             String       @default("America/New_York")
+  monthlyAiCostCapUsd  Decimal?     @db.Decimal(10, 2)
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+}
+
+model User {
+  id              String       @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  email           String       @unique
+  emailVerifiedAt DateTime?
+  passwordHash    String
+  firstName       String
+  lastName        String
+  role            UserRole
+  avatarUrl       String?
+  lastLoginAt     DateTime?
+  isActive        Boolean      @default(true)
+  tokenVersion    Int          @default(0)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  deletedAt       DateTime?
+
+  draftedEstimates    Estimate[]         @relation("drafter")
+  reviewedEstimates   Estimate[]         @relation("reviewer")
+  invitationsSent     Invitation[]       @relation("inviter")
+  invitationsAccepted Invitation[]       @relation("acceptee")
+  sourceInputsAdded   SourceInput[]
+  reviewActions       ReviewAction[]
+  comments            Comment[]
+  commentsResolved    Comment[]          @relation("resolver")
+  activityEvents      ActivityEvent[]
+  notifications       Notification[]
+  exports             EstimateExport[]
+  snapshots           EstimateSnapshot[]
+  aiMessages          AIMessage[]
+  aiRuns              AIRun[]
+
+  @@index([organizationId])
+  @@index([organizationId, role])
+}
+
+model Invitation {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  email          String
+  role           UserRole
+  token          String       @unique
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  revokedAt      DateTime?
+  invitedById    String
+  invitedBy      User         @relation("inviter", fields: [invitedById], references: [id])
+  acceptedUserId String?
+  acceptedUser   User?        @relation("acceptee", fields: [acceptedUserId], references: [id])
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId, email])
+  @@index([expiresAt])
+}
+
+model Estimate {
+  id                  String         @id @default(cuid())
+  organizationId      String
+  organization        Organization   @relation(fields: [organizationId], references: [id])
+  number              String
+  title               String
+  description         String?        @db.Text
+  status              EstimateStatus @default(DRAFT)
+  drafterId           String
+  drafter             User           @relation("drafter", fields: [drafterId], references: [id])
+  reviewerId          String?
+  reviewer            User?          @relation("reviewer", fields: [reviewerId], references: [id])
+  coachDealId         String?
+  coachCompanyId      String?
+  clientCompanyName   String?
+  clientContactName   String?
+  clientContactEmail  String?
+  clientContactPhone  String?
+  projectAddressLine1 String?
+  projectAddressLine2 String?
+  projectCity         String?
+  projectState        String?
+  projectPostalCode   String?
+  totalCost           Decimal        @default(0) @db.Decimal(12, 2)
+  totalMarkup         Decimal        @default(0) @db.Decimal(12, 2)
+  totalSellPrice      Decimal        @default(0) @db.Decimal(12, 2)
+  validUntil          DateTime?
+  sentAt              DateTime?
+  wonAt               DateTime?
+  lostAt              DateTime?
+  lostReason          String?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  deletedAt           DateTime?
+
+  scopeSections  ScopeSection[]
+  lineItems      LineItem[]
+  sourceInputs   SourceInput[]
+  snapshots      EstimateSnapshot[]
+  exports        EstimateExport[]
+  comments       Comment[]
+  reviewActions  ReviewAction[]
+  activityEvents ActivityEvent[]
+  conversation   AIConversation?
+  aiRuns         AIRun[]
+
+  @@unique([organizationId, number])
+  @@index([organizationId, status])
+  @@index([organizationId, drafterId])
+  @@index([organizationId, reviewerId])
+  @@index([coachDealId])
+}
+
+model ScopeSection {
+  id             String             @id @default(cuid())
+  organizationId String
+  organization   Organization       @relation(fields: [organizationId], references: [id])
+  estimateId     String
+  estimate       Estimate           @relation(fields: [estimateId], references: [id])
+  name           String
+  description    String?            @db.Text
+  categoryId     String?
+  category       PriceBookCategory? @relation(fields: [categoryId], references: [id])
+  markupPercent  Decimal?           @db.Decimal(6, 4)
+  order          Int
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  deletedAt      DateTime?
+
+  lineItems LineItem[]
+
+  @@index([estimateId, order])
+}
+
+model LineItem {
+  id                  String          @id @default(cuid())
+  organizationId      String
+  organization        Organization    @relation(fields: [organizationId], references: [id])
+  estimateId          String
+  estimate            Estimate        @relation(fields: [estimateId], references: [id])
+  scopeSectionId      String
+  scopeSection        ScopeSection    @relation(fields: [scopeSectionId], references: [id])
+  priceBookEntryId    String?
+  priceBookEntry      PriceBookEntry? @relation(fields: [priceBookEntryId], references: [id])
+  sourceRunId         String?
+  sourceRun           AIRun?          @relation(fields: [sourceRunId], references: [id])
+  description         String          @db.Text
+  quantity            Decimal         @default(1) @db.Decimal(12, 4)
+  unitOfMeasure       UnitOfMeasure
+  customUnitOfMeasure String?
+  unitCostMaterial    Decimal         @default(0) @db.Decimal(12, 4)
+  unitCostLabor       Decimal         @default(0) @db.Decimal(12, 4)
+  markupPercent       Decimal         @db.Decimal(6, 4)
+  lineCost            Decimal         @db.Decimal(12, 2)
+  lineSellPrice       Decimal         @db.Decimal(12, 2)
+  status              LineItemStatus  @default(DRAFT)
+  source              LineItemSource
+  aiConfidence        Decimal?        @db.Decimal(4, 3)
+  aiAssumption        String?         @db.Text
+  subQuoteFrom        String?
+  subQuoteReceivedAt  DateTime?
+  internalNotes       String?         @db.Text
+  clientNotes         String?         @db.Text
+  order               Int
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  deletedAt           DateTime?
+
+  comments Comment[]
+
+  @@index([scopeSectionId, order])
+  @@index([estimateId, status])
+  @@index([organizationId, priceBookEntryId])
+}
+
+model EstimateSnapshot {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  estimateId     String
+  estimate       Estimate     @relation(fields: [estimateId], references: [id])
+  snapshotType   SnapshotType
+  sequence       Int
+  createdById    String
+  createdBy      User         @relation(fields: [createdById], references: [id])
+  estimateData   Json
+  totalCost      Decimal      @db.Decimal(12, 2)
+  totalMarkup    Decimal      @db.Decimal(12, 2)
+  totalSellPrice Decimal      @db.Decimal(12, 2)
+  createdAt      DateTime     @default(now())
+
+  exports EstimateExport[]
+
+  @@index([estimateId, sequence])
+  @@index([estimateId, snapshotType])
+}
+
+model SourceInput {
+  id             String          @id @default(cuid())
+  organizationId String
+  organization   Organization    @relation(fields: [organizationId], references: [id])
+  estimateId     String
+  estimate       Estimate        @relation(fields: [estimateId], references: [id])
+  type           SourceInputType
+  title          String
+  content        String?         @db.Text
+  fileUrl        String?
+  fileMimeType   String?
+  fileSizeBytes  Int?
+  externalRefId  String?
+  externalRefUrl String?
+  addedById      String
+  addedBy        User            @relation(fields: [addedById], references: [id])
+  createdAt      DateTime        @default(now())
+  deletedAt      DateTime?
+
+  @@index([estimateId, type])
+  @@index([organizationId, type])
+}
+
+model EstimateExport {
+  id             String           @id @default(cuid())
+  organizationId String
+  organization   Organization     @relation(fields: [organizationId], references: [id])
+  estimateId     String
+  estimate       Estimate         @relation(fields: [estimateId], references: [id])
+  snapshotId     String
+  snapshot       EstimateSnapshot @relation(fields: [snapshotId], references: [id])
+  exportedById   String
+  exportedBy     User             @relation(fields: [exportedById], references: [id])
+  format         ExportFormat
+  fileUrl        String
+  fileSizeBytes  Int
+  pdfOptions     Json?
+  createdAt      DateTime         @default(now())
+
+  @@index([estimateId, createdAt])
+}
+
+model PriceBook {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  name           String
+  description    String?      @db.Text
+  isDefault      Boolean      @default(false)
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  deletedAt      DateTime?
+
+  categories  PriceBookCategory[]
+  entries     PriceBookEntry[]
+  markupRules MarkupRule[]
+
+  @@index([organizationId, isDefault])
+}
+
+model PriceBookCategory {
+  id                   String       @id @default(cuid())
+  organizationId       String
+  organization         Organization @relation(fields: [organizationId], references: [id])
+  priceBookId          String
+  priceBook            PriceBook    @relation(fields: [priceBookId], references: [id])
+  name                 String
+  description          String?      @db.Text
+  csiDivision          String?
+  defaultMarkupPercent Decimal?     @db.Decimal(6, 4)
+  order                Int
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+  deletedAt            DateTime?
+
+  entries       PriceBookEntry[]
+  scopeSections ScopeSection[]
+
+  @@index([priceBookId, order])
+  @@index([organizationId, name])
+}
+
+model PriceBookEntry {
+  id                   String            @id @default(cuid())
+  organizationId       String
+  organization         Organization      @relation(fields: [organizationId], references: [id])
+  priceBookId          String
+  priceBook            PriceBook         @relation(fields: [priceBookId], references: [id])
+  categoryId           String
+  category             PriceBookCategory @relation(fields: [categoryId], references: [id])
+  code                 String?
+  description          String            @db.Text
+  longDescription      String?           @db.Text
+  unitOfMeasure        UnitOfMeasure
+  customUnitOfMeasure  String?
+  unitCostMaterial     Decimal           @default(0) @db.Decimal(12, 4)
+  unitCostLabor        Decimal           @default(0) @db.Decimal(12, 4)
+  defaultMarkupPercent Decimal?          @db.Decimal(6, 4)
+  aiKeywords           String?           @db.Text
+  isActive             Boolean           @default(true)
+  lastUsedAt           DateTime?
+  usageCount           Int               @default(0)
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  deletedAt            DateTime?
+
+  lineItems LineItem[]
+
+  @@unique([organizationId, code])
+  @@index([priceBookId, categoryId])
+  @@index([organizationId, usageCount])
+}
+
+model MarkupRule {
+  id             String          @id @default(cuid())
+  organizationId String
+  organization   Organization    @relation(fields: [organizationId], references: [id])
+  priceBookId    String?
+  priceBook      PriceBook?      @relation(fields: [priceBookId], references: [id])
+  name           String
+  appliesTo      MarkupRuleScope
+  matchValue     String
+  markupPercent  Decimal         @db.Decimal(6, 4)
+  priority       Int
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  deletedAt      DateTime?
+
+  @@index([organizationId, isActive, priority])
+}
+
+model AIConversation {
+  id                String       @id @default(cuid())
+  organizationId    String
+  organization      Organization @relation(fields: [organizationId], references: [id])
+  estimateId        String       @unique
+  estimate          Estimate     @relation(fields: [estimateId], references: [id])
+  modelVersion      String
+  totalTokensInput  Int          @default(0)
+  totalTokensOutput Int          @default(0)
+  totalCostUsd      Decimal      @default(0) @db.Decimal(12, 4)
+  lastMessageAt     DateTime?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  messages AIMessage[]
+  runs     AIRun[]
+}
+
+model AIMessage {
+  id             String         @id @default(cuid())
+  organizationId String
+  organization   Organization   @relation(fields: [organizationId], references: [id])
+  conversationId String
+  conversation   AIConversation @relation(fields: [conversationId], references: [id])
+  role           AIMessageRole
+  authorUserId   String?
+  authorUser     User?          @relation(fields: [authorUserId], references: [id])
+  content        String         @db.Text
+  tokensInput    Int?
+  tokensOutput   Int?
+  costUsd        Decimal?       @db.Decimal(10, 6)
+  toolCalls      Json?
+  runId          String?
+  run            AIRun?         @relation(fields: [runId], references: [id])
+  order          Int
+  createdAt      DateTime       @default(now())
+
+  @@index([conversationId, order])
+  @@index([conversationId, createdAt])
+}
+
+model AIRun {
+  id             String         @id @default(cuid())
+  organizationId String
+  organization   Organization   @relation(fields: [organizationId], references: [id])
+  conversationId String
+  conversation   AIConversation @relation(fields: [conversationId], references: [id])
+  estimateId     String
+  estimate       Estimate       @relation(fields: [estimateId], references: [id])
+  triggeredById  String
+  triggeredBy    User           @relation(fields: [triggeredById], references: [id])
+  runType        AIRunType
+  status         AIRunStatus
+  inputs         Json
+  outputs        Json?
+  errorMessage   String?        @db.Text
+  modelVersion   String
+  tokensInput    Int?
+  tokensOutput   Int?
+  costUsd        Decimal?       @db.Decimal(10, 6)
+  durationMs     Int?
+  createdAt      DateTime       @default(now())
+  completedAt    DateTime?
+
+  messages  AIMessage[]
+  lineItems LineItem[]
+
+  @@index([estimateId, createdAt])
+  @@index([organizationId, runType, status])
+  @@index([organizationId, createdAt])
+}
+
+model Comment {
+  id              String       @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  estimateId      String
+  estimate        Estimate     @relation(fields: [estimateId], references: [id])
+  lineItemId      String?
+  lineItem        LineItem?    @relation(fields: [lineItemId], references: [id])
+  authorId        String
+  author          User         @relation(fields: [authorId], references: [id])
+  body            String       @db.Text
+  isResolved      Boolean      @default(false)
+  resolvedById    String?
+  resolvedBy      User?        @relation("resolver", fields: [resolvedById], references: [id])
+  resolvedAt      DateTime?
+  parentCommentId String?
+  parent          Comment?     @relation("thread", fields: [parentCommentId], references: [id])
+  replies         Comment[]    @relation("thread")
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  deletedAt       DateTime?
+
+  @@index([estimateId, createdAt])
+  @@index([lineItemId, isResolved])
+  @@index([organizationId, isResolved, createdAt])
+}
+
+model ReviewAction {
+  id             String           @id @default(cuid())
+  organizationId String
+  organization   Organization     @relation(fields: [organizationId], references: [id])
+  estimateId     String
+  estimate       Estimate         @relation(fields: [estimateId], references: [id])
+  actorId        String
+  actor          User             @relation(fields: [actorId], references: [id])
+  actionType     ReviewActionType
+  note           String?          @db.Text
+  fromStatus     EstimateStatus
+  toStatus       EstimateStatus
+  snapshotId     String?
+  createdAt      DateTime         @default(now())
+
+  @@index([estimateId, createdAt])
+  @@index([organizationId, actorId, createdAt])
+}
+
+model ActivityEvent {
+  id             String            @id @default(cuid())
+  organizationId String
+  organization   Organization      @relation(fields: [organizationId], references: [id])
+  actorId        String?
+  actor          User?             @relation(fields: [actorId], references: [id])
+  eventType      ActivityEventType
+  entityType     String
+  entityId       String
+  estimateId     String?
+  estimate       Estimate?         @relation(fields: [estimateId], references: [id])
+  summary        String
+  meta           Json?
+  createdAt      DateTime          @default(now())
+
+  @@index([organizationId, createdAt])
+  @@index([estimateId, createdAt])
+  @@index([organizationId, actorId, createdAt])
+  @@index([organizationId, eventType, createdAt])
+}
+
+model Notification {
+  id             String           @id @default(cuid())
+  organizationId String
+  organization   Organization     @relation(fields: [organizationId], references: [id])
+  recipientId    String
+  recipient      User             @relation(fields: [recipientId], references: [id])
+  type           NotificationType
+  title          String
+  body           String?          @db.Text
+  entityType     String?
+  entityId       String?
+  emailSent      Boolean          @default(false)
+  emailSentAt    DateTime?
+  readAt         DateTime?
+  createdAt      DateTime         @default(now())
+
+  @@index([recipientId, readAt, createdAt])
+  @@index([organizationId, type, createdAt])
 }
