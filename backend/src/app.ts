@@ -11,6 +11,7 @@ import { requestLogger } from './middleware/requestLogger.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { healthRouter } from './routes/health.js';
 import { authRouter } from './routes/auth.js';
+import { usersRouter } from './routes/users.js';
 
 export function createApp(): Express {
   const app = express();
@@ -23,6 +24,7 @@ export function createApp(): Express {
   // Routes
   app.use(healthRouter);
   app.use('/api/auth', authRouter);
+  app.use('/api/users', usersRouter);
 
   app.get('/', (_req, res) => {
     res.json({ app: 'Quill', status: 'ok' });
