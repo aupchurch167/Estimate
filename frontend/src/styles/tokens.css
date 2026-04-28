@@ -1,0 +1,33 @@
+/**
+ * Quill design tokens — brief Section 9.
+ *
+ * Source of truth for color, type, spacing, and rule weights. Tailwind reads
+ * these via CSS variables (see tailwind.config.js) so the same names work in
+ * both Tailwind utilities and hand-authored CSS.
+ */
+
+:root {
+  /* Color */
+  --color-paper: #ede7d6;
+  --color-paper-elevated: #fdfaf0;
+  --color-ink: #1a1a1a;
+  --color-ink-inverse: #ede7d6;
+  --color-dim: #6b6b67;
+  --color-grid-line: rgba(0, 0, 0, 0.045);
+  --color-rule: rgba(0, 0, 0, 0.3);
+  --color-rule-soft: rgba(0, 0, 0, 0.15);
+  --color-blueprint: #1d3d6b;
+  --color-mark-red: #b5412b;
+  --color-mark-amber: #9e6f0f;
+  --color-mark-green: #2d7a4f;
+
+  /* Type */
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono:
+    'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Rule weights */
+  --rule-width-thin: 0.5px;
+  --rule-width-default: 1px;
+  --rule-width-strong: 1.5px;
+}
