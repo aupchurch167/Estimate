@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import * as controller from '../controllers/estimateController.js';
+import * as commentController from '../controllers/commentController.js';
 import { requireAuth } from '../middleware/requireAuth.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 
@@ -19,3 +20,16 @@ estimatesRouter.post('/:id/submit', asyncHandler(controller.submitForReview));
 estimatesRouter.post('/:id/approve', asyncHandler(controller.approveEstimate));
 estimatesRouter.post('/:id/request-changes', asyncHandler(controller.requestChanges));
 estimatesRouter.post('/:id/unlock', asyncHandler(controller.unlockEstimate));
+
+// Comments + activity feed (Phase 4.2)
+estimatesRouter.get('/:id/comments', asyncHandler(commentController.listForEstimate));
+estimatesRouter.post('/:id/comments', asyncHandler(commentController.createForEstimate));
+estimatesRouter.patch(
+  '/:id/comments/:commentId',
+  asyncHandler(commentController.patchComment),
+);
+estimatesRouter.delete(
+  '/:id/comments/:commentId',
+  asyncHandler(commentController.deleteComment),
+);
+estimatesRouter.get('/:id/activity', asyncHandler(commentController.listActivity));

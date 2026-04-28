@@ -1,0 +1,189 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { AxiosError } from 'axios';
+import { api } from '@/lib/api';
+import { estimateDetailKey } from '@/features/estimates/useEstimates';
+import type { ActivityEvent, Comment, ReviewAction } from './types';
+
+export const reviewActionsKey = (estimateId: string) =>
+  ['estimates', 'detail', estimateId, 'review-actions'] as const;
+export const commentsKey = (estimateId: string) =>
+  ['estimates', 'detail', estimateId, 'comments'] as const;
+export const activityKey = (estimateId: string) =>
+  ['estimates', 'detail', estimateId, 'activity'] as const;
+
+// ─── Read queries ─────────────────────────────────────────────────────────
+
+export function useReviewActions(estimateId: string | undefined) {
+  return useQuery<{ reviewActions: ReviewAction[] }, AxiosError>({
+    queryKey: estimateId ? reviewActionsKey(estimateId) : ['review-actions', '_'],
+    queryFn: async () => {
+      const res = await api.get<{ reviewActions: ReviewAction[] }>(
+        `/api/estimates/${estimateId}/review-actions`,
+      );
+      return res.data;
+    },
+    enabled: Boolean(estimateId),
+  });
+}
+
+export function useComments(estimateId: string | undefined) {
+  return useQuery<{ comments: Comment[] }, AxiosError>({
+    queryKey: estimateId ? commentsKey(estimateId) : ['comments', '_'],
+    queryFn: async () => {
+      const res = await api.get<{ comments: Comment[] }>(
+        `/api/estimates/${estimateId}/comments`,
+      );
+      return res.data;
+    },
+    enabled: Boolean(estimateId),
+  });
+}
+
+export function useActivity(estimateId: string | undefined) {
+  return useQuery<{ events: ActivityEvent[] }, AxiosError>({
+    queryKey: estimateId ? activityKey(estimateId) : ['activity', '_'],
+    queryFn: async () => {
+      const res = await api.get<{ events: ActivityEvent[] }>(
+        `/api/estimates/${estimateId}/activity`,
+      );
+      return res.data;
+    },
+    enabled: Boolean(estimateId),
+  });
+}
+
+// ─── Comment mutations ────────────────────────────────────────────────────
+
+interface CreateCommentInput {
+  body: string;
+  lineItemId?: string | null;
+}
+
+export function useCreateComment(estimateId: string) {
+  const qc = useQueryClient();
+  return useMutation<{ comment: Comment }, AxiosError, CreateCommentInput>({
+    mutationFn: async (input) => {
+      const res = await api.post<{ comment: Comment }>(
+        `/api/estimates/${estimateId}/comments`,
+        input,
+      );
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: commentsKey(estimateId) });
+      qc.invalidateQueries({ queryKey: activityKey(estimateId) });
+    },
+  });
+}
+
+export function useResolveComment(estimateId: string) {
+  const qc = useQueryClient();
+  return useMutation<
+    { comment: Comment },
+    AxiosError,
+    { commentId: string; isResolved: boolean }
+  >({
+    mutationFn: async ({ commentId, isResolved }) => {
+      const res = await api.patch<{ comment: Comment }>(
+        `/api/estimates/${estimateId}/comments/${commentId}`,
+        { isResolved },
+      );
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: commentsKey(estimateId) });
+      qc.invalidateQueries({ queryKey: activityKey(estimateId) });
+    },
+  });
+}
+
+export function useDeleteComment(estimateId: string) {
+  const qc = useQueryClient();
+  return useMutation<void, AxiosError, { commentId: string }>({
+    mutationFn: async ({ commentId }) => {
+      await api.delete(`/api/estimates/${estimateId}/comments/${commentId}`);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: commentsKey(estimateId) });
+    },
+  });
+}
+
+// ─── Review-workflow mutations (Phase 4.3 uses these) ─────────────────────
+
+export interface TransitionResult {
+  estimate: { id: string; status: string };
+  reviewAction: ReviewAction;
+}
+
+function review(estimateId: string, action: 'submit' | 'approve' | 'request-changes' | 'unlock') {
+  return async (body: { note?: string | null; reviewerId?: string | null } = {}) => {
+    const res = await api.post<TransitionResult>(
+      `/api/estimates/${estimateId}/${action}`,
+      body,
+    );
+    return res.data;
+  };
+}
+
+function transitionMutation(
+  estimateId: string,
+  action: 'submit' | 'approve' | 'request-changes' | 'unlock',
+) {
+  return {
+    mutationFn: review(estimateId, action),
+    onSuccessKeys: [
+      estimateDetailKey(estimateId),
+      reviewActionsKey(estimateId),
+      activityKey(estimateId),
+    ],
+  };
+}
+
+export function useSubmitForReview(estimateId: string) {
+  const qc = useQueryClient();
+  const cfg = transitionMutation(estimateId, 'submit');
+  return useMutation<
+    TransitionResult,
+    AxiosError,
+    { note?: string | null; reviewerId?: string | null } | void
+  >({
+    mutationFn: async (body) => cfg.mutationFn(body ?? {}),
+    onSuccess: () => {
+      cfg.onSuccessKeys.forEach((k) => qc.invalidateQueries({ queryKey: k }));
+    },
+  });
+}
+
+export function useApproveEstimate(estimateId: string) {
+  const qc = useQueryClient();
+  const cfg = transitionMutation(estimateId, 'approve');
+  return useMutation<TransitionResult, AxiosError, { note?: string | null } | void>({
+    mutationFn: async (body) => cfg.mutationFn(body ?? {}),
+    onSuccess: () => {
+      cfg.onSuccessKeys.forEach((k) => qc.invalidateQueries({ queryKey: k }));
+    },
+  });
+}
+
+export function useRequestChanges(estimateId: string) {
+  const qc = useQueryClient();
+  const cfg = transitionMutation(estimateId, 'request-changes');
+  return useMutation<TransitionResult, AxiosError, { note: string }>({
+    mutationFn: async (body) => cfg.mutationFn(body),
+    onSuccess: () => {
+      cfg.onSuccessKeys.forEach((k) => qc.invalidateQueries({ queryKey: k }));
+    },
+  });
+}
+
+export function useUnlockEstimate(estimateId: string) {
+  const qc = useQueryClient();
+  const cfg = transitionMutation(estimateId, 'unlock');
+  return useMutation<TransitionResult, AxiosError, { note?: string | null } | void>({
+    mutationFn: async (body) => cfg.mutationFn(body ?? {}),
+    onSuccess: () => {
+      cfg.onSuccessKeys.forEach((k) => qc.invalidateQueries({ queryKey: k }));
+    },
+  });
+}

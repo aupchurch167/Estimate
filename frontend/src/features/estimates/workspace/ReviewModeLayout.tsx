@@ -1,5 +1,6 @@
 import { TitleBlock } from './TitleBlock';
 import { LineItemGrid } from '@/features/estimates/grid/LineItemGrid';
+import { RightRail } from '@/features/estimates/review/RightRail';
 import type { EstimateDetail, EstimateStatus } from '@/features/estimates/types';
 
 interface ReviewModeLayoutProps {
@@ -62,35 +63,10 @@ export function ReviewModeLayout({ estimate, readOnly, modeSwitch }: ReviewModeL
             </div>
           </section>
 
-          <aside className="border border-rule bg-paper-elevated">
-            <nav className="grid grid-cols-3 border-b border-rule-soft">
-              <Tab label="Assumptions" active />
-              <Tab label="Comments" />
-              <Tab label="Activity" />
-            </nav>
-            <div className="p-4">
-              <p className="font-mono text-[10px] uppercase tracking-label text-dim">
-                Right rail content lands in 4.2 (assumptions / comments / activity).
-              </p>
-            </div>
-          </aside>
+          <RightRail estimate={estimate} readOnly={readOnly} />
         </div>
       </main>
     </div>
-  );
-}
-
-function Tab({ label, active }: { label: string; active?: boolean }) {
-  return (
-    <button
-      type="button"
-      disabled
-      className={`border-r border-rule-soft py-2 font-mono text-[10px] uppercase tracking-label last:border-r-0 ${
-        active ? 'bg-paper text-ink' : 'text-dim'
-      }`}
-    >
-      {label}
-    </button>
   );
 }
 
