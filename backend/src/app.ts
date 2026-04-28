@@ -22,6 +22,7 @@ import {
   markupRulesRouter,
   priceBooksRouter,
 } from './routes/pricing.js';
+import { estimatesRouter } from './routes/estimates.js';
 
 export function createApp(): Express {
   const app = express();
@@ -51,6 +52,7 @@ export function createApp(): Express {
   app.use('/api/categories', categoriesRouter);
   app.use('/api/entries', entriesRouter);
   app.use('/api/markup-rules', markupRulesRouter);
+  app.use('/api/estimates', estimatesRouter);
 
   app.get('/', (_req, res) => {
     res.json({ app: 'Quill', status: 'ok' });
