@@ -7,7 +7,7 @@ import { SettingsPage } from '@/pages/Settings';
 import { TeamPage } from '@/pages/Team';
 import { PricingPage } from '@/pages/Pricing';
 import { EstimatesPage } from '@/pages/Estimates';
-import { EstimateWorkspacePlaceholder } from '@/pages/EstimateWorkspacePlaceholder';
+import { EstimateWorkspace } from '@/pages/EstimateWorkspace';
 import { InvitationAcceptPage } from '@/pages/InvitationAccept';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { PublicRoute } from '@/components/PublicRoute';
@@ -83,7 +83,7 @@ export default function App() {
         path="/app/estimates/:id"
         element={
           <ProtectedRoute>
-            <EstimateWorkspacePlaceholder />
+            <EstimateWorkspace />
           </ProtectedRoute>
         }
       />

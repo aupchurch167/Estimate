@@ -3,11 +3,25 @@ import type { AxiosError } from 'axios';
 import { api } from '@/lib/api';
 import type {
   Estimate,
+  EstimateDetail,
   EstimateStatus,
   PaginatedEstimates,
 } from './types';
 
 export const ESTIMATES_QUERY_KEY = ['estimates'] as const;
+export const estimateDetailKey = (id: string) => ['estimates', 'detail', id] as const;
+
+export function useEstimateDetail(id: string | undefined) {
+  return useQuery<EstimateDetail, AxiosError>({
+    queryKey: id ? estimateDetailKey(id) : ['estimates', 'detail', '_'],
+    queryFn: async () => {
+      const res = await api.get<{ estimate: EstimateDetail }>(`/api/estimates/${id}`);
+      return res.data.estimate;
+    },
+    enabled: Boolean(id),
+    retry: false,
+  });
+}
 
 export interface ListEstimatesArgs {
   status?: EstimateStatus[];

@@ -54,3 +54,50 @@ export interface PaginatedEstimates {
   pageSize: number;
   totalPages: number;
 }
+
+// ─── Workspace detail (GET /api/estimates/:id) ────────────────────────────
+
+export interface ScopeSection {
+  id: string;
+  estimateId: string;
+  name: string;
+  description: string | null;
+  order: number;
+  markupPercent: string | null;
+}
+
+export interface LineItem {
+  id: string;
+  estimateId: string;
+  scopeSectionId: string;
+  description: string;
+  quantity: string;
+  unitOfMeasure: string;
+  unitCostMaterial: string;
+  unitCostLabor: string;
+  markupPercent: string;
+  lineCost: string;
+  lineSellPrice: string;
+  status: string;
+  source: string;
+  aiConfidence: string | null;
+  aiAssumption: string | null;
+  order: number;
+}
+
+export interface SourceInput {
+  id: string;
+  estimateId: string;
+  type: string;
+  title: string;
+  content: string | null;
+  fileUrl: string | null;
+  createdAt: string;
+}
+
+export interface EstimateDetail extends Estimate {
+  scopeSections: ScopeSection[];
+  lineItems: LineItem[];
+  sourceInputs: SourceInput[];
+  conversation: { id: string } | null;
+}
