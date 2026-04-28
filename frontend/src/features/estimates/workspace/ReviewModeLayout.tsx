@@ -1,6 +1,10 @@
 import { TitleBlock } from './TitleBlock';
 import { LineItemGrid } from '@/features/estimates/grid/LineItemGrid';
 import { RightRail } from '@/features/estimates/review/RightRail';
+import {
+  ReviewerActions,
+  UnlockButton,
+} from '@/features/estimates/review/ReviewActions';
 import type { EstimateDetail, EstimateStatus } from '@/features/estimates/types';
 
 interface ReviewModeLayoutProps {
@@ -20,26 +24,12 @@ export function ReviewModeLayout({ estimate, readOnly, modeSwitch }: ReviewModeL
           <>
             {modeSwitch}
             {readOnly ? (
-              <ReadOnlyActions status={estimate.status} />
-            ) : (
               <>
-                <button
-                  type="button"
-                  disabled
-                  title="Approve action lands in Phase 4.3"
-                  className="border border-mark-green bg-mark-green/10 px-4 py-2 font-mono text-[11px] uppercase tracking-label text-mark-green hover:bg-mark-green hover:text-ink-inverse disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  Approve
-                </button>
-                <button
-                  type="button"
-                  disabled
-                  title="Request changes lands in Phase 4.3"
-                  className="border border-mark-red px-4 py-2 font-mono text-[11px] uppercase tracking-label text-mark-red hover:bg-mark-red hover:text-ink-inverse disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  Request changes
-                </button>
+                <UnlockButton estimate={estimate} />
+                <ReadOnlyActions status={estimate.status} />
               </>
+            ) : (
+              <ReviewerActions estimate={estimate} />
             )}
           </>
         }

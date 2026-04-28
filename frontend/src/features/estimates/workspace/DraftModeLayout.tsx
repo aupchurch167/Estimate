@@ -2,6 +2,7 @@ import { TitleBlock } from './TitleBlock';
 import { SourcesPanel } from './SourcesPanel';
 import { ConversationPanel } from './ConversationPanel';
 import { SchedulePanel } from './SchedulePanel';
+import { SubmitForReviewButton } from '@/features/estimates/review/ReviewActions';
 import type { EstimateDetail } from '@/features/estimates/types';
 
 interface DraftModeLayoutProps {
@@ -24,14 +25,7 @@ export function DraftModeLayout({ estimate, modeSwitch }: DraftModeLayoutProps) 
         actions={
           <>
             {modeSwitch}
-            <button
-              type="button"
-              disabled
-              title="State transitions land in Phase 4.3"
-              className="border border-ink bg-ink px-4 py-2 font-mono text-[11px] uppercase tracking-label text-ink-inverse transition disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Submit for review
-            </button>
+            <SubmitForReviewButton estimate={estimate} />
           </>
         }
       />
