@@ -32,6 +32,7 @@ import {
   estimateSourcesRouter,
   sourceInputsRouter,
 } from './routes/sourceInputs.js';
+import { aiRunsRouter, estimateAiRouter } from './routes/aiRuns.js';
 
 export function createApp(): Express {
   const app = express();
@@ -69,6 +70,8 @@ export function createApp(): Express {
   app.use('/api/line-items', lineItemsRouter);
   app.use('/api/estimates', estimateSourcesRouter);
   app.use('/api/source-inputs', sourceInputsRouter);
+  app.use('/api/estimates', estimateAiRouter);
+  app.use('/api/ai-runs', aiRunsRouter);
 
   app.get('/', (_req, res) => {
     res.json({ app: 'Quill', status: 'ok' });
