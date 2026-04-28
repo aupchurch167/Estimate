@@ -1,22 +1,12 @@
 /**
- * Invitation email — drafting aesthetic ported to inline-styled HTML so it
- * renders consistently in mail clients. React Email handles the
- * cross-client compatibility; we keep the visual language consistent
- * with the in-app Login + Settings cards.
+ * Invitation email — drafting aesthetic in inline-styled HTML.
+ *
+ * We render this via @react-email/render but avoid @react-email/components
+ * because that package transitively pulls in prismjs, which has broken ESM
+ * exports on some Node + Windows combinations and crashes the server on
+ * cold start. Plain JSX with intrinsic elements + inline styles is enough
+ * for a single transactional email and renders cleanly across mail clients.
  */
-
-import {
-  Body,
-  Button,
-  Container,
-  Head,
-  Heading,
-  Hr,
-  Html,
-  Preview,
-  Section,
-  Text,
-} from '@react-email/components';
 
 export interface InvitationEmailProps {
   orgName: string;
@@ -50,10 +40,12 @@ export function InvitationEmail({
   const expiresHuman = new Date(expiresAt).toUTCString();
 
   return (
-    <Html>
-      <Head />
-      <Preview>{inviterName} invited you to join {orgName} on Quill.</Preview>
-      <Body
+    <html lang="en">
+      <head>
+        <meta charSet="utf-8" />
+        <title>Quill invitation</title>
+      </head>
+      <body
         style={{
           backgroundColor: PAPER,
           fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
@@ -62,7 +54,7 @@ export function InvitationEmail({
           padding: '32px 0',
         }}
       >
-        <Container
+        <div
           style={{
             backgroundColor: PAPER_ELEVATED,
             border: `1px solid ${INK}`,
@@ -71,7 +63,7 @@ export function InvitationEmail({
             padding: '32px',
           }}
         >
-          <Heading
+          <h1
             style={{
               ...monoUpper,
               color: INK,
@@ -82,25 +74,32 @@ export function InvitationEmail({
             }}
           >
             Quill
-          </Heading>
-          <Text style={{ ...monoUpper, marginTop: '4px', textAlign: 'center' }}>
+          </h1>
+          <p style={{ ...monoUpper, marginTop: '4px', marginBottom: 0, textAlign: 'center' }}>
             You're invited
-          </Text>
+          </p>
 
-          <Hr style={{ borderColor: RULE_SOFT, margin: '20px 0' }} />
+          <hr style={{ border: 0, borderTop: `1px solid ${RULE_SOFT}`, margin: '20px 0' }} />
 
-          <Text style={{ fontSize: '14px', lineHeight: 1.5, margin: 0 }}>
-            <strong>{inviterName}</strong> invited you to join{' '}
-            <strong>{orgName}</strong> on Quill as a{' '}
-            <strong>{role}</strong>.
-          </Text>
-          <Text style={{ fontSize: '13px', color: DIM, lineHeight: 1.5, marginTop: '12px' }}>
+          <p style={{ fontSize: '14px', lineHeight: 1.5, margin: 0 }}>
+            <strong>{inviterName}</strong> invited you to join <strong>{orgName}</strong> on Quill
+            as a <strong>{role}</strong>.
+          </p>
+          <p
+            style={{
+              fontSize: '13px',
+              color: DIM,
+              lineHeight: 1.5,
+              marginTop: '12px',
+              marginBottom: 0,
+            }}
+          >
             Quill is an estimating workspace for commercial construction. Accepting will create
             your account and log you in.
-          </Text>
+          </p>
 
-          <Section style={{ marginTop: '24px', textAlign: 'center' }}>
-            <Button
+          <div style={{ marginTop: '24px', textAlign: 'center' }}>
+            <a
               href={acceptUrl}
               style={{
                 ...monoUpper,
@@ -112,23 +111,30 @@ export function InvitationEmail({
               }}
             >
               Accept invitation →
-            </Button>
-          </Section>
+            </a>
+          </div>
 
-          <Text style={{ ...monoUpper, marginTop: '24px', textAlign: 'center' }}>
+          <p
+            style={{
+              ...monoUpper,
+              marginTop: '24px',
+              marginBottom: 0,
+              textAlign: 'center',
+            }}
+          >
             Expires {expiresHuman}
-          </Text>
+          </p>
 
-          <Hr style={{ borderColor: RULE_SOFT, margin: '20px 0' }} />
+          <hr style={{ border: 0, borderTop: `1px solid ${RULE_SOFT}`, margin: '20px 0' }} />
 
-          <Text style={{ fontSize: '11px', color: DIM, lineHeight: 1.5, margin: 0 }}>
+          <p style={{ fontSize: '11px', color: DIM, lineHeight: 1.5, margin: 0 }}>
             If the button doesn't work, paste this URL into your browser:
             <br />
             <span style={{ wordBreak: 'break-all' }}>{acceptUrl}</span>
-          </Text>
-        </Container>
-      </Body>
-    </Html>
+          </p>
+        </div>
+      </body>
+    </html>
   );
 }
 
