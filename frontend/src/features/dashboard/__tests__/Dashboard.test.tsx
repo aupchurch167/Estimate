@@ -89,6 +89,19 @@ function renderInClient() {
 }
 
 describe('Dashboard', () => {
+  it('pipeline cells link to the estimates list filtered by status', async () => {
+    setupApi({
+      ...emptyDashboard,
+      pipeline: {
+        ...emptyDashboard.pipeline,
+        counts: { ...emptyDashboard.pipeline.counts, IN_REVIEW: 2 },
+      },
+    });
+    renderInClient();
+    const cell = await screen.findByTestId('pipeline-cell-IN_REVIEW');
+    expect(cell.getAttribute('href')).toBe('/app/estimates?status=IN_REVIEW');
+  });
+
   it('renders pipeline counts and the dollar summary line', async () => {
     setupApi({
       ...emptyDashboard,

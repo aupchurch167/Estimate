@@ -112,6 +112,7 @@ export function ConversationPanel({ estimate }: { estimate: EstimateDetail }) {
                   message={m}
                   run={m.runId ? runById.get(m.runId) : undefined}
                   authorIsMe={m.authorUserId === user?.id}
+                  onRegenerate={!readOnly && !generate.isPending ? onGenerate : null}
                 />
               </li>
             ))}
@@ -208,13 +209,23 @@ function MessageBubble({
   message,
   run,
   authorIsMe,
+  onRegenerate,
 }: {
   message: AIMessage;
   run: AIRun | undefined;
   authorIsMe: boolean;
+  /** Re-run GENERATE_LINE_ITEMS. null when the action is not allowed
+   * (read-only estimate, generation already in flight). */
+  onRegenerate: (() => void) | null;
 }) {
   const isUser = message.role === 'USER';
   const stamp = formatStamp(message.createdAt);
+  const followupSuggested =
+    run?.status === 'SUCCEEDED' &&
+    run.runType === 'ASK_FOLLOWUP' &&
+    (run.outputs as { suggestedAction?: string } | null)?.suggestedAction ===
+      'regenerate_line_items';
+
   return (
     <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
       <p className="mb-1 font-mono text-[10px] uppercase tracking-label text-dim">
@@ -232,6 +243,21 @@ function MessageBubble({
         run.runType === 'GENERATE_LINE_ITEMS' &&
         run.outputs ? (
           <RunSummary output={run.outputs as GenerateLineItemsOutput} />
+        ) : null}
+        {followupSuggested && onRegenerate ? (
+          <div className="mt-3 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onRegenerate}
+              data-testid="followup-regenerate"
+              className="border border-ink bg-ink px-3 py-1 font-mono text-[10px] uppercase tracking-label text-ink-inverse hover:bg-ink/90"
+            >
+              Re-draft now
+            </button>
+            <span className="font-mono text-[10px] uppercase tracking-label text-dim">
+              Quill suggests regenerating
+            </span>
+          </div>
         ) : null}
       </div>
     </div>

@@ -386,6 +386,127 @@ describe('ConversationPanel — generate flow', () => {
     });
     expect(screen.queryByText(/lines/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/sections/i)).not.toBeInTheDocument();
+    // suggestedAction === 'none' → no Re-draft CTA.
+    expect(screen.queryByTestId('followup-regenerate')).not.toBeInTheDocument();
+  });
+
+  it('renders a "Re-draft now" CTA when an ASK_FOLLOWUP run sets suggestedAction=regenerate_line_items, and clicking it posts GENERATE_LINE_ITEMS', async () => {
+    setupApi(
+      {
+        conversation: { id: 'c1' },
+        messages: [
+          {
+            id: 'msg-a',
+            conversationId: 'c1',
+            role: 'ASSISTANT',
+            content: 'Yes — swapping to 2x2 ceiling tile changes the finish line.',
+            runId: 'run-ask-2',
+            authorUserId: null,
+            order: 0,
+            createdAt: '2026-04-28T00:00:00.000Z',
+          },
+        ],
+        runs: [
+          {
+            id: 'run-ask-2',
+            conversationId: 'c1',
+            estimateId: 'e1',
+            status: 'SUCCEEDED',
+            runType: 'ASK_FOLLOWUP',
+            outputs: {
+              assistantMessage: 'Yes — swapping to 2x2 ceiling tile changes the finish line.',
+              suggestedAction: 'regenerate_line_items',
+            },
+            inputs: {},
+            errorMessage: null,
+            modelVersion: 'claude-haiku-4-5-20251001',
+            tokensInput: 0,
+            tokensOutput: 0,
+            costUsd: '0',
+            durationMs: 0,
+            createdAt: '2026-04-28T00:00:00.000Z',
+            completedAt: '2026-04-28T00:00:01.000Z',
+            triggeredById: 'u1',
+          },
+        ],
+      },
+      async () => ({
+        data: {
+          runId: 'run-3',
+          scopeSummary: 'redrafted',
+          assumptions: [],
+          sectionsCreated: 1,
+          lineItemsCreated: 1,
+        },
+      }),
+    );
+    const user = userEvent.setup();
+    renderPanel(
+      buildEstimate({
+        sourceInputs: [
+          {
+            id: 's1',
+            estimateId: 'e1',
+            type: 'TRANSCRIPT',
+            title: 'W',
+            content: 'x',
+            fileUrl: null,
+            createdAt: '2026-04-28T00:00:00.000Z',
+          },
+        ],
+      }),
+    );
+    const cta = await screen.findByTestId('followup-regenerate');
+    await user.click(cta);
+    await waitFor(() => {
+      expect(mockedPost).toHaveBeenCalledWith('/api/estimates/e1/ai-runs', {
+        runType: 'GENERATE_LINE_ITEMS',
+      });
+    });
+  });
+
+  it('hides the "Re-draft now" CTA when the estimate is read-only (SENT/WON/LOST)', async () => {
+    setupApi({
+      conversation: { id: 'c1' },
+      messages: [
+        {
+          id: 'msg-a',
+          conversationId: 'c1',
+          role: 'ASSISTANT',
+          content: 'A',
+          runId: 'run-ask-3',
+          authorUserId: null,
+          order: 0,
+          createdAt: '2026-04-28T00:00:00.000Z',
+        },
+      ],
+      runs: [
+        {
+          id: 'run-ask-3',
+          conversationId: 'c1',
+          estimateId: 'e1',
+          status: 'SUCCEEDED',
+          runType: 'ASK_FOLLOWUP',
+          outputs: {
+            assistantMessage: 'A',
+            suggestedAction: 'regenerate_line_items',
+          },
+          inputs: {},
+          errorMessage: null,
+          modelVersion: 'claude-haiku-4-5-20251001',
+          tokensInput: 0,
+          tokensOutput: 0,
+          costUsd: '0',
+          durationMs: 0,
+          createdAt: '2026-04-28T00:00:00.000Z',
+          completedAt: '2026-04-28T00:00:01.000Z',
+          triggeredById: 'u1',
+        },
+      ],
+    });
+    renderPanel(buildEstimate({ status: 'SENT' }));
+    await screen.findByText(/^A$/);
+    expect(screen.queryByTestId('followup-regenerate')).not.toBeInTheDocument();
   });
 
   it('surfaces a friendly cost-cap error and shows a retry button', async () => {

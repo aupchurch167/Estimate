@@ -89,15 +89,17 @@ function PipelineStrip({ pipeline }: { pipeline: PipelineSummary }) {
       </header>
       <div className="grid grid-cols-2 gap-0 sm:grid-cols-4 lg:grid-cols-7">
         {cells.map((c) => (
-          <div
+          <Link
             key={c.label}
-            className="flex flex-col items-start gap-2 border-b border-rule-soft px-4 py-3 last:border-b-0 sm:border-r sm:[&:nth-child(4)]:border-r-0 lg:[&:nth-child(4)]:border-r lg:[&:nth-child(7)]:border-r-0"
+            to={c.status ? `/app/estimates?status=${c.status}` : '/app/estimates'}
+            data-testid={`pipeline-cell-${c.status ?? 'all'}`}
+            className="flex flex-col items-start gap-2 border-b border-rule-soft px-4 py-3 last:border-b-0 hover:bg-paper sm:border-r sm:[&:nth-child(4)]:border-r-0 lg:[&:nth-child(4)]:border-r lg:[&:nth-child(7)]:border-r-0"
           >
             <p className="font-mono text-[10px] uppercase tracking-label text-dim">
               {c.label}
             </p>
             <p className="font-mono text-[24px] tabular-nums text-ink">{c.value}</p>
-          </div>
+          </Link>
         ))}
       </div>
     </section>
