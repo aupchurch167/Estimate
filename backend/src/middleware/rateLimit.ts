@@ -13,7 +13,7 @@
  */
 
 import type { Request } from 'express';
-import rateLimit, { type Options } from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator, type Options } from 'express-rate-limit';
 import { env } from '../lib/env.js';
 
 const RATE_LIMITED_BODY = {
@@ -56,9 +56,11 @@ export function createAiLimiter(overrides: Partial<Options> = {}) {
     skip: () => env.NODE_ENV === 'test',
     keyGenerator: (req: Request) => {
       // Per-user when authenticated so two users on the same office IP
-      // don't share a bucket; fall back to IP for unauthenticated paths
-      // (which shouldn't reach this middleware in practice).
-      return req.user?.id ?? req.ip ?? 'unknown';
+      // don't share a bucket. The IP fallback (the rare unauthenticated
+      // case) goes through ipKeyGenerator so IPv6 addresses are bucketed
+      // correctly per express-rate-limit's IPv6 safety rule.
+      if (req.user?.id) return `user:${req.user.id}`;
+      return ipKeyGenerator(req.ip ?? '');
     },
     ...overrides,
   });
