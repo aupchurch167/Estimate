@@ -18,12 +18,15 @@
     "lint": "npm --workspace frontend run lint && npm --workspace backend run lint",
     "lint:fix": "npm --workspace frontend run lint:fix && npm --workspace backend run lint:fix",
     "format": "npm --workspace frontend run format && npm --workspace backend run format",
-    "check": "npm run typecheck && npm run lint"
+    "check": "npm run typecheck && npm run lint",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install --with-deps chromium"
   },
   "engines": {
     "node": ">=20"
   },
   "devDependencies": {
+    "@playwright/test": "1.56.1",
     "concurrently": "^9.2.1"
   }
 }

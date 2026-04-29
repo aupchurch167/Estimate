@@ -104,12 +104,22 @@ npm --workspace backend run test -- --run
 
 # Frontend (Vitest + @testing-library/react + jsdom)
 npm --workspace frontend run test -- --run
+
+# End-to-end (Playwright, boots both servers + chromium)
+npm run test:e2e:install   # one-time browser download (~250MB)
+npm run test:e2e
 ```
 
 Backend tests run against the same DB as `DATABASE_URL`. They create unique
 orgs per test and clean up in `afterAll`, so it's safe to point at a Neon dev
 branch — but a dedicated test DB is the safest choice if you want to be able
 to wipe.
+
+E2E tests boot the dev servers via Playwright's `webServer` with
+`E2E_FAKE_ANTHROPIC=true` so AI calls are deterministic and never touch
+the network. Specs live in `e2e/` and cover three flows: drafter (signup
+→ create → generate → submit), reviewer (edit + approve), and send (link
+delivery on an APPROVED estimate).
 
 ## Health endpoints
 
