@@ -1,14 +1,20 @@
 import { useMemo, useState } from 'react';
 import type { AxiosError } from 'axios';
 import { useAuthContext } from '@/context/useAuthContext';
-import { backendErrorMessage } from '@/features/auth/useAuth';
+import {
+  backendErrorCode,
+  backendErrorMessage,
+} from '@/features/auth/useAuth';
 import type { EstimateDetail } from '@/features/estimates/types';
 import {
   useActivity,
   useComments,
   useCreateComment,
+  useCreateExport,
   useDeleteComment,
   useResolveComment,
+  useSnapshots,
+  type SnapshotMeta,
 } from './useReviewWorkspace';
 import type {
   ActivityEvent,
@@ -16,7 +22,7 @@ import type {
   Comment,
 } from './types';
 
-type Tab = 'assumptions' | 'comments' | 'activity';
+type Tab = 'assumptions' | 'comments' | 'versions' | 'activity';
 
 interface RightRailProps {
   estimate: EstimateDetail;
@@ -28,12 +34,15 @@ export function RightRail({ estimate, readOnly = false }: RightRailProps) {
   const [tab, setTab] = useState<Tab>('assumptions');
   return (
     <aside className="flex h-full flex-col border border-rule bg-paper-elevated">
-      <nav className="grid grid-cols-3 border-b border-rule-soft">
+      <nav className="grid grid-cols-4 border-b border-rule-soft">
         <TabButton active={tab === 'assumptions'} onClick={() => setTab('assumptions')}>
           Assumptions
         </TabButton>
         <TabButton active={tab === 'comments'} onClick={() => setTab('comments')}>
           Comments
+        </TabButton>
+        <TabButton active={tab === 'versions'} onClick={() => setTab('versions')}>
+          Versions
         </TabButton>
         <TabButton active={tab === 'activity'} onClick={() => setTab('activity')}>
           Activity
@@ -44,6 +53,7 @@ export function RightRail({ estimate, readOnly = false }: RightRailProps) {
         {tab === 'comments' ? (
           <CommentsPanel estimate={estimate} readOnly={readOnly} />
         ) : null}
+        {tab === 'versions' ? <VersionsPanel estimate={estimate} /> : null}
         {tab === 'activity' ? <ActivityPanel estimate={estimate} /> : null}
       </div>
     </aside>
@@ -311,6 +321,136 @@ function CommentRow({
       ) : null}
     </div>
   );
+}
+
+// ─── Versions ─────────────────────────────────────────────────────────────
+
+function VersionsPanel({ estimate }: { estimate: EstimateDetail }) {
+  const list = useSnapshots(estimate.id);
+  const create = useCreateExport(estimate.id);
+  const [pendingId, setPendingId] = useState<string | null>(null);
+
+  if (list.isLoading) {
+    return (
+      <p className="p-4 font-mono text-[10px] uppercase tracking-label text-dim">
+        Loading…
+      </p>
+    );
+  }
+  if (list.isError) {
+    return (
+      <p
+        role="alert"
+        className="m-4 border border-mark-red/60 bg-paper p-3 font-mono text-[10px] uppercase tracking-label text-mark-red"
+      >
+        {backendErrorMessage(list.error as AxiosError, 'Could not load versions.')}
+      </p>
+    );
+  }
+  const snapshots = list.data?.snapshots ?? [];
+  if (snapshots.length === 0) {
+    return (
+      <p className="p-4 font-mono text-[10px] uppercase tracking-label text-dim">
+        No versions yet — approve or send the estimate to take its first snapshot.
+      </p>
+    );
+  }
+
+  const onDownload = async (snap: SnapshotMeta) => {
+    setPendingId(snap.id);
+    create.reset();
+    try {
+      const result = await create.mutateAsync({ snapshotId: snap.id });
+      if (typeof window !== 'undefined') {
+        window.open(result.downloadUrl, '_blank', 'noopener');
+      }
+    } finally {
+      setPendingId(null);
+    }
+  };
+
+  const errorMsg = create.error
+    ? mapVersionExportError(create.error as AxiosError)
+    : null;
+
+  return (
+    <div className="flex flex-col">
+      {errorMsg ? (
+        <p
+          role="alert"
+          className="m-3 border border-mark-red/60 bg-paper p-2 font-mono text-[10px] uppercase tracking-label text-mark-red"
+        >
+          {errorMsg}
+        </p>
+      ) : null}
+      <ul className="flex flex-col">
+        {snapshots.map((s) => (
+          <li
+            key={s.id}
+            data-testid="version-row"
+            data-snapshot-type={s.snapshotType}
+            className="border-b border-rule-soft px-4 py-3"
+          >
+            <div className="flex items-baseline justify-between gap-2">
+              <p className="font-mono text-[10px] uppercase tracking-label text-dim">
+                v{s.sequence} · {labelSnapshotType(s.snapshotType)}
+              </p>
+              <p className="font-mono text-[10px] uppercase tracking-label text-dim">
+                {formatStamp(s.createdAt)}
+              </p>
+            </div>
+            <p className="mt-1 font-mono text-[12px] tabular-nums text-ink">
+              {formatMoney(s.totalSellPrice)}
+            </p>
+            <button
+              type="button"
+              onClick={() => onDownload(s)}
+              disabled={pendingId === s.id}
+              data-testid={`version-download-${s.id}`}
+              className="mt-2 border border-rule px-3 py-0.5 font-mono text-[10px] uppercase tracking-label text-ink hover:border-ink disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {pendingId === s.id ? 'Preparing…' : 'Download PDF'}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function labelSnapshotType(t: 'APPROVAL' | 'SEND' | 'REVISION'): string {
+  switch (t) {
+    case 'APPROVAL':
+      return 'Approved';
+    case 'SEND':
+      return 'Sent to client';
+    case 'REVISION':
+      return 'Revision';
+    default:
+      return t;
+  }
+}
+
+function formatMoney(v: string): string {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return v;
+  return n.toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function mapVersionExportError(err: AxiosError): string {
+  const code = backendErrorCode(err);
+  if (code === 'no_snapshot_to_export') {
+    return 'No snapshot to export — approve the estimate first.';
+  }
+  if (code === 'unsupported_export_format') {
+    return 'That export format is not supported yet.';
+  }
+  return backendErrorMessage(err, 'Could not export PDF.');
 }
 
 // ─── Activity ─────────────────────────────────────────────────────────────

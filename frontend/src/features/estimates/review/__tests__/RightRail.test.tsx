@@ -130,6 +130,7 @@ function buildEstimate(overrides: Partial<EstimateDetail> = {}): EstimateDetail 
 function setupApi(opts: {
   comments?: unknown[];
   events?: unknown[];
+  snapshots?: unknown[];
   postReply?: () => Promise<{ data: unknown }> | { data: unknown };
   patchReply?: () => Promise<{ data: unknown }> | { data: unknown };
   deleteReply?: () => Promise<{ data: unknown }> | { data: unknown };
@@ -138,6 +139,7 @@ function setupApi(opts: {
     if (url === '/api/auth/me') return Promise.resolve({ data: meAs() });
     if (url.endsWith('/comments')) return Promise.resolve({ data: { comments: opts.comments ?? [] } });
     if (url.endsWith('/activity')) return Promise.resolve({ data: { events: opts.events ?? [] } });
+    if (url.endsWith('/snapshots')) return Promise.resolve({ data: { snapshots: opts.snapshots ?? [] } });
     return Promise.reject(new Error(`unexpected GET ${url}`));
   });
   if (opts.postReply) mockedPost.mockImplementation(async () => opts.postReply!() as never);
@@ -362,5 +364,106 @@ describe('RightRail — Activity tab', () => {
     renderRail(buildEstimate());
     await user.click(await screen.findByTestId('rail-tab-activity'));
     expect(await screen.findByText(/no activity yet/i)).toBeInTheDocument();
+  });
+});
+
+describe('RightRail — Versions tab', () => {
+  it('shows an empty state when no snapshots exist', async () => {
+    setupApi({ snapshots: [] });
+    const user = userEvent.setup();
+    renderRail(buildEstimate());
+    await user.click(await screen.findByTestId('rail-tab-versions'));
+    expect(await screen.findByText(/approve or send/i)).toBeInTheDocument();
+  });
+
+  it('lists snapshots newest-first with sequence + type + total', async () => {
+    setupApi({
+      snapshots: [
+        {
+          id: 'snap-2',
+          estimateId: 'e1',
+          snapshotType: 'SEND',
+          sequence: 2,
+          createdById: 'u1',
+          totalCost: '1000',
+          totalMarkup: '200',
+          totalSellPrice: '1200',
+          createdAt: '2026-04-28T01:00:00.000Z',
+        },
+        {
+          id: 'snap-1',
+          estimateId: 'e1',
+          snapshotType: 'APPROVAL',
+          sequence: 1,
+          createdById: 'u1',
+          totalCost: '900',
+          totalMarkup: '180',
+          totalSellPrice: '1080',
+          createdAt: '2026-04-28T00:00:00.000Z',
+        },
+      ],
+    });
+    const user = userEvent.setup();
+    renderRail(buildEstimate());
+    await user.click(await screen.findByTestId('rail-tab-versions'));
+    const rows = await screen.findAllByTestId('version-row');
+    expect(rows).toHaveLength(2);
+    expect(rows[0]?.textContent).toMatch(/v2/);
+    expect(rows[0]?.textContent).toMatch(/sent to client/i);
+    expect(rows[0]?.textContent).toMatch(/\$1,200\.00/);
+    expect(rows[1]?.textContent).toMatch(/v1/);
+    expect(rows[1]?.textContent).toMatch(/approved/i);
+  });
+
+  it('clicking Download PDF posts the export with snapshotId and opens the URL', async () => {
+    setupApi({
+      snapshots: [
+        {
+          id: 'snap-1',
+          estimateId: 'e1',
+          snapshotType: 'APPROVAL',
+          sequence: 1,
+          createdById: 'u1',
+          totalCost: '0',
+          totalMarkup: '0',
+          totalSellPrice: '0',
+          createdAt: '2026-04-28T00:00:00.000Z',
+        },
+      ],
+      postReply: () => ({
+        data: {
+          export: {
+            id: 'ex-1',
+            estimateId: 'e1',
+            snapshotId: 'snap-1',
+            exportedById: 'u1',
+            format: 'PDF',
+            fileSizeBytes: 1234,
+            createdAt: '2026-04-28T00:00:01.000Z',
+            downloadUrl: 'https://signed.test/exports/o1/e1/snap-1/abc.pdf',
+          },
+          downloadUrl: 'https://signed.test/exports/o1/e1/snap-1/abc.pdf',
+        },
+      }),
+    });
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+    const user = userEvent.setup();
+    renderRail(buildEstimate());
+    await user.click(await screen.findByTestId('rail-tab-versions'));
+    await user.click(await screen.findByTestId('version-download-snap-1'));
+    await waitFor(() => {
+      expect(mockedPost).toHaveBeenCalledWith(
+        '/api/estimates/e1/exports',
+        expect.objectContaining({ format: 'PDF', snapshotId: 'snap-1' }),
+      );
+    });
+    await waitFor(() => {
+      expect(openSpy).toHaveBeenCalledWith(
+        'https://signed.test/exports/o1/e1/snap-1/abc.pdf',
+        '_blank',
+        'noopener',
+      );
+    });
+    openSpy.mockRestore();
   });
 });
