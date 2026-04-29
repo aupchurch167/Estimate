@@ -201,7 +201,7 @@ describe('sendService.sendEstimate', () => {
     expect(result.estimate.status).toBe('SENT');
     expect(result.estimate.sentAt).toBeInstanceOf(Date);
     expect(result.snapshot.snapshotType).toBe('SEND');
-    expect(result.email.dispatched).toBe(true);
+    expect(result.email?.dispatched).toBe(true);
 
     expect(sp.uploads).toHaveLength(1);
     expect(sp.uploads[0]?.contentType).toBe('application/pdf');
@@ -289,8 +289,87 @@ describe('sendService.sendEstimate', () => {
       recipients: ['client@acme.test'],
     });
     expect(result.estimate.status).toBe('SENT');
-    expect(result.email.dispatched).toBe(false);
-    expect(result.email.reason).toBe('sendgrid_error');
+    expect(result.email?.dispatched).toBe(false);
+    expect(result.email?.reason).toBe('sendgrid_error');
+  });
+
+  it('sendMethod=link: snapshots + flips status, returns signed URL, NO email dispatched', async () => {
+    const ctx = await setup();
+    const sp = fakeSpaces();
+    const em = fakeEmail();
+    __setSpacesClientForTesting(sp);
+    __setEmailDispatcherForTesting(em);
+    await moveToApproved(ctx);
+    await new Promise((r) => setTimeout(r, 50));
+    em.sent.length = 0;
+
+    const result = await sendEstimate(ctx.organizationId, ctx.admin, ctx.estimateId, {
+      sendMethod: 'link',
+      recipients: [],
+    });
+
+    expect(result.estimate.status).toBe('SENT');
+    expect(result.sendMethod).toBe('link');
+    expect(result.downloadUrl).toMatch(/^https:\/\/signed.test\//);
+    expect(result.email).toBeNull();
+    expect(em.sent).toHaveLength(0);
+    expect(sp.uploads).toHaveLength(1);
+
+    const activity = await prisma.activityEvent.findFirst({
+      where: { estimateId: ctx.estimateId, eventType: 'ESTIMATE_SENT' },
+    });
+    expect(activity?.summary).toMatch(/shareable link/i);
+    expect(activity?.meta).toMatchObject({ sendMethod: 'link' });
+  });
+
+  it('sendMethod=download: same as link but the activity records "downloaded for delivery"', async () => {
+    const ctx = await setup();
+    const sp = fakeSpaces();
+    const em = fakeEmail();
+    __setSpacesClientForTesting(sp);
+    __setEmailDispatcherForTesting(em);
+    await moveToApproved(ctx);
+    await new Promise((r) => setTimeout(r, 50));
+    em.sent.length = 0;
+
+    const result = await sendEstimate(ctx.organizationId, ctx.admin, ctx.estimateId, {
+      sendMethod: 'download',
+    });
+
+    expect(result.estimate.status).toBe('SENT');
+    expect(result.sendMethod).toBe('download');
+    expect(result.email).toBeNull();
+    expect(em.sent).toHaveLength(0);
+
+    const activity = await prisma.activityEvent.findFirst({
+      where: { estimateId: ctx.estimateId, eventType: 'ESTIMATE_SENT' },
+    });
+    expect(activity?.summary).toMatch(/downloaded for delivery/i);
+    expect(activity?.meta).toMatchObject({ sendMethod: 'download' });
+  });
+
+  it('sendMethod=link does NOT require recipients', async () => {
+    const ctx = await setup();
+    __setSpacesClientForTesting(fakeSpaces());
+    __setEmailDispatcherForTesting(fakeEmail());
+    await moveToApproved(ctx);
+    const result = await sendEstimate(ctx.organizationId, ctx.admin, ctx.estimateId, {
+      sendMethod: 'link',
+    });
+    expect(result.estimate.status).toBe('SENT');
+  });
+
+  it('sendMethod=email still requires recipients', async () => {
+    const ctx = await setup();
+    __setSpacesClientForTesting(fakeSpaces());
+    __setEmailDispatcherForTesting(fakeEmail());
+    await moveToApproved(ctx);
+    await expect(
+      sendEstimate(ctx.organizationId, ctx.admin, ctx.estimateId, {
+        sendMethod: 'email',
+        recipients: [],
+      }),
+    ).rejects.toThrow(/recipient is required/i);
   });
 
   it('Spaces upload failure rolls back: status stays APPROVED, no export row', async () => {

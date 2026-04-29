@@ -312,7 +312,8 @@ export async function listExports(req: Request, res: Response): Promise<void> {
 // ─── Send (Phase 4.6) ────────────────────────────────────────────────────
 
 const sendBody = z.object({
-  recipients: z.array(z.string().min(1)).min(1).max(10),
+  sendMethod: z.enum(['email', 'link', 'download']).optional(),
+  recipients: z.array(z.string().min(1)).max(10).optional(),
   subject: z.string().max(200).nullable().optional(),
   message: z.string().max(2000).nullable().optional(),
 });
@@ -326,7 +327,8 @@ export async function sendEstimate(req: Request, res: Response): Promise<void> {
       { id: user.id, role: user.role },
       String(req.params.id ?? ''),
       {
-        recipients: input.recipients,
+        sendMethod: input.sendMethod ?? 'email',
+        recipients: input.recipients ?? [],
         subject: input.subject ?? null,
         message: input.message ?? null,
       },
@@ -335,6 +337,8 @@ export async function sendEstimate(req: Request, res: Response): Promise<void> {
       estimate: result.estimate,
       snapshotId: result.snapshot.id,
       exportId: result.exportId,
+      sendMethod: result.sendMethod,
+      downloadUrl: result.downloadUrl,
       email: result.email,
     });
   } catch (err) {

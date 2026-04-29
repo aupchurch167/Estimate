@@ -314,8 +314,11 @@ interface ExportInput {
   snapshotId?: string | null;
 }
 
+export type SendMethod = 'email' | 'link' | 'download';
+
 export interface SendEstimateInput {
-  recipients: string[];
+  sendMethod?: SendMethod;
+  recipients?: string[];
   subject?: string | null;
   message?: string | null;
 }
@@ -324,7 +327,9 @@ export interface SendEstimateResult {
   estimate: { id: string; status: string; sentAt: string | null };
   snapshotId: string;
   exportId: string;
-  email: { dispatched: boolean; reason?: string };
+  sendMethod: SendMethod;
+  downloadUrl: string;
+  email: { dispatched: boolean; reason?: string } | null;
 }
 
 export function useSendEstimate(estimateId: string) {

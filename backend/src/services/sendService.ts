@@ -30,13 +30,19 @@ const RECIPIENTS_MAX = 10;
 const MESSAGE_MAX = 2000;
 const SUBJECT_MAX = 200;
 
+export const SEND_METHODS = ['email', 'link', 'download'] as const;
+export type SendMethod = (typeof SEND_METHODS)[number];
+
 export interface SendActor {
   id: string;
   role: 'OWNER' | 'ADMIN' | 'ESTIMATOR' | 'PM' | 'VIEWER';
 }
 
 export interface SendEstimateInput {
-  recipients: string[];
+  /** How the user wants to deliver the estimate. Defaults to 'email'. */
+  sendMethod?: SendMethod;
+  /** Required for sendMethod='email'. Optional + ignored for link / download. */
+  recipients?: string[];
   subject?: string | null;
   message?: string | null;
 }
@@ -45,25 +51,39 @@ export interface SendEstimateResult {
   estimate: Estimate;
   snapshot: EstimateSnapshot;
   exportId: string;
-  email: SendEmailResult;
+  sendMethod: SendMethod;
+  /** 7-day signed download URL — returned for all three methods so the
+   *  caller can show it to the user (link/download) or just confirm the
+   *  resource exists (email). */
+  downloadUrl: string;
+  /** Email dispatch result — only populated when sendMethod='email'. */
+  email: SendEmailResult | null;
 }
 
 const EMAIL_RX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function validateInput(input: SendEstimateInput): {
+  sendMethod: SendMethod;
   recipients: string[];
   subject: string | null;
   message: string | null;
 } {
+  const sendMethod: SendMethod = (input.sendMethod ?? 'email') as SendMethod;
+  if (!SEND_METHODS.includes(sendMethod)) {
+    throw new ValidationError(`Invalid sendMethod: ${sendMethod}`, {
+      issues: [{ path: 'sendMethod', message: `Must be one of: ${SEND_METHODS.join(', ')}` }],
+    });
+  }
+
   const recipients = Array.from(
     new Set(
       (input.recipients ?? []).map((r) => (typeof r === 'string' ? r.trim() : '')),
     ),
   ).filter((r) => r.length > 0);
 
-  if (recipients.length === 0) {
-    throw new ValidationError('At least one recipient is required', {
-      issues: [{ path: 'recipients', message: 'Required' }],
+  if (sendMethod === 'email' && recipients.length === 0) {
+    throw new ValidationError('At least one recipient is required when sending by email', {
+      issues: [{ path: 'recipients', message: 'Required for sendMethod=email' }],
     });
   }
   if (recipients.length > RECIPIENTS_MAX) {
@@ -92,7 +112,7 @@ function validateInput(input: SendEstimateInput): {
     });
   }
 
-  return { recipients, subject, message };
+  return { sendMethod, recipients, subject, message };
 }
 
 export async function sendEstimate(
@@ -185,10 +205,15 @@ export async function sendEstimate(
         entityType: 'Estimate',
         entityId: estimate.id,
         estimateId: estimate.id,
-        summary: `Sent estimate ${estimate.number} to ${input.recipients.join(', ')}`,
+        summary: buildActivitySummary({
+          number: estimate.number,
+          sendMethod: input.sendMethod,
+          recipients: input.recipients,
+        }),
         meta: {
           snapshotId: snapshot.id,
           exportId: exportRow.id,
+          sendMethod: input.sendMethod,
           recipients: input.recipients,
           subject: input.subject,
           messagePreview: input.message ? input.message.slice(0, 200) : null,
@@ -199,42 +224,71 @@ export async function sendEstimate(
     return { updated: next, exportId: exportRow.id };
   });
 
-  // 4. Best-effort email — failures don't roll back the SENT status.
+  // 4. Signed URL — useful in all three methods. For email, it's embedded
+  //    in the body. For link, the user copies it. For download, the
+  //    frontend opens it in a new tab.
   const downloadUrl = await generateSignedDownloadUrl({
     key,
     expiresIn: 60 * 60 * 24 * 7, // 7 days
   });
-  const subject =
-    input.subject ?? `${estimate.organization.name} — Estimate ${estimate.number}`;
-  const introLine = `${estimate.organization.name} has sent you estimate ${estimate.number}.`;
-  const html = buildHtmlBody({
-    subject,
-    intro: introLine,
-    message: input.message,
-    downloadUrl,
-    estimateNumber: estimate.number,
-  });
-  const text = buildTextBody({
-    intro: introLine,
-    message: input.message,
-    downloadUrl,
-    estimateNumber: estimate.number,
-  });
-  const email = await sendRawEmail({
-    to: input.recipients,
-    subject,
-    html,
-    text,
-    attachments: [
-      {
-        filename: `Estimate-${estimate.number}.pdf`,
-        content: buffer,
-        contentType: 'application/pdf',
-      },
-    ],
-  });
 
-  return { estimate: updated, snapshot, exportId, email };
+  // 5. Email dispatch is best-effort and only happens for sendMethod=email.
+  let email: SendEmailResult | null = null;
+  if (input.sendMethod === 'email') {
+    const subject =
+      input.subject ?? `${estimate.organization.name} — Estimate ${estimate.number}`;
+    const introLine = `${estimate.organization.name} has sent you estimate ${estimate.number}.`;
+    const html = buildHtmlBody({
+      subject,
+      intro: introLine,
+      message: input.message,
+      downloadUrl,
+      estimateNumber: estimate.number,
+    });
+    const text = buildTextBody({
+      intro: introLine,
+      message: input.message,
+      downloadUrl,
+      estimateNumber: estimate.number,
+    });
+    email = await sendRawEmail({
+      to: input.recipients,
+      subject,
+      html,
+      text,
+      attachments: [
+        {
+          filename: `Estimate-${estimate.number}.pdf`,
+          content: buffer,
+          contentType: 'application/pdf',
+        },
+      ],
+    });
+  }
+
+  return {
+    estimate: updated,
+    snapshot,
+    exportId,
+    sendMethod: input.sendMethod,
+    downloadUrl,
+    email,
+  };
+}
+
+function buildActivitySummary(args: {
+  number: string;
+  sendMethod: SendMethod;
+  recipients: string[];
+}): string {
+  switch (args.sendMethod) {
+    case 'email':
+      return `Sent estimate ${args.number} via email to ${args.recipients.join(', ')}`;
+    case 'link':
+      return `Generated a shareable link for estimate ${args.number}`;
+    case 'download':
+      return `Marked estimate ${args.number} as sent (downloaded for delivery)`;
+  }
 }
 
 function buildHtmlBody(args: {

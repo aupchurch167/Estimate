@@ -152,6 +152,8 @@ describe('SendButton', () => {
         estimate: { id: 'e1', status: 'SENT', sentAt: '2026-04-28T00:00:00Z' },
         snapshotId: 'snap-2',
         exportId: 'ex-2',
+        sendMethod: 'email',
+        downloadUrl: 'https://signed.test/x',
         email: { dispatched: true },
       },
     } as never);
@@ -197,5 +199,76 @@ describe('SendButton', () => {
       expect(screen.getByRole('alert')).toHaveTextContent(/refresh and try again/i);
     });
     expect(screen.getByTestId('send-dialog')).toBeInTheDocument();
+  });
+
+  it('sendMethod=link: hides recipients/subject/message, posts no recipients, shows the URL on success', async () => {
+    setMe('u-admin', 'ADMIN');
+    mockedPost.mockResolvedValue({
+      data: {
+        estimate: { id: 'e1', status: 'SENT', sentAt: '2026-04-28T00:00:00Z' },
+        snapshotId: 'snap-3',
+        exportId: 'ex-3',
+        sendMethod: 'link',
+        downloadUrl: 'https://signed.test/abc?sig=fake',
+        email: null,
+      },
+    } as never);
+    const user = userEvent.setup();
+    renderInClient(<SendButton estimate={buildEstimate()} />);
+    await user.click(await screen.findByTestId('send-estimate'));
+
+    await user.selectOptions(await screen.findByTestId('send-method'), 'link');
+    expect(screen.queryByTestId('send-recipients')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('send-subject')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('send-message')).not.toBeInTheDocument();
+
+    await user.click(screen.getByTestId('send-submit'));
+    await waitFor(() => {
+      expect(mockedPost).toHaveBeenCalledWith(
+        '/api/estimates/e1/send',
+        expect.objectContaining({ sendMethod: 'link', recipients: [] }),
+      );
+    });
+    const url = await screen.findByTestId('send-link-url');
+    expect((url as HTMLInputElement).value).toBe('https://signed.test/abc?sig=fake');
+    expect(screen.getByTestId('send-link-copy')).toBeInTheDocument();
+    expect(screen.getByTestId('send-dialog')).toBeInTheDocument();
+  });
+
+  it('sendMethod=download: opens the URL in a new tab and confirms the action', async () => {
+    setMe('u-admin', 'ADMIN');
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+    mockedPost.mockResolvedValue({
+      data: {
+        estimate: { id: 'e1', status: 'SENT', sentAt: '2026-04-28T00:00:00Z' },
+        snapshotId: 'snap-4',
+        exportId: 'ex-4',
+        sendMethod: 'download',
+        downloadUrl: 'https://signed.test/dl?sig=fake',
+        email: null,
+      },
+    } as never);
+    const user = userEvent.setup();
+    renderInClient(<SendButton estimate={buildEstimate()} />);
+    await user.click(await screen.findByTestId('send-estimate'));
+
+    await user.selectOptions(await screen.findByTestId('send-method'), 'download');
+    await user.click(screen.getByTestId('send-submit'));
+
+    await waitFor(() => {
+      expect(mockedPost).toHaveBeenCalledWith(
+        '/api/estimates/e1/send',
+        expect.objectContaining({ sendMethod: 'download' }),
+      );
+    });
+    await waitFor(() => {
+      expect(openSpy).toHaveBeenCalledWith(
+        'https://signed.test/dl?sig=fake',
+        '_blank',
+        'noopener',
+      );
+    });
+    expect(screen.getByTestId('send-download-confirm')).toBeInTheDocument();
+    openSpy.mockRestore();
   });
 });
