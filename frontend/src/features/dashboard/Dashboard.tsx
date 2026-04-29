@@ -1,6 +1,6 @@
 import type { AxiosError } from 'axios';
 import { Link } from 'react-router-dom';
-import { backendErrorMessage } from '@/features/auth/useAuth';
+import { ErrorState, SkeletonCard, SkeletonList } from '@/components/states';
 import { StatusStamp } from '@/features/estimates/StatusStamp';
 import type { EstimateStatus } from '@/features/estimates/types';
 import { useDashboard } from './useDashboard';
@@ -25,19 +25,25 @@ export function Dashboard() {
 
   if (q.isLoading) {
     return (
-      <p className="font-mono text-[10px] uppercase tracking-label text-dim">
-        Loading dashboard…
-      </p>
+      <div data-testid="dashboard-loading" className="flex flex-col gap-6">
+        <SkeletonCard rows={2} />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <SkeletonCard rows={1} />
+          <SkeletonCard rows={1} />
+          <SkeletonCard rows={1} />
+          <SkeletonCard rows={1} />
+        </div>
+        <SkeletonList rows={5} twoColumn />
+      </div>
     );
   }
   if (q.isError || !q.data) {
     return (
-      <p
-        role="alert"
-        className="border border-mark-red/60 bg-paper-elevated p-4 font-mono text-[10px] uppercase tracking-label text-mark-red"
-      >
-        {backendErrorMessage(q.error as AxiosError, 'Could not load the dashboard.')}
-      </p>
+      <ErrorState
+        error={q.error as AxiosError | null}
+        fallback="Could not load the dashboard."
+        onRetry={() => q.refetch()}
+      />
     );
   }
 
