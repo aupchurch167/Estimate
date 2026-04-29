@@ -46,6 +46,9 @@ npm run dev      # boots backend + frontend together
 Open <http://localhost:5173>. Sign up to create an org, or use the seeded
 account from `backend/prisma/seed.ts`.
 
+For a step-by-step walk-through (prerequisites, Neon vs local Postgres, env
+generation, common errors), see [docs/local-setup.md](./docs/local-setup.md).
+
 ## Repository layout
 
 ```
