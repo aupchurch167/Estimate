@@ -9,7 +9,7 @@
  */
 
 import { afterAll, describe, expect, it } from 'vitest';
-import { Prisma } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma.js';
 import { signup as serviceSignup } from '../../services/authService.js';
 import { applyForRun } from '../conversationApplyService.js';

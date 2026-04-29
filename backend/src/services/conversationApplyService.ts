@@ -14,7 +14,7 @@
  * id of the failing one.
  */
 
-import { Prisma } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import {
   ConflictError,

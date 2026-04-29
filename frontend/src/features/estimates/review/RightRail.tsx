@@ -610,7 +610,7 @@ function CommentComposer({
   );
 }
 
-const MENTION_TOKEN_RE = /(@\w[\w.\-]*)/g;
+const MENTION_TOKEN_RE = /(@\w[\w.-]*)/g;
 
 function CommentBody({ body }: { body: string }) {
   // Highlight any @token without trying to verify it resolves — the mention
