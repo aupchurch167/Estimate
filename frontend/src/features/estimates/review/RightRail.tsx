@@ -33,27 +33,78 @@ interface RightRailProps {
   estimate: EstimateDetail;
   /** When true, hide write affordances (post comment, resolve, delete). */
   readOnly?: boolean;
+  /** Controlled collapse state — parent owns it so the schedule grid
+   *  can flex into the freed space. */
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
 }
 
-export function RightRail({ estimate, readOnly = false }: RightRailProps) {
+export function RightRail({
+  estimate,
+  readOnly = false,
+  collapsed = false,
+  onToggleCollapsed,
+}: RightRailProps) {
   const [tab, setTab] = useState<Tab>('assumptions');
+
+  if (collapsed) {
+    return (
+      <aside
+        data-testid="right-rail-collapsed"
+        className="flex h-full flex-col items-center gap-3 rounded-lg border border-border-primary bg-bg-primary px-2 py-3 shadow-sm"
+      >
+        <button
+          type="button"
+          onClick={onToggleCollapsed}
+          aria-label="Show panel"
+          data-testid="right-rail-toggle"
+          className="rounded-md p-1.5 text-text-secondary hover:bg-bg-tertiary hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
+        >
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+            <path d="M11 4L6 9l5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+        <div className="flex flex-1 flex-col items-center gap-2 [writing-mode:vertical-rl] rotate-180">
+          <span className="text-[12px] font-medium uppercase tracking-[0.06em] text-text-secondary">
+            Comments · Activity · Versions
+          </span>
+        </div>
+      </aside>
+    );
+  }
+
   return (
-    <aside className="flex h-full flex-col border border-rule bg-paper-elevated">
-      <nav className="grid grid-cols-4 border-b border-rule-soft">
-        <TabButton active={tab === 'assumptions'} onClick={() => setTab('assumptions')}>
-          Assumptions
-        </TabButton>
-        <TabButton active={tab === 'comments'} onClick={() => setTab('comments')}>
-          Comments
-        </TabButton>
-        <TabButton active={tab === 'versions'} onClick={() => setTab('versions')}>
-          Versions
-        </TabButton>
-        <TabButton active={tab === 'activity'} onClick={() => setTab('activity')}>
-          Activity
-        </TabButton>
-      </nav>
-      <div className="flex-1 overflow-auto">
+    <aside className="flex h-full flex-col rounded-lg border border-border-primary bg-bg-primary shadow-sm">
+      <header className="flex items-center justify-between gap-2 border-b border-border-primary px-2 py-1.5">
+        <nav className="flex items-center gap-1 overflow-x-auto">
+          <TabButton active={tab === 'comments'} onClick={() => setTab('comments')}>
+            Comments
+          </TabButton>
+          <TabButton active={tab === 'assumptions'} onClick={() => setTab('assumptions')}>
+            Assumptions
+          </TabButton>
+          <TabButton active={tab === 'versions'} onClick={() => setTab('versions')}>
+            Versions
+          </TabButton>
+          <TabButton active={tab === 'activity'} onClick={() => setTab('activity')}>
+            Activity
+          </TabButton>
+        </nav>
+        {onToggleCollapsed ? (
+          <button
+            type="button"
+            onClick={onToggleCollapsed}
+            aria-label="Hide panel"
+            data-testid="right-rail-toggle"
+            className="rounded-md p-1.5 text-text-secondary hover:bg-bg-tertiary hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
+          >
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+              <path d="M7 4l5 5-5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        ) : null}
+      </header>
+      <div className="flex flex-1 flex-col overflow-hidden">
         {tab === 'assumptions' ? <AssumptionsPanel estimate={estimate} /> : null}
         {tab === 'comments' ? (
           <CommentsPanel estimate={estimate} readOnly={readOnly} />
@@ -80,8 +131,10 @@ function TabButton({
       onClick={onClick}
       data-testid={`rail-tab-${String(children).toLowerCase()}`}
       data-active={active ? 'true' : 'false'}
-      className={`border-r border-rule-soft py-2 font-mono text-[10px] uppercase tracking-label last:border-r-0 ${
-        active ? 'bg-paper text-ink' : 'text-dim hover:text-ink'
+      className={`rounded-md px-2.5 py-1 text-[12px] font-medium transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus ${
+        active
+          ? 'bg-primary-light text-primary'
+          : 'text-text-secondary hover:bg-bg-tertiary hover:text-text-primary'
       }`}
     >
       {children}
@@ -239,6 +292,20 @@ function CommentsPanel({
 
   return (
     <div className="flex h-full flex-col">
+      {!readOnly ? (
+        <CommentComposer
+          members={members}
+          isPending={create.isPending}
+          error={create.error as AxiosError | null}
+          onSubmit={async (body, mentions) =>
+            submit({ body, mentions, parentCommentId: null })
+          }
+          placeholder="Add a comment…"
+          submitLabel="Post"
+          testId="comment-input"
+          submitTestId="comment-submit"
+        />
+      ) : null}
       <ul className="flex-1 overflow-auto">
         {threads.length === 0 ? (
           <li className="p-4 font-mono text-[10px] uppercase tracking-label text-dim">
@@ -314,20 +381,6 @@ function CommentsPanel({
           ))
         )}
       </ul>
-      {!readOnly ? (
-        <CommentComposer
-          members={members}
-          isPending={create.isPending}
-          error={create.error as AxiosError | null}
-          onSubmit={async (body, mentions) =>
-            submit({ body, mentions, parentCommentId: null })
-          }
-          placeholder="Add a comment…"
-          submitLabel="Post"
-          testId="comment-input"
-          submitTestId="comment-submit"
-        />
-      ) : null}
     </div>
   );
 }
@@ -530,7 +583,7 @@ function CommentComposer({
   return (
     <form
       onSubmit={handleSubmit}
-      className="border-t border-rule-soft bg-paper p-3 flex flex-col gap-2"
+      className="border-b border-rule-soft bg-paper p-3 flex flex-col gap-2"
     >
       <textarea
         ref={textareaRef}

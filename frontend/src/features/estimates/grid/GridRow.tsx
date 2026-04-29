@@ -73,12 +73,26 @@ export function GridRow({
   const tdClass = (extra = '') =>
     `border-r border-border-primary px-2 py-1.5 align-middle ${extra}`;
 
-  // Make each editable cell focusable so Tab walks through them in
-  // reading order. Enter / Space starts the inline editor.
+  // Editable cells: Tab into one and you're immediately in edit mode
+  // (no extra Enter to drop into the input). Click and Enter / Space
+  // also start editing for mouse + screen-reader users.
+  //
+  // We only auto-start on a *real* focus event from outside the cell —
+  // the e.relatedTarget check prevents an infinite focus → edit → blur
+  // → focus loop when the editor's input commits and refocuses.
   const editableProps = (field: EditableField) => ({
     tabIndex: readOnly ? -1 : 0,
     role: readOnly ? undefined : ('button' as const),
     'aria-label': readOnly ? undefined : `Edit ${field}`,
+    onFocus: (e: React.FocusEvent<HTMLTableCellElement>) => {
+      if (readOnly) return;
+      // If focus came from inside this cell (e.g. the editor input
+      // committed and bubbled focus back), don't re-enter edit mode.
+      const cell = e.currentTarget;
+      if (cell.contains(e.relatedTarget as Node | null)) return;
+      if (editing !== null) return;
+      startEdit(field);
+    },
     onKeyDown: (e: React.KeyboardEvent) => {
       if (readOnly) return;
       if (e.key === 'Enter' || e.key === ' ') {
@@ -114,23 +128,23 @@ export function GridRow({
         />
       </td>
       <td
-        className={tdClass('cursor-pointer min-w-[260px]')}
+        className={tdClass('cursor-pointer w-[280px] max-w-[280px]')}
         onClick={onOpenEditor}
         data-testid={`row-${item.id}-description`}
       >
-        <span
-          className="block truncate text-[14px] text-text-primary"
+        <p
+          className="truncate text-[14px] text-text-primary"
           title={item.description}
         >
           {item.description}
-        </span>
+        </p>
         {item.aiAssumption ? (
-          <span
-            className="block truncate text-[12px] text-warning"
+          <p
+            className="mt-0.5 text-[12px] text-warning"
             title={item.aiAssumption}
           >
-            assumes: {item.aiAssumption}
-          </span>
+            <span className="font-medium">Assumes:</span> {item.aiAssumption}
+          </p>
         ) : null}
       </td>
       <td

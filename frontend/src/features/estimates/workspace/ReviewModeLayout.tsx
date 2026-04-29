@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { TitleBlock } from './TitleBlock';
 import { LineItemGrid } from '@/features/estimates/grid/LineItemGrid';
 import { RightRail } from '@/features/estimates/review/RightRail';
@@ -8,7 +9,6 @@ import {
 import { ExportPdfButton } from '@/features/estimates/review/ExportPdfButton';
 import { SendButton } from '@/features/estimates/review/SendButton';
 import { CloseOutActions } from '@/features/estimates/review/CloseOutActions';
-import { QuickCommentComposer } from '@/features/estimates/review/QuickCommentComposer';
 import { Card } from '@/components/ui';
 import type { EstimateDetail, EstimateStatus } from '@/features/estimates/types';
 
@@ -20,6 +20,10 @@ interface ReviewModeLayoutProps {
 
 export function ReviewModeLayout({ estimate, readOnly, modeSwitch }: ReviewModeLayoutProps) {
   const modeLabel = readOnly ? readOnlyLabel(estimate.status) : 'Reviewing';
+  const [railCollapsed, setRailCollapsed] = useState(false);
+  const gridCols = railCollapsed
+    ? 'lg:grid-cols-[1fr_44px]'
+    : 'lg:grid-cols-[1fr_360px]';
   return (
     <div className="min-h-screen bg-bg-secondary">
       <TitleBlock
@@ -48,13 +52,9 @@ export function ReviewModeLayout({ estimate, readOnly, modeSwitch }: ReviewModeL
       />
 
       <main className="mx-auto max-w-[1280px] px-6 py-6">
-        {!readOnly ? (
-          <Card className="mb-4">
-            <QuickCommentComposer estimateId={estimate.id} />
-          </Card>
-        ) : null}
-
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_360px] lg:[grid-template-rows:minmax(560px,calc(100vh-260px))]">
+        <div
+          className={`grid grid-cols-1 gap-4 ${gridCols} lg:[grid-template-rows:minmax(560px,calc(100vh-260px))]`}
+        >
           <Card
             title="Schedule of Values"
             actions={
@@ -71,7 +71,12 @@ export function ReviewModeLayout({ estimate, readOnly, modeSwitch }: ReviewModeL
             </div>
           </Card>
 
-          <RightRail estimate={estimate} readOnly={readOnly} />
+          <RightRail
+            estimate={estimate}
+            readOnly={readOnly}
+            collapsed={railCollapsed}
+            onToggleCollapsed={() => setRailCollapsed((c) => !c)}
+          />
         </div>
       </main>
     </div>

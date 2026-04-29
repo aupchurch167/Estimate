@@ -142,7 +142,7 @@ export function LineItemGrid({ estimate }: LineItemGridProps) {
           <thead>
             <tr className="border-b border-border-primary bg-bg-secondary text-left">
               <Th className="w-8"> </Th>
-              <Th className="min-w-[260px]">Description</Th>
+              <Th className="w-[280px]">Description</Th>
               <Th className="w-20 text-right">Qty</Th>
               <Th className="w-20 text-center">UoM</Th>
               <Th className="w-20 text-right">Material</Th>
