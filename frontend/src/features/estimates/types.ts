@@ -73,6 +73,7 @@ export interface LineItem {
   description: string;
   quantity: string;
   unitOfMeasure: string;
+  customUnitOfMeasure?: string | null;
   unitCostMaterial: string;
   unitCostLabor: string;
   markupPercent: string;
@@ -82,6 +83,10 @@ export interface LineItem {
   source: string;
   aiConfidence: string | null;
   aiAssumption: string | null;
+  subQuoteFrom?: string | null;
+  subQuoteReceivedAt?: string | null;
+  internalNotes?: string | null;
+  clientNotes?: string | null;
   order: number;
 }
 

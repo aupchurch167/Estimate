@@ -105,10 +105,14 @@ export interface PatchLineItemInput {
   description?: string;
   quantity?: string;
   unitOfMeasure?: UnitOfMeasure;
+  customUnitOfMeasure?: string | null;
   unitCostMaterial?: string;
   unitCostLabor?: string;
   markupPercent?: string | null;
   status?: LineItemStatus;
+  aiAssumption?: string | null;
+  internalNotes?: string | null;
+  clientNotes?: string | null;
 }
 
 export function usePatchLineItem(estimateId: string) {

@@ -140,22 +140,50 @@ describe('LineItemGrid', () => {
     expect(screen.queryByText('HVAC sub-quote pending')).not.toBeInTheDocument();
   });
 
-  it('clicking a description cell + typing + blur calls PATCH with the new value', async () => {
-    mockedPatch.mockResolvedValueOnce({ data: { lineItem: { id: 'li-1', description: 'New desc' } } });
+  it('clicking the description cell opens the modal editor (long-text fields are NOT inline-editable)', async () => {
     const user = userEvent.setup();
     renderGrid(buildEstimate());
-
     const desc = screen.getByText('Demo gypsum');
     await user.click(desc);
-    const input = screen.getByDisplayValue('Demo gypsum');
+    // The LineItemEditor modal is mounted instead of an inline input.
+    expect(screen.getByTestId('line-item-editor')).toBeInTheDocument();
+    expect(screen.getByTestId('editor-description')).toBeInTheDocument();
+    // No inline single-line input ever appeared.
+    expect(
+      screen.queryByDisplayValue('Demo gypsum') === screen.queryByTestId('editor-description'),
+    ).toBe(true);
+  });
+
+  it('numeric cells still inline-edit: typing a new quantity + blur calls PATCH', async () => {
+    mockedPatch.mockResolvedValueOnce({
+      data: { lineItem: { id: 'li-1', quantity: '15' } },
+    });
+    const user = userEvent.setup();
+    renderGrid(buildEstimate());
+    // The fixture's li-1 quantity is '10'.
+    const qty = screen.getByText('10');
+    await user.click(qty);
+    const input = screen.getByDisplayValue('10');
     await user.clear(input);
-    await user.type(input, 'New description');
+    await user.type(input, '15');
     input.blur();
     await waitFor(() => {
       expect(mockedPatch).toHaveBeenCalledWith('/api/line-items/li-1', {
-        description: 'New description',
+        quantity: '15',
       });
     });
+  });
+
+  it('clearing a numeric cell to empty cancels (does NOT 400 the server)', async () => {
+    const user = userEvent.setup();
+    renderGrid(buildEstimate());
+    const qty = screen.getByText('10');
+    await user.click(qty);
+    const input = screen.getByDisplayValue('10');
+    await user.clear(input);
+    input.blur();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(mockedPatch).not.toHaveBeenCalled();
   });
 
   it('+ Section button posts a new section', async () => {

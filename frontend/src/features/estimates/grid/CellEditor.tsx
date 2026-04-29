@@ -31,7 +31,16 @@ export function CellEditor({
 
   const commit = () => {
     const trimmed = value.trim();
-    if (type === 'number' && trimmed !== '' && Number.isNaN(Number(trimmed))) {
+    // The bug: previously an empty trimmed value was forwarded to the
+    // server, which then 400'd because every Zod field requires either
+    // .min(1) (description) or matches a non-empty regex (quantity, costs,
+    // markup). Treat "user cleared the cell" as cancel so the row keeps
+    // its prior value instead of returning a confusing validation error.
+    if (trimmed === '') {
+      onCancel();
+      return;
+    }
+    if (type === 'number' && Number.isNaN(Number(trimmed))) {
       onCancel();
       return;
     }

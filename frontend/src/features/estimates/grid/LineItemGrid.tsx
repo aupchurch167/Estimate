@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import type { EstimateDetail, LineItem } from '@/features/estimates/types';
 import { GridRow } from './GridRow';
+import { LineItemEditor } from './LineItemEditor';
 import { SectionHeader } from './SectionHeader';
 import {
   useBulkDeleteLineItems,
@@ -34,6 +35,7 @@ export function LineItemGrid({ estimate }: LineItemGridProps) {
   const [focusedRowId, setFocusedRowId] = useState<string | null>(null);
   const [pendingBulkDelete, setPendingBulkDelete] = useState(false);
   const [pendingSectionDelete, setPendingSectionDelete] = useState<string | null>(null);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
 
   const createSection = useCreateSection(estimate.id);
   const deleteSection = useDeleteSection(estimate.id);
@@ -205,6 +207,7 @@ export function LineItemGrid({ estimate }: LineItemGridProps) {
                     onToggleSelect={() => toggleSelect(item.id)}
                     onPatch={(patch) => patchLineItem.mutate({ id: item.id, patch })}
                     onDelete={() => deleteLineItem.mutate(item.id)}
+                    onOpenEditor={() => setEditingItemId(item.id)}
                   />
                 )),
               ];
@@ -260,6 +263,22 @@ export function LineItemGrid({ estimate }: LineItemGridProps) {
           setPendingSectionDelete(null);
         }}
       />
+      {editingItemId
+        ? (() => {
+            // Re-resolve from the latest list each render so the modal
+            // shows fresh values when the query refetches mid-session.
+            const item = estimate.lineItems.find((li) => li.id === editingItemId);
+            if (!item) return null;
+            return (
+              <LineItemEditor
+                key={item.id}
+                estimate={estimate}
+                item={item}
+                onClose={() => setEditingItemId(null)}
+              />
+            );
+          })()
+        : null}
     </div>
   );
 }

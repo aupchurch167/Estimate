@@ -1,14 +1,17 @@
 import { useState } from 'react';
 import type { EstimateDetail } from '@/features/estimates/types';
 import { AddSourceModal } from '@/features/estimates/sources/AddSourceModal';
-import { useDeleteSource } from '@/features/estimates/sources/useSources';
+import { EditSourceModal } from '@/features/estimates/sources/EditSourceModal';
 
 const READ_ONLY_STATUSES = new Set(['SENT', 'WON', 'LOST']);
 
 export function SourcesPanel({ estimate }: { estimate: EstimateDetail }) {
   const [addOpen, setAddOpen] = useState(false);
-  const del = useDeleteSource(estimate.id);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const readOnly = READ_ONLY_STATUSES.has(estimate.status);
+  const editingSource = editingId
+    ? estimate.sourceInputs.find((s) => s.id === editingId) ?? null
+    : null;
 
   return (
     <section className="flex h-full flex-col border border-rule bg-paper-elevated">
@@ -46,34 +49,24 @@ export function SourcesPanel({ estimate }: { estimate: EstimateDetail }) {
         ) : (
           <ul className="flex flex-col gap-2">
             {estimate.sourceInputs.map((s) => (
-              <li
-                key={s.id}
-                className="group border border-rule-soft bg-paper p-3"
-                data-testid={`source-${s.id}`}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="font-mono text-[10px] uppercase tracking-label text-dim">
-                      {labelType(s.type)}
+              <li key={s.id} data-testid={`source-${s.id}`}>
+                <button
+                  type="button"
+                  onClick={() => setEditingId(s.id)}
+                  data-testid={`source-${s.id}-open`}
+                  className="group block w-full border border-rule-soft bg-paper p-3 text-left transition hover:border-ink hover:bg-paper-elevated"
+                >
+                  <p className="font-mono text-[10px] uppercase tracking-label text-dim">
+                    {labelType(s.type)}
+                    {s.fileUrl ? ' · file' : null}
+                  </p>
+                  <p className="mt-1 font-sans text-[12px] text-ink">{s.title}</p>
+                  {s.content ? (
+                    <p className="mt-1 line-clamp-2 font-sans text-[11px] text-dim">
+                      {s.content}
                     </p>
-                    <p className="mt-1 font-sans text-[12px] text-ink">{s.title}</p>
-                    {s.content ? (
-                      <p className="mt-1 line-clamp-2 font-sans text-[11px] text-dim">
-                        {s.content}
-                      </p>
-                    ) : null}
-                  </div>
-                  {!readOnly ? (
-                    <button
-                      type="button"
-                      aria-label="Delete source"
-                      onClick={() => del.mutate(s.id)}
-                      className="opacity-0 group-hover:opacity-100 font-mono text-[12px] text-dim hover:text-mark-red"
-                    >
-                      ×
-                    </button>
                   ) : null}
-                </div>
+                </button>
               </li>
             ))}
           </ul>
@@ -85,6 +78,15 @@ export function SourcesPanel({ estimate }: { estimate: EstimateDetail }) {
         onClose={() => setAddOpen(false)}
         estimateId={estimate.id}
       />
+      {editingSource ? (
+        <EditSourceModal
+          key={editingSource.id}
+          estimateId={estimate.id}
+          source={editingSource}
+          readOnly={readOnly}
+          onClose={() => setEditingId(null)}
+        />
+      ) : null}
     </section>
   );
 }

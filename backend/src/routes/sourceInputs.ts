@@ -15,4 +15,5 @@ sourceInputsRouter.post(
   '/signed-upload',
   asyncHandler(controller.signSourceUpload),
 );
+sourceInputsRouter.patch('/:id', asyncHandler(controller.patchSource));
 sourceInputsRouter.delete('/:id', asyncHandler(controller.deleteSource));

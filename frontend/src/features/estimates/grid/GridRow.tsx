@@ -7,8 +7,10 @@ import {
   type PatchLineItemInput,
 } from './useLineItems';
 
+// Inline-editable fields. Long-text fields (description, aiAssumption,
+// internalNotes, clientNotes) are NOT inline-editable — they're edited
+// in LineItemEditor instead because the grid cells are too narrow.
 type EditableField =
-  | 'description'
   | 'quantity'
   | 'unitOfMeasure'
   | 'unitCostMaterial'
@@ -34,6 +36,8 @@ interface GridRowProps {
   onPatch: (patch: PatchLineItemInput) => void;
   onDelete: () => void;
   onFocus: () => void;
+  /** Open the modal editor (long-text fields, status, sub-quote, notes). */
+  onOpenEditor: () => void;
   focused: boolean;
 }
 
@@ -45,6 +49,7 @@ export function GridRow({
   onPatch,
   onDelete,
   onFocus,
+  onOpenEditor,
   focused,
 }: GridRowProps) {
   const [editing, setEditing] = useState<EditableField | null>(null);
@@ -71,10 +76,12 @@ export function GridRow({
       tabIndex={0}
       onFocus={onFocus}
       onKeyDown={(e) => {
-        if (readOnly) return;
         if (e.key === 'Enter' && editing === null) {
           e.preventDefault();
-          startEdit('description');
+          // Enter opens the modal editor — the only place description /
+          // notes / assumption can be edited. Works in read-only mode
+          // too; the modal opens with a banner explaining why.
+          onOpenEditor();
         }
       }}
       className={`group border-b border-rule-soft border-l-[3px] ${accent} ${
@@ -96,18 +103,24 @@ export function GridRow({
         </span>
       </td>
       <td
-        className={tdClass()}
-        onClick={() => editing === null && startEdit('description')}
+        className={tdClass('cursor-pointer')}
+        onClick={onOpenEditor}
+        data-testid={`row-${item.id}-description`}
       >
-        {editing === 'description' ? (
-          <CellEditor
-            initialValue={item.description}
-            onCancel={finishEdit}
-            onCommit={(v) => commit({ description: v })}
-          />
-        ) : (
-          <span className="cursor-text font-sans text-[12px] text-ink">{item.description}</span>
-        )}
+        <span
+          className="block truncate font-sans text-[12px] text-ink"
+          title={item.description}
+        >
+          {item.description}
+        </span>
+        {item.aiAssumption ? (
+          <span
+            className="block truncate font-mono text-[10px] uppercase tracking-label text-mark-amber"
+            title={item.aiAssumption}
+          >
+            assumes: {item.aiAssumption}
+          </span>
+        ) : null}
       </td>
       <td
         className={tdClass('w-20 text-right')}
@@ -205,16 +218,28 @@ export function GridRow({
         </span>
       </td>
       <td className="w-12 px-2 py-1 align-middle text-right">
-        {!readOnly ? (
+        <div className="flex items-center justify-end gap-2">
           <button
             type="button"
-            aria-label="Delete line"
-            onClick={onDelete}
-            className="opacity-0 group-hover:opacity-100 font-mono text-[10px] uppercase tracking-label text-dim hover:text-mark-red"
+            aria-label="Open editor"
+            onClick={onOpenEditor}
+            data-testid={`row-${item.id}-expand`}
+            className="opacity-0 group-hover:opacity-100 font-mono text-[10px] uppercase tracking-label text-dim hover:text-ink"
+            title="Open full editor"
           >
-            ×
+            ⤢
           </button>
-        ) : null}
+          {!readOnly ? (
+            <button
+              type="button"
+              aria-label="Delete line"
+              onClick={onDelete}
+              className="opacity-0 group-hover:opacity-100 font-mono text-[10px] uppercase tracking-label text-dim hover:text-mark-red"
+            >
+              ×
+            </button>
+          ) : null}
+        </div>
       </td>
     </tr>
   );

@@ -50,6 +50,9 @@ async function makeMember(orgId: string, role: 'PM' | 'VIEWER' | 'ESTIMATOR' | '
 afterAll(async () => {
   for (const orgId of orgIds) {
     await prisma.activityEvent.deleteMany({ where: { organizationId: orgId } });
+    await prisma.aIMessage.deleteMany({ where: { organizationId: orgId } });
+    await prisma.aIRun.deleteMany({ where: { organizationId: orgId } });
+    await prisma.aIConversation.deleteMany({ where: { organizationId: orgId } });
     await prisma.sourceInput.deleteMany({ where: { organizationId: orgId } });
     await prisma.estimate.deleteMany({ where: { organizationId: orgId } });
     await prisma.notification.deleteMany({ where: { organizationId: orgId } });
@@ -169,6 +172,180 @@ describe('DELETE /api/source-inputs/:id', () => {
       where: { id: created.id, deletedAt: null },
     });
     expect(remaining).toBeNull();
+  });
+});
+
+describe('PATCH /api/source-inputs/:id', () => {
+  async function seedSource(
+    agent: ReturnType<typeof request.agent>,
+    payload: Record<string, unknown> = {},
+  ) {
+    const estimate = (
+      await agent.post('/api/estimates').send({ title: 'X' }).expect(201)
+    ).body.estimate;
+    const source = (
+      await agent
+        .post(`/api/estimates/${estimate.id}/source-inputs`)
+        .send({
+          type: 'TRANSCRIPT',
+          title: 'Walkthrough',
+          content: 'Demo back wall and frame a partition.',
+          ...payload,
+        })
+        .expect(201)
+    ).body.sourceInput;
+    return { estimate, source };
+  }
+
+  it('drafter can update title + content; activity event recorded', async () => {
+    const { user, organization } = await makeOwner();
+    const agent = await loginAs(user.email);
+    const { source } = await seedSource(agent);
+
+    const res = await agent
+      .patch(`/api/source-inputs/${source.id}`)
+      .send({ title: 'Updated walkthrough', content: 'Demo back wall, frame, finish.' })
+      .expect(200);
+    expect(res.body.sourceInput.title).toBe('Updated walkthrough');
+    expect(res.body.sourceInput.content).toBe('Demo back wall, frame, finish.');
+
+    const events = await prisma.activityEvent.findMany({
+      where: {
+        organizationId: organization.id,
+        eventType: 'SOURCE_INPUT_UPDATED',
+      },
+    });
+    expect(events).toHaveLength(1);
+    expect(events[0]?.meta).toMatchObject({
+      sourceInputId: source.id,
+      fieldsChanged: ['title', 'content'],
+    });
+  });
+
+  it('returns the same row with no activity event when nothing changed', async () => {
+    const { user, organization } = await makeOwner();
+    const agent = await loginAs(user.email);
+    const { source } = await seedSource(agent);
+    await agent
+      .patch(`/api/source-inputs/${source.id}`)
+      .send({ title: source.title })
+      .expect(200);
+    const events = await prisma.activityEvent.findMany({
+      where: {
+        organizationId: organization.id,
+        eventType: 'SOURCE_INPUT_UPDATED',
+      },
+    });
+    expect(events).toHaveLength(0);
+  });
+
+  it('returns 400 when content is empty / whitespace', async () => {
+    const { user } = await makeOwner();
+    const agent = await loginAs(user.email);
+    const { source } = await seedSource(agent);
+    await agent
+      .patch(`/api/source-inputs/${source.id}`)
+      .send({ content: '   ' })
+      .expect(400);
+  });
+
+  it('returns 400 when content > 200KB', async () => {
+    const { user } = await makeOwner();
+    const agent = await loginAs(user.email);
+    const { source } = await seedSource(agent);
+    const big = 'x'.repeat(200 * 1024 + 1);
+    await agent
+      .patch(`/api/source-inputs/${source.id}`)
+      .send({ content: big })
+      .expect(400);
+  });
+
+  it('returns 409 cannot_edit_in_current_status when estimate is SENT', async () => {
+    const { user } = await makeOwner();
+    const agent = await loginAs(user.email);
+    const { estimate, source } = await seedSource(agent);
+    await prisma.estimate.update({
+      where: { id: estimate.id },
+      data: { status: 'SENT', sentAt: new Date() },
+    });
+    const res = await agent
+      .patch(`/api/source-inputs/${source.id}`)
+      .send({ title: 'tweak' })
+      .expect(409);
+    expect(res.body.error.code).toBe('cannot_edit_in_current_status');
+  });
+
+  it('returns 409 file_source_not_editable for file-based sources', async () => {
+    const { user, organization } = await makeOwner();
+    const agent = await loginAs(user.email);
+    const estimate = (
+      await agent.post('/api/estimates').send({ title: 'X' }).expect(201)
+    ).body.estimate;
+    // Insert a file-based source directly so we don't have to mint a real
+    // upload — the controller's only contract is fileUrl !== null.
+    const fileSource = await prisma.sourceInput.create({
+      data: {
+        organizationId: organization.id,
+        estimateId: estimate.id,
+        type: 'PLAN_PDF',
+        title: 'Plans',
+        fileUrl: 'https://example.test/plan.pdf',
+        addedById: user.id,
+      },
+    });
+    const res = await agent
+      .patch(`/api/source-inputs/${fileSource.id}`)
+      .send({ title: 'tweak' })
+      .expect(409);
+    expect(res.body.error.code).toBe('file_source_not_editable');
+  });
+
+  it('non-drafter ESTIMATOR cannot edit a source they did not add (403)', async () => {
+    const { user, organization } = await makeOwner();
+    const agent = await loginAs(user.email);
+    const { source } = await seedSource(agent);
+    const stranger = await makeMember(organization.id, 'ESTIMATOR');
+    const strangerAgent = await loginAs(stranger.email);
+    await strangerAgent
+      .patch(`/api/source-inputs/${source.id}`)
+      .send({ title: 'tweak' })
+      .expect(403);
+  });
+
+  it('past AIRun.inputs is preserved when a source is edited', async () => {
+    // The AIRun row is the historical snapshot of "what we sent to
+    // Anthropic at the time"; editing a source must not mutate it.
+    const { user, organization } = await makeOwner();
+    const agent = await loginAs(user.email);
+    const { estimate, source } = await seedSource(agent);
+    const conv = await prisma.aIConversation.create({
+      data: {
+        organizationId: organization.id,
+        estimateId: estimate.id,
+        modelVersion: 'claude-sonnet-4-6',
+      },
+    });
+    const run = await prisma.aIRun.create({
+      data: {
+        organizationId: organization.id,
+        conversationId: conv.id,
+        estimateId: estimate.id,
+        triggeredById: user.id,
+        runType: 'GENERATE_LINE_ITEMS',
+        status: 'SUCCEEDED',
+        modelVersion: 'claude-sonnet-4-6',
+        inputs: { sourceContent: source.content, sourceTitle: source.title },
+        completedAt: new Date(),
+      },
+    });
+
+    await agent
+      .patch(`/api/source-inputs/${source.id}`)
+      .send({ content: 'completely different content' })
+      .expect(200);
+
+    const fresh = await prisma.aIRun.findUniqueOrThrow({ where: { id: run.id } });
+    expect(fresh.inputs).toEqual(run.inputs);
   });
 });
 

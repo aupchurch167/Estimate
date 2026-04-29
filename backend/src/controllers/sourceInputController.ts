@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 import * as sourceService from '../services/sourceInputService.js';
-import { ForbiddenError, ValidationError } from '../lib/errors.js';
+import { ConflictError, ForbiddenError, ValidationError } from '../lib/errors.js';
 import { ok } from '../lib/response.js';
 
 const SOURCE_TYPES = [
@@ -30,6 +30,15 @@ const signUploadBody = z.object({
   contentType: z.string().min(1).max(80),
   fileSizeBytes: z.number().int().positive().max(20 * 1024 * 1024),
 });
+
+const patchBody = z
+  .object({
+    title: z.string().min(1).max(200).optional(),
+    content: z.string().min(1).optional(),
+  })
+  .refine((v) => v.title !== undefined || v.content !== undefined, {
+    message: 'Provide at least one of: title, content',
+  });
 
 function parse<T extends z.ZodTypeAny>(schema: T, value: unknown): z.infer<T> {
   const result = schema.safeParse(value);
@@ -63,6 +72,33 @@ export async function createSource(req: Request, res: Response): Promise<void> {
     input,
   );
   res.status(201).json({ sourceInput });
+}
+
+export async function patchSource(req: Request, res: Response): Promise<void> {
+  const { orgId, actor } = actorFrom(req);
+  const input = parse(patchBody, req.body);
+  try {
+    const sourceInput = await sourceService.update(
+      orgId,
+      actor,
+      String(req.params.id ?? ''),
+      input,
+    );
+    ok(res, { sourceInput });
+  } catch (err) {
+    // ConflictError covers both the locked-status case (existing) and the
+    // file_source_not_editable case (new). Render with the underlying code
+    // so the UI can branch on it.
+    if (err instanceof ConflictError) {
+      res
+        .status(err.statusCode)
+        .json({
+          error: { code: err.code, message: err.message, details: err.details },
+        });
+      return;
+    }
+    throw err;
+  }
 }
 
 export async function deleteSource(req: Request, res: Response): Promise<void> {

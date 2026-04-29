@@ -146,6 +146,113 @@ export async function create(
   return created;
 }
 
+// ─── Update ───────────────────────────────────────────────────────────────
+
+export interface UpdateSourceInput {
+  title?: string;
+  content?: string | null;
+}
+
+/**
+ * Edit an existing source input. Permitted fields are title + content
+ * only — everything else (type, fileUrl, externalRef, addedById) is
+ * immutable post-creation. File-based sources are not editable: the
+ * intent is "fix a typo / trim a transcript", not "swap the content
+ * out from under any past AI run that already used it".
+ *
+ * Past AIRun.inputs is NOT retroactively modified — runs are
+ * historical. The next GENERATE_LINE_ITEMS / ASK_FOLLOWUP run will
+ * see the edited content; older runs continue to reflect what was
+ * actually sent to Anthropic at the time.
+ */
+export async function update(
+  organizationId: string,
+  actor: Actor,
+  id: string,
+  patch: UpdateSourceInput,
+): Promise<SourceInput> {
+  const source = await prisma.sourceInput.findFirst({
+    where: { id, organizationId, deletedAt: null },
+  });
+  if (!source) throw new NotFoundError('SourceInput', id);
+  const estimate = await loadEstimate(organizationId, source.estimateId);
+  assertCanModifySources(actor, estimate);
+
+  if (source.fileUrl) {
+    throw new ConflictError(
+      'File-based sources are not editable. Delete and re-upload to replace.',
+      'file_source_not_editable',
+      { sourceInputId: id },
+    );
+  }
+
+  const data: { title?: string; content?: string | null } = {};
+  const fieldsChanged: string[] = [];
+
+  if (patch.title !== undefined) {
+    const next = patch.title.trim();
+    if (next.length === 0) {
+      throw new ValidationError('Source title cannot be empty', { field: 'title' });
+    }
+    if (next.length > 200) {
+      throw new ValidationError('Source title is too long (max 200 chars)', {
+        field: 'title',
+      });
+    }
+    if (next !== source.title) {
+      data.title = next;
+      fieldsChanged.push('title');
+    }
+  }
+
+  if (patch.content !== undefined) {
+    if (patch.content === null || patch.content.trim().length === 0) {
+      throw new ValidationError('Text sources require non-empty content', {
+        field: 'content',
+      });
+    }
+    if (Buffer.byteLength(patch.content, 'utf8') > MAX_TEXT_BYTES) {
+      throw new ValidationError('Source content exceeds 200KB', {
+        field: 'content',
+        maxBytes: MAX_TEXT_BYTES,
+      });
+    }
+    const next = patch.content.trim();
+    if (next !== (source.content ?? '')) {
+      data.content = next;
+      fieldsChanged.push('content');
+    }
+  }
+
+  if (fieldsChanged.length === 0) {
+    // No-op patches return the unchanged row without writing an
+    // activity event. Saves a useless audit-log entry on
+    // re-submitting the same form.
+    return source;
+  }
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const next = await tx.sourceInput.update({
+      where: { id },
+      data,
+    });
+    await tx.activityEvent.create({
+      data: {
+        organizationId,
+        actorId: actor.id,
+        eventType: 'SOURCE_INPUT_UPDATED',
+        entityType: 'SourceInput',
+        entityId: id,
+        estimateId: source.estimateId,
+        summary: `Updated source "${next.title}"`,
+        meta: { sourceInputId: id, fieldsChanged },
+      },
+    });
+    return next;
+  });
+  return updated;
+}
+
 // ─── Soft delete ─────────────────────────────────────────────────────────
 
 export async function softDelete(

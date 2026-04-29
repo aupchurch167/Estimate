@@ -49,3 +49,28 @@ export function useDeleteSource(estimateId: string) {
     },
   });
 }
+
+export interface PatchSourceInput {
+  title?: string;
+  content?: string;
+}
+
+export function usePatchSource(estimateId: string) {
+  const qc = useQueryClient();
+  return useMutation<
+    SourceInput,
+    AxiosError,
+    { id: string; patch: PatchSourceInput }
+  >({
+    mutationFn: async ({ id, patch }) => {
+      const res = await api.patch<{ sourceInput: SourceInput }>(
+        `/api/source-inputs/${id}`,
+        patch,
+      );
+      return res.data.sourceInput;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: estimateDetailKey(estimateId) });
+    },
+  });
+}
