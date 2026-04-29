@@ -14,15 +14,10 @@ export default defineConfig({
     globals: false,
     clearMocks: true,
     css: false,
-    // Vite only exposes VITE_* from .env files via import.meta.env; it
-    // doesn't auto-pick up process.env. CI sets these via the workflow
-    // `env:` block, so plumb them through here. Local dev still picks
-    // up frontend/.env first; these are the fallbacks when no .env is
-    // present (CI, fresh checkout without `cp .env.example .env`).
-    env: {
-      VITE_API_URL: process.env.VITE_API_URL ?? 'http://localhost:4000',
-      VITE_APP_URL: process.env.VITE_APP_URL ?? 'http://localhost:5173',
-      VITE_SENTRY_DSN: process.env.VITE_SENTRY_DSN ?? '',
-    },
+    // VITE_* env values come from frontend/.env.test (auto-loaded by
+    // Vite in test mode). The earlier attempt to set them via test.env
+    // here looked correct but only populated process.env — Vite's
+    // import.meta.env replacement happens at transform time and only
+    // reads .env* files.
   },
 });
