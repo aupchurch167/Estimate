@@ -119,7 +119,10 @@ function renderGrid(estimate: EstimateDetail) {
 describe('LineItemGrid', () => {
   it('renders both rows under the section header', () => {
     renderGrid(buildEstimate());
-    expect(screen.getByText('A · Demolition', { exact: false })).toBeInTheDocument();
+    // Section letter chip is now a separate element from the name —
+    // assert the name itself plus the letter pill.
+    expect(screen.getByText('Demolition')).toBeInTheDocument();
+    expect(screen.getByText('A')).toBeInTheDocument();
     expect(screen.getByText('Demo gypsum')).toBeInTheDocument();
     expect(screen.getByText('HVAC sub-quote pending')).toBeInTheDocument();
   });

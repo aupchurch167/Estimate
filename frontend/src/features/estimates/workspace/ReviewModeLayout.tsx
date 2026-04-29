@@ -8,6 +8,8 @@ import {
 import { ExportPdfButton } from '@/features/estimates/review/ExportPdfButton';
 import { SendButton } from '@/features/estimates/review/SendButton';
 import { CloseOutActions } from '@/features/estimates/review/CloseOutActions';
+import { QuickCommentComposer } from '@/features/estimates/review/QuickCommentComposer';
+import { Card } from '@/components/ui';
 import type { EstimateDetail, EstimateStatus } from '@/features/estimates/types';
 
 interface ReviewModeLayoutProps {
@@ -17,9 +19,9 @@ interface ReviewModeLayoutProps {
 }
 
 export function ReviewModeLayout({ estimate, readOnly, modeSwitch }: ReviewModeLayoutProps) {
-  const modeLabel = readOnly ? readOnlyLabel(estimate.status) : 'Reviewer · Workspace';
+  const modeLabel = readOnly ? readOnlyLabel(estimate.status) : 'Reviewing';
   return (
-    <div className="min-h-screen bg-paper">
+    <div className="min-h-screen bg-bg-secondary">
       <TitleBlock
         estimate={estimate}
         modeLabel={modeLabel}
@@ -46,22 +48,28 @@ export function ReviewModeLayout({ estimate, readOnly, modeSwitch }: ReviewModeL
       />
 
       <main className="mx-auto max-w-[1280px] px-6 py-6">
-        <div className="grid grid-cols-[1fr_320px] gap-4 h-[calc(100vh-180px)]">
-          <section className="flex flex-col border border-rule bg-paper-elevated">
-            <header className="border-b border-rule-soft px-4 py-3">
-              <p className="font-mono text-[10px] uppercase tracking-label text-dim">
-                Schedule of Values
-              </p>
-              <p className="mt-1 font-sans text-[12px] text-dim">
+        {!readOnly ? (
+          <Card className="mb-4">
+            <QuickCommentComposer estimateId={estimate.id} />
+          </Card>
+        ) : null}
+
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_360px] lg:[grid-template-rows:minmax(560px,calc(100vh-260px))]">
+          <Card
+            title="Schedule of Values"
+            actions={
+              <p className="text-[12px] text-text-secondary">
                 {readOnly
                   ? 'Read-only view of the approved schedule.'
-                  : 'Inline review of every line — fix prices, flag assumptions, leave comments.'}
+                  : 'Edit inline — Tab walks the cells, Enter starts editing.'}
               </p>
-            </header>
+            }
+            className="!p-0 flex h-full flex-col overflow-hidden"
+          >
             <div className="flex-1 overflow-hidden p-4">
               <LineItemGrid estimate={estimate} />
             </div>
-          </section>
+          </Card>
 
           <RightRail estimate={estimate} readOnly={readOnly} />
         </div>

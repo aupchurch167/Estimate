@@ -61,6 +61,22 @@ export function useDeleteSection(estimateId: string) {
   });
 }
 
+export function usePatchSection(estimateId: string) {
+  const qc = useQueryClient();
+  return useMutation<ScopeSection, AxiosError, { id: string; patch: { name?: string } }>({
+    mutationFn: async ({ id, patch }) => {
+      const res = await api.patch<{ section: ScopeSection }>(
+        `/api/scope-sections/${id}`,
+        patch,
+      );
+      return res.data.section;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: estimateDetailKey(estimateId) });
+    },
+  });
+}
+
 // ─── Line items ────────────────────────────────────────────────────────────
 
 export interface CreateLineItemInput {

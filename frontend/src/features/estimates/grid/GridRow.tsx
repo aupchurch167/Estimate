@@ -9,7 +9,7 @@ import {
 
 // Inline-editable fields. Long-text fields (description, aiAssumption,
 // internalNotes, clientNotes) are NOT inline-editable — they're edited
-// in LineItemEditor instead because the grid cells are too narrow.
+// in LineItemEditor instead.
 type EditableField =
   | 'quantity'
   | 'unitOfMeasure'
@@ -17,15 +17,18 @@ type EditableField =
   | 'unitCostLabor'
   | 'markupPercent';
 
+// Status → left-border accent color. Replaces the dedicated Status
+// column per the layout iteration; the colored stripe on the row is
+// enough signal at a glance.
 const STATUS_ACCENT: Record<string, string> = {
-  AI_GENERATED: 'border-l-dim',
-  CONFIRMED: 'border-l-mark-green',
-  NEEDS_REVIEW: 'border-l-mark-amber',
-  ASSUMED: 'border-l-mark-amber',
-  NO_PRICE: 'border-l-mark-red',
-  PENDING_SUB_QUOTE: 'border-l-blueprint',
-  DRAFT: 'border-l-rule',
-  MANUAL: 'border-l-rule',
+  AI_GENERATED: 'border-l-text-tertiary',
+  CONFIRMED: 'border-l-success',
+  NEEDS_REVIEW: 'border-l-warning',
+  ASSUMED: 'border-l-warning',
+  NO_PRICE: 'border-l-danger',
+  PENDING_SUB_QUOTE: 'border-l-info',
+  DRAFT: 'border-l-border-primary',
+  MANUAL: 'border-l-border-primary',
 };
 
 interface GridRowProps {
@@ -55,7 +58,7 @@ export function GridRow({
   const [editing, setEditing] = useState<EditableField | null>(null);
 
   const accent =
-    STATUS_ACCENT[item.status] ?? STATUS_ACCENT[item.source] ?? 'border-l-rule';
+    STATUS_ACCENT[item.status] ?? STATUS_ACCENT[item.source] ?? 'border-l-border-primary';
 
   const startEdit = (field: EditableField) => {
     if (readOnly) return;
@@ -68,7 +71,22 @@ export function GridRow({
   };
 
   const tdClass = (extra = '') =>
-    `border-r border-rule-soft px-2 py-1 align-middle ${extra}`;
+    `border-r border-border-primary px-2 py-1.5 align-middle ${extra}`;
+
+  // Make each editable cell focusable so Tab walks through them in
+  // reading order. Enter / Space starts the inline editor.
+  const editableProps = (field: EditableField) => ({
+    tabIndex: readOnly ? -1 : 0,
+    role: readOnly ? undefined : ('button' as const),
+    'aria-label': readOnly ? undefined : `Edit ${field}`,
+    onKeyDown: (e: React.KeyboardEvent) => {
+      if (readOnly) return;
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        startEdit(field);
+      }
+    },
+  });
 
   return (
     <tr
@@ -76,17 +94,15 @@ export function GridRow({
       tabIndex={0}
       onFocus={onFocus}
       onKeyDown={(e) => {
-        if (e.key === 'Enter' && editing === null) {
+        // Enter on the row itself (not on a cell) opens the modal editor.
+        if (e.key === 'Enter' && editing === null && e.currentTarget === e.target) {
           e.preventDefault();
-          // Enter opens the modal editor — the only place description /
-          // notes / assumption can be edited. Works in read-only mode
-          // too; the modal opens with a banner explaining why.
           onOpenEditor();
         }
       }}
-      className={`group border-b border-rule-soft border-l-[3px] ${accent} ${
-        selected ? 'bg-paper' : ''
-      } ${focused ? 'outline outline-1 outline-ink/30' : ''} hover:bg-paper`}
+      className={`group border-b border-border-primary border-l-[3px] ${accent} ${
+        selected ? 'bg-bg-tertiary' : ''
+      } ${focused ? 'outline outline-1 outline-border-focus/40' : ''} hover:bg-bg-tertiary`}
     >
       <td className={tdClass('w-8 text-center')}>
         <input
@@ -97,25 +113,20 @@ export function GridRow({
           className="cursor-pointer"
         />
       </td>
-      <td className={tdClass('w-24')}>
-        <span className="font-mono text-[10px] uppercase tracking-label text-dim">
-          {labelStatus(item.status)}
-        </span>
-      </td>
       <td
-        className={tdClass('cursor-pointer')}
+        className={tdClass('cursor-pointer min-w-[260px]')}
         onClick={onOpenEditor}
         data-testid={`row-${item.id}-description`}
       >
         <span
-          className="block truncate font-sans text-[12px] text-ink"
+          className="block truncate text-[14px] text-text-primary"
           title={item.description}
         >
           {item.description}
         </span>
         {item.aiAssumption ? (
           <span
-            className="block truncate font-mono text-[10px] uppercase tracking-label text-mark-amber"
+            className="block truncate text-[12px] text-warning"
             title={item.aiAssumption}
           >
             assumes: {item.aiAssumption}
@@ -125,6 +136,7 @@ export function GridRow({
       <td
         className={tdClass('w-20 text-right')}
         onClick={() => editing === null && startEdit('quantity')}
+        {...editableProps('quantity')}
       >
         {editing === 'quantity' ? (
           <CellEditor
@@ -135,12 +147,15 @@ export function GridRow({
             onCommit={(v) => commit({ quantity: v })}
           />
         ) : (
-          <span className="font-mono text-[12px] tabular-nums">{fmtQty(item.quantity)}</span>
+          <span className="font-mono text-[13px] tabular-nums text-text-primary">
+            {fmtQty(item.quantity)}
+          </span>
         )}
       </td>
       <td
         className={tdClass('w-20 text-center')}
         onClick={() => editing === null && startEdit('unitOfMeasure')}
+        {...editableProps('unitOfMeasure')}
       >
         {editing === 'unitOfMeasure' ? (
           <SelectEditor<UnitOfMeasure>
@@ -150,12 +165,15 @@ export function GridRow({
             onCommit={(v) => commit({ unitOfMeasure: v })}
           />
         ) : (
-          <span className="font-mono text-[10px] uppercase tracking-label">{item.unitOfMeasure}</span>
+          <span className="text-[12px] font-medium uppercase tracking-[0.04em] text-text-secondary">
+            {item.unitOfMeasure}
+          </span>
         )}
       </td>
       <td
-        className={tdClass('w-24 text-right')}
+        className={tdClass('w-20 text-right')}
         onClick={() => editing === null && startEdit('unitCostMaterial')}
+        {...editableProps('unitCostMaterial')}
       >
         {editing === 'unitCostMaterial' ? (
           <CellEditor
@@ -166,14 +184,15 @@ export function GridRow({
             onCommit={(v) => commit({ unitCostMaterial: v })}
           />
         ) : (
-          <span className="font-mono text-[12px] tabular-nums">
+          <span className="font-mono text-[13px] tabular-nums text-text-primary">
             {fmtMoney(item.unitCostMaterial)}
           </span>
         )}
       </td>
       <td
-        className={tdClass('w-24 text-right')}
+        className={tdClass('w-20 text-right')}
         onClick={() => editing === null && startEdit('unitCostLabor')}
+        {...editableProps('unitCostLabor')}
       >
         {editing === 'unitCostLabor' ? (
           <CellEditor
@@ -184,7 +203,7 @@ export function GridRow({
             onCommit={(v) => commit({ unitCostLabor: v })}
           />
         ) : (
-          <span className="font-mono text-[12px] tabular-nums">
+          <span className="font-mono text-[13px] tabular-nums text-text-primary">
             {fmtMoney(item.unitCostLabor)}
           </span>
         )}
@@ -192,6 +211,7 @@ export function GridRow({
       <td
         className={tdClass('w-20 text-right')}
         onClick={() => editing === null && startEdit('markupPercent')}
+        {...editableProps('markupPercent')}
       >
         {editing === 'markupPercent' ? (
           <CellEditor
@@ -202,62 +222,62 @@ export function GridRow({
             onCommit={(v) => commit({ markupPercent: v })}
           />
         ) : (
-          <span className="font-mono text-[11px] tabular-nums text-dim">
+          <span className="font-mono text-[12px] tabular-nums text-text-secondary">
             {fmtPct(item.markupPercent)}
           </span>
         )}
       </td>
-      <td className={tdClass('w-24 text-right')}>
-        <span className="font-mono text-[12px] tabular-nums text-dim">
+      <td className={tdClass('w-20 text-right')}>
+        <span className="font-mono text-[12px] tabular-nums text-text-secondary">
           {fmtMoney(item.lineCost)}
         </span>
       </td>
-      <td className={tdClass('w-28 text-right')}>
-        <span className="font-mono text-[12px] tabular-nums text-ink">
+      <td className={tdClass('w-24 text-right')}>
+        <span className="font-mono text-[14px] font-semibold tabular-nums text-text-primary">
           {fmtMoney(item.lineSellPrice)}
         </span>
       </td>
-      <td className="w-12 px-2 py-1 align-middle text-right">
-        <div className="flex items-center justify-end gap-2">
+      <td className="w-12 px-2 py-1.5 align-middle text-right">
+        <div className="flex items-center justify-end gap-1">
           <button
             type="button"
             aria-label="Open editor"
             onClick={onOpenEditor}
             data-testid={`row-${item.id}-expand`}
-            className="opacity-0 group-hover:opacity-100 font-mono text-[10px] uppercase tracking-label text-dim hover:text-ink"
+            className="rounded p-1 text-text-tertiary opacity-0 transition-opacity duration-fast hover:bg-bg-secondary hover:text-text-primary focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus group-hover:opacity-100"
             title="Open full editor"
           >
-            ⤢
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path
+                d="M11 2h3v3M14 2L9 7M5 14H2v-3M2 14l5-5"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
           </button>
           {!readOnly ? (
             <button
               type="button"
               aria-label="Delete line"
               onClick={onDelete}
-              className="opacity-0 group-hover:opacity-100 font-mono text-[10px] uppercase tracking-label text-dim hover:text-mark-red"
+              className="rounded p-1 text-text-tertiary opacity-0 transition-opacity duration-fast hover:bg-danger-light hover:text-danger focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus group-hover:opacity-100"
             >
-              ×
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path
+                  d="M4 4l8 8M12 4l-8 8"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                />
+              </svg>
             </button>
           ) : null}
         </div>
       </td>
     </tr>
   );
-}
-
-function labelStatus(s: string): string {
-  switch (s) {
-    case 'NEEDS_REVIEW':
-      return 'Review';
-    case 'NO_PRICE':
-      return 'No price';
-    case 'PENDING_SUB_QUOTE':
-      return 'Sub';
-    case 'AI_GENERATED':
-      return 'AI';
-    default:
-      return s.charAt(0) + s.slice(1).toLowerCase();
-  }
 }
 
 function fmtQty(v: string): string {

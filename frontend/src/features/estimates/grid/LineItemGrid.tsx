@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { Button } from '@/components/ui';
 import type { EstimateDetail, LineItem } from '@/features/estimates/types';
 import { GridRow } from './GridRow';
 import { LineItemEditor } from './LineItemEditor';
@@ -11,6 +12,7 @@ import {
   useDeleteLineItem,
   useDeleteSection,
   usePatchLineItem,
+  usePatchSection,
   type LineItemStatus,
 } from './useLineItems';
 
@@ -22,6 +24,7 @@ const FILTERS: { id: 'all' | LineItemStatus; label: string }[] = [
 ];
 
 const READ_ONLY_STATUSES = new Set(['SENT', 'WON', 'LOST']);
+const COL_COUNT = 10;
 
 interface LineItemGridProps {
   estimate: EstimateDetail;
@@ -38,6 +41,7 @@ export function LineItemGrid({ estimate }: LineItemGridProps) {
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
 
   const createSection = useCreateSection(estimate.id);
+  const patchSection = usePatchSection(estimate.id);
   const deleteSection = useDeleteSection(estimate.id);
   const createLineItem = useCreateLineItem(estimate.id);
   const patchLineItem = usePatchLineItem(estimate.id);
@@ -80,18 +84,18 @@ export function LineItemGrid({ estimate }: LineItemGridProps) {
   };
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex flex-wrap items-center gap-3 border-b border-rule pb-3">
-        <div className="flex items-center gap-2">
+    <div className="flex h-full flex-col">
+      <div className="flex flex-wrap items-center gap-3 border-b border-border-primary pb-3">
+        <div className="flex items-center gap-1.5">
           {FILTERS.map((f) => (
             <button
               key={f.id}
               type="button"
               onClick={() => setFilter(f.id)}
-              className={`border px-2 py-0.5 font-mono text-[10px] uppercase tracking-label transition ${
+              className={`rounded-md px-2.5 py-1 text-[12px] font-medium transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus ${
                 filter === f.id
-                  ? 'border-ink bg-ink text-ink-inverse'
-                  : 'border-rule text-dim hover:border-ink hover:text-ink'
+                  ? 'bg-primary-light text-primary'
+                  : 'text-text-secondary hover:bg-bg-tertiary hover:text-text-primary'
               }`}
             >
               {f.label}
@@ -103,39 +107,28 @@ export function LineItemGrid({ estimate }: LineItemGridProps) {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Filter rows by description"
-          className="ml-auto w-full max-w-[280px] border-b border-rule bg-transparent py-1 font-sans text-[12px] outline-none focus:border-ink"
+          className="ml-auto h-8 w-full max-w-[280px] rounded-md border border-border-secondary bg-bg-tertiary px-3 text-[13px] text-text-primary placeholder:text-text-tertiary focus-visible:border-border-focus focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
         />
         {!readOnly ? (
-          <button
-            type="button"
+          <Button
+            size="sm"
             onClick={() => createSection.mutate({ name: `Section ${sections.length + 1}` })}
-            className="border border-ink px-3 py-1 font-mono text-[10px] uppercase tracking-label text-ink hover:bg-ink hover:text-ink-inverse"
           >
             + Section
-          </button>
+          </Button>
         ) : null}
       </div>
 
       {selected.size > 0 && !readOnly ? (
-        <div className="flex items-center justify-between border-b border-rule-soft bg-paper px-3 py-2">
-          <p className="font-mono text-[10px] uppercase tracking-label text-dim">
-            {selected.size} selected
-          </p>
+        <div className="flex items-center justify-between border-b border-border-primary bg-bg-secondary px-3 py-2">
+          <p className="text-[13px] font-medium text-text-primary">{selected.size} selected</p>
           <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setSelected(new Set())}
-              className="border border-rule px-2 py-0.5 font-mono text-[10px] uppercase tracking-label text-ink hover:border-ink"
-            >
+            <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
               Clear
-            </button>
-            <button
-              type="button"
-              onClick={() => setPendingBulkDelete(true)}
-              className="border border-mark-red bg-mark-red/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-label text-mark-red hover:bg-mark-red hover:text-ink-inverse"
-            >
+            </Button>
+            <Button size="sm" variant="danger" onClick={() => setPendingBulkDelete(true)}>
               Delete {selected.size}
-            </button>
+            </Button>
           </div>
         </div>
       ) : null}
@@ -143,34 +136,31 @@ export function LineItemGrid({ estimate }: LineItemGridProps) {
       <div className="flex-1 overflow-auto">
         <table
           onKeyDown={onArrow}
-          className="w-full border-collapse table-fixed"
+          className="w-full border-collapse"
           aria-label="Line items"
         >
           <thead>
-            <tr className="border-b border-rule text-left">
+            <tr className="border-b border-border-primary bg-bg-secondary text-left">
               <Th className="w-8"> </Th>
-              <Th className="w-24">Status</Th>
-              <Th>Description</Th>
+              <Th className="min-w-[260px]">Description</Th>
               <Th className="w-20 text-right">Qty</Th>
               <Th className="w-20 text-center">UoM</Th>
-              <Th className="w-24 text-right">Material $</Th>
-              <Th className="w-24 text-right">Labor $</Th>
+              <Th className="w-20 text-right">Material</Th>
+              <Th className="w-20 text-right">Labor</Th>
               <Th className="w-20 text-right">Markup</Th>
-              <Th className="w-24 text-right">Cost</Th>
-              <Th className="w-28 text-right">Sell</Th>
+              <Th className="w-20 text-right">Cost</Th>
+              <Th className="w-24 text-right">Sell</Th>
               <Th className="w-12"> </Th>
             </tr>
           </thead>
           <tbody>
             {sections.length === 0 ? (
               <tr>
-                <td colSpan={11} className="p-6 text-center">
-                  <p className="font-mono text-[10px] uppercase tracking-label text-dim">
-                    No sections yet
-                  </p>
+                <td colSpan={COL_COUNT} className="p-8 text-center">
+                  <p className="text-[14px] font-medium text-text-primary">No sections yet</p>
                   {!readOnly ? (
-                    <p className="mt-2 font-sans text-[12px] text-dim">
-                      Click <span className="font-mono">+ Section</span> above to start.
+                    <p className="mt-1 text-[13px] text-text-secondary">
+                      Click <span className="font-medium">+ Section</span> above to start.
                     </p>
                   ) : null}
                 </td>
@@ -195,6 +185,11 @@ export function LineItemGrid({ estimate }: LineItemGridProps) {
                   readOnly={readOnly}
                   onAddLineItem={() => createLineItem.mutate({ sectionId: section.id })}
                   onDeleteSection={() => setPendingSectionDelete(section.id)}
+                  onRenameSection={
+                    readOnly
+                      ? undefined
+                      : (name) => patchSection.mutate({ id: section.id, patch: { name } })
+                  }
                 />,
                 ...items.map((item) => (
                   <GridRow
@@ -214,8 +209,8 @@ export function LineItemGrid({ estimate }: LineItemGridProps) {
               if (items.length === 0 && allSectionItems.length > 0) {
                 rows.push(
                   <tr key={`hidden-${section.id}`}>
-                    <td colSpan={11} className="px-3 py-2 text-center">
-                      <p className="font-mono text-[10px] uppercase tracking-label text-dim">
+                    <td colSpan={COL_COUNT} className="px-3 py-2 text-center">
+                      <p className="text-[12px] text-text-tertiary">
                         {allSectionItems.length} hidden by filter
                       </p>
                     </td>
@@ -265,8 +260,6 @@ export function LineItemGrid({ estimate }: LineItemGridProps) {
       />
       {editingItemId
         ? (() => {
-            // Re-resolve from the latest list each render so the modal
-            // shows fresh values when the query refetches mid-session.
             const item = estimate.lineItems.find((li) => li.id === editingItemId);
             if (!item) return null;
             return (
@@ -286,7 +279,7 @@ export function LineItemGrid({ estimate }: LineItemGridProps) {
 function Th({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
     <th
-      className={`font-mono text-[10px] uppercase tracking-label text-dim font-normal pb-2 px-2 ${className}`}
+      className={`px-2 py-2 text-[12px] font-medium uppercase tracking-[0.06em] text-text-secondary ${className}`}
     >
       {children}
     </th>
