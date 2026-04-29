@@ -1,14 +1,23 @@
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthContext } from '@/context/useAuthContext';
 import { useLogout } from '@/features/auth/useAuth';
 import { NotificationBell } from '@/features/notifications/NotificationBell';
 import { RoleGate } from '@/components/RoleGate';
+import { ShortcutsModal } from '@/components/ShortcutsModal';
+import { useShortcut, useShortcutSequence } from '@/hooks/useShortcut';
 import { Dashboard } from '@/features/dashboard/Dashboard';
 
 export function AppShell() {
   const navigate = useNavigate();
   const { user, organization } = useAuthContext();
   const logout = useLogout();
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+
+  // App-wide keyboard shortcuts (Phase 8.3).
+  useShortcut('?', () => setShortcutsOpen(true));
+  useShortcutSequence('g d', () => navigate('/app'));
+  useShortcutSequence('g e', () => navigate('/app/estimates'));
 
   const handleLogout = async () => {
     await logout.mutateAsync();
@@ -88,6 +97,7 @@ export function AppShell() {
         </header>
         <Dashboard />
       </main>
+      <ShortcutsModal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
     </div>
   );
 }
