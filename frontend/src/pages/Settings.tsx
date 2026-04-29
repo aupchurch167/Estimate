@@ -7,6 +7,7 @@ import { IdentitySection } from '@/features/settings/IdentitySection';
 import { BrandingSection } from '@/features/settings/BrandingSection';
 import { WorkflowSection } from '@/features/settings/WorkflowSection';
 import { AISection } from '@/features/settings/AISection';
+import { AiUsageSection } from '@/features/settings/AiUsageSection';
 import { DefaultsSection } from '@/features/settings/DefaultsSection';
 import { useOrganization } from '@/features/settings/useOrganization';
 
@@ -128,6 +129,7 @@ export function SettingsPage() {
         <BrandingSection settings={settings} />
         <WorkflowSection settings={settings} />
         <AISection settings={settings} />
+        <AiUsageSection />
         <DefaultsSection settings={settings} />
       </main>
     </div>

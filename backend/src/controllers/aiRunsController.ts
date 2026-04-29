@@ -1,11 +1,12 @@
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 import * as aiService from '../services/aiService.js';
+import * as aiUsageService from '../services/aiUsageService.js';
 import * as lineGenerationService from '../services/lineGenerationService.js';
 import * as askFollowupService from '../services/askFollowupService.js';
 import { ConflictError, ForbiddenError, ValidationError } from '../lib/errors.js';
 import { ok } from '../lib/response.js';
-import { canCreateEstimate } from '../lib/permissions.js';
+import { canCreateEstimate, canManageOrg } from '../lib/permissions.js';
 
 function actorFrom(req: Request) {
   if (!req.user || !req.organization) throw new ForbiddenError('Not authenticated');
@@ -39,6 +40,15 @@ export async function getOne(req: Request, res: Response): Promise<void> {
   const { orgId } = actorFrom(req);
   const run = await aiService.getRun(orgId, String(req.params.id ?? ''));
   ok(res, { run });
+}
+
+export async function getUsage(req: Request, res: Response): Promise<void> {
+  const { orgId, user } = actorFrom(req);
+  if (!canManageOrg(user.role)) {
+    throw new ForbiddenError('Only admins can view AI usage');
+  }
+  const data = await aiUsageService.getUsageForOrg(orgId);
+  ok(res, data);
 }
 
 export async function createRun(req: Request, res: Response): Promise<void> {

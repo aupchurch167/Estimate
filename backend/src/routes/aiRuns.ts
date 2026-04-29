@@ -10,7 +10,10 @@ estimateAiRouter.get('/:id/ai-runs', asyncHandler(controller.listForEstimate));
 estimateAiRouter.post('/:id/ai-runs', asyncHandler(controller.createRun));
 estimateAiRouter.get('/:id/conversation', asyncHandler(controller.getConversation));
 
-// /api/ai-runs/:id — read-only access to a single run + messages.
+// /api/ai-runs/...
 export const aiRunsRouter = Router();
 aiRunsRouter.use(requireAuth);
+// Admin-only org usage rollup. Mounted before /:id so the literal
+// "usage" path wins over the dynamic param.
+aiRunsRouter.get('/usage', asyncHandler(controller.getUsage));
 aiRunsRouter.get('/:id', asyncHandler(controller.getOne));
