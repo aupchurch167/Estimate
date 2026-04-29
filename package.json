@@ -9,6 +9,7 @@
   ],
   "scripts": {
     "install:all": "npm install",
+    "dev": "concurrently --names BE,FE --prefix-colors yellow,cyan --kill-others-on-fail \"npm:dev:backend\" \"npm:dev:frontend\"",
     "dev:frontend": "npm --workspace frontend run dev",
     "dev:backend": "npm --workspace backend run dev",
     "build:frontend": "npm --workspace frontend run build",
@@ -21,5 +22,8 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
   }
 }
