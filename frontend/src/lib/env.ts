@@ -45,7 +45,23 @@ function formatFriendlyError(error: z.ZodError): string {
   return lines.join('\n');
 }
 
+const TEST_DEFAULTS = {
+  VITE_API_URL: 'http://localhost:4000',
+  VITE_APP_URL: 'http://localhost:5173',
+  VITE_SENTRY_DSN: '',
+};
+
 function loadEnv(): Env {
+  // In test mode (vitest), import.meta.env can be empty if the runner
+  // doesn't load a .env file the way the CI server expects. Fall back
+  // to localhost defaults silently — the tests don't make real network
+  // calls, so the values don't matter; what matters is that the
+  // module-load validation doesn't blow up the import chain.
+  if (import.meta.env.MODE === 'test') {
+    const merged = { ...TEST_DEFAULTS, ...import.meta.env };
+    return schema.parse(merged);
+  }
+
   const parsed = schema.safeParse(import.meta.env);
   if (!parsed.success) {
     const message = formatFriendlyError(parsed.error);
@@ -54,11 +70,7 @@ function loadEnv(): Env {
     if (import.meta.env.DEV) {
       throw new Error(message);
     }
-    return schema.parse({
-      VITE_API_URL: 'http://localhost:4000',
-      VITE_APP_URL: 'http://localhost:5173',
-      VITE_SENTRY_DSN: '',
-    });
+    return schema.parse(TEST_DEFAULTS);
   }
   return parsed.data;
 }
