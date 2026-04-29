@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { AxiosError } from 'axios';
 import { api } from '@/lib/api';
 import { estimateDetailKey } from '@/features/estimates/useEstimates';
-import type { ConversationResponse } from './types';
+import type { ConversationResponse, ProposedAction } from './types';
 
 export const conversationKey = (estimateId: string) =>
   ['estimates', 'detail', estimateId, 'conversation'] as const;
@@ -49,6 +49,7 @@ export interface AskFollowupResponse {
   runId: string;
   assistantMessage: string;
   suggestedAction: 'none' | 'regenerate_line_items';
+  proposedActions: ProposedAction[];
 }
 
 export function useAskFollowup(estimateId: string) {
@@ -63,6 +64,34 @@ export function useAskFollowup(estimateId: string) {
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: conversationKey(estimateId) });
+    },
+  });
+}
+
+export interface ApplyConversationActionsResponse {
+  runId: string;
+  applied: {
+    index: number;
+    type: ProposedAction['type'];
+    status: 'applied' | 'skipped';
+    entityId?: string;
+  }[];
+}
+
+export function useApplyConversationActions(estimateId: string) {
+  const qc = useQueryClient();
+  return useMutation<ApplyConversationActionsResponse, AxiosError, string>({
+    mutationFn: async (runId: string) => {
+      const res = await api.post<ApplyConversationActionsResponse>(
+        `/api/estimates/${estimateId}/ai-runs/${runId}/apply`,
+      );
+      return res.data;
+    },
+    onSuccess: () => {
+      // Conversation feed shows the run + we need fresh estimate detail
+      // (line items / sections changed).
+      qc.invalidateQueries({ queryKey: conversationKey(estimateId) });
+      qc.invalidateQueries({ queryKey: estimateDetailKey(estimateId) });
     },
   });
 }

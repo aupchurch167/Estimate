@@ -3,6 +3,7 @@ import type { AxiosError } from 'axios';
 import { backendErrorCode, backendErrorMessage } from '@/features/auth/useAuth';
 import {
   conversationKey,
+  useApplyConversationActions,
   useAskFollowup,
   useConversation,
   useGenerateLineItems,
@@ -11,6 +12,7 @@ import type {
   AIMessage,
   AIRun,
   GenerateLineItemsOutput,
+  ProposedAction,
 } from '@/features/estimates/conversation/types';
 import type { EstimateDetail } from '@/features/estimates/types';
 import { useAuthContext } from '@/context/useAuthContext';
@@ -24,8 +26,19 @@ export function ConversationPanel({ estimate }: { estimate: EstimateDetail }) {
   const { data, isLoading } = useConversation(estimate.id);
   const generate = useGenerateLineItems(estimate.id);
   const ask = useAskFollowup(estimate.id);
+  const applyActions = useApplyConversationActions(estimate.id);
   const readOnly = READ_ONLY_STATUSES.has(estimate.status);
   const [draft, setDraft] = useState('');
+  const sectionNamesById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const s of estimate.scopeSections) m.set(s.id, s.name);
+    return m;
+  }, [estimate.scopeSections]);
+  const lineDescriptionsById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const li of estimate.lineItems) m.set(li.id, li.description);
+    return m;
+  }, [estimate.lineItems]);
 
   const messages = data?.messages ?? [];
   const runById = useMemo(() => {
@@ -113,6 +126,16 @@ export function ConversationPanel({ estimate }: { estimate: EstimateDetail }) {
                   run={m.runId ? runById.get(m.runId) : undefined}
                   authorIsMe={m.authorUserId === user?.id}
                   onRegenerate={!readOnly && !generate.isPending ? onGenerate : null}
+                  sectionNamesById={sectionNamesById}
+                  lineDescriptionsById={lineDescriptionsById}
+                  onApplyActions={
+                    !readOnly && m.runId
+                      ? () => applyActions.mutateAsync(m.runId!).catch(() => {})
+                      : null
+                  }
+                  applyPending={applyActions.isPending}
+                  applyError={applyActions.error as AxiosError | null}
+                  pendingRunId={applyActions.variables ?? null}
                 />
               </li>
             ))}
@@ -205,26 +228,47 @@ function EmptyState({ hasSources, disabled, pending, onClick }: EmptyStateProps)
   );
 }
 
-function MessageBubble({
-  message,
-  run,
-  authorIsMe,
-  onRegenerate,
-}: {
+interface MessageBubbleProps {
   message: AIMessage;
   run: AIRun | undefined;
   authorIsMe: boolean;
   /** Re-run GENERATE_LINE_ITEMS. null when the action is not allowed
    * (read-only estimate, generation already in flight). */
   onRegenerate: (() => void) | null;
-}) {
+  sectionNamesById: Map<string, string>;
+  lineDescriptionsById: Map<string, string>;
+  onApplyActions: (() => void) | null;
+  applyPending: boolean;
+  applyError: AxiosError | null;
+  pendingRunId: string | null;
+}
+
+function MessageBubble({
+  message,
+  run,
+  authorIsMe,
+  onRegenerate,
+  sectionNamesById,
+  lineDescriptionsById,
+  onApplyActions,
+  applyPending,
+  applyError,
+  pendingRunId,
+}: MessageBubbleProps) {
   const isUser = message.role === 'USER';
   const stamp = formatStamp(message.createdAt);
+  const askOutputs =
+    run?.status === 'SUCCEEDED' && run.runType === 'ASK_FOLLOWUP'
+      ? (run.outputs as {
+          suggestedAction?: string;
+          proposedActions?: ProposedAction[];
+        } | null)
+      : null;
   const followupSuggested =
-    run?.status === 'SUCCEEDED' &&
-    run.runType === 'ASK_FOLLOWUP' &&
-    (run.outputs as { suggestedAction?: string } | null)?.suggestedAction ===
-      'regenerate_line_items';
+    askOutputs?.suggestedAction === 'regenerate_line_items';
+  const proposedActions = askOutputs?.proposedActions ?? [];
+  const runInputs = (run?.inputs ?? null) as { actionsAppliedAt?: string } | null;
+  const alreadyApplied = Boolean(runInputs?.actionsAppliedAt);
 
   return (
     <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
@@ -244,6 +288,19 @@ function MessageBubble({
         run.outputs ? (
           <RunSummary output={run.outputs as GenerateLineItemsOutput} />
         ) : null}
+        {proposedActions.length > 0 ? (
+          <ProposedActionsCard
+            actions={proposedActions}
+            sectionNamesById={sectionNamesById}
+            lineDescriptionsById={lineDescriptionsById}
+            alreadyApplied={alreadyApplied}
+            onApply={onApplyActions}
+            isApplying={applyPending && pendingRunId === run?.id}
+            error={
+              applyError && pendingRunId === run?.id ? applyError : null
+            }
+          />
+        ) : null}
         {followupSuggested && onRegenerate ? (
           <div className="mt-3 flex items-center gap-2">
             <button
@@ -262,6 +319,110 @@ function MessageBubble({
       </div>
     </div>
   );
+}
+
+interface ProposedActionsCardProps {
+  actions: ProposedAction[];
+  sectionNamesById: Map<string, string>;
+  lineDescriptionsById: Map<string, string>;
+  alreadyApplied: boolean;
+  onApply: (() => void) | null;
+  isApplying: boolean;
+  error: AxiosError | null;
+}
+
+function ProposedActionsCard({
+  actions,
+  sectionNamesById,
+  lineDescriptionsById,
+  alreadyApplied,
+  onApply,
+  isApplying,
+  error,
+}: ProposedActionsCardProps) {
+  const errorText = error ? mapApplyError(error) : null;
+  return (
+    <div
+      data-testid="proposed-actions"
+      className="mt-3 border border-dashed border-mark-amber/70 bg-paper-elevated p-2"
+    >
+      <p className="font-mono text-[10px] uppercase tracking-label text-mark-amber">
+        Quill proposes
+      </p>
+      <ul className="mt-1 ml-4 list-disc font-sans text-[12px] text-ink">
+        {actions.map((a, i) => (
+          <li key={i}>
+            {describeAction(a, sectionNamesById, lineDescriptionsById)}
+          </li>
+        ))}
+      </ul>
+      {alreadyApplied ? (
+        <p
+          data-testid="proposed-actions-applied"
+          className="mt-2 font-mono text-[10px] uppercase tracking-label text-dim"
+        >
+          Applied
+        </p>
+      ) : (
+        <div className="mt-2 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onApply ?? undefined}
+            disabled={!onApply || isApplying}
+            data-testid="apply-proposed-actions"
+            className="border border-ink bg-ink px-3 py-1 font-mono text-[10px] uppercase tracking-label text-ink-inverse hover:bg-ink/90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isApplying ? 'Applying…' : 'Apply'}
+          </button>
+          {errorText ? (
+            <span
+              role="alert"
+              className="font-mono text-[10px] uppercase tracking-label text-mark-red"
+            >
+              {errorText}
+            </span>
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function describeAction(
+  a: ProposedAction,
+  sectionNamesById: Map<string, string>,
+  lineDescriptionsById: Map<string, string>,
+): string {
+  switch (a.type) {
+    case 'ADD_LINE_ITEM': {
+      const section = sectionNamesById.get(a.scopeSectionId) ?? a.scopeSectionId;
+      return `Add to "${section}": ${a.description} — ${a.quantity} ${a.unitOfMeasure}`;
+    }
+    case 'UPDATE_LINE_ITEM': {
+      const target = lineDescriptionsById.get(a.lineItemId) ?? a.lineItemId;
+      const fields: string[] = [];
+      if (a.description !== undefined) fields.push(`description → "${a.description}"`);
+      if (a.quantity !== undefined) fields.push(`qty → ${a.quantity}`);
+      if (a.unitOfMeasure !== undefined) fields.push(`UoM → ${a.unitOfMeasure}`);
+      return `Update "${target}": ${fields.join(', ') || 'no changes'}`;
+    }
+    case 'REMOVE_LINE_ITEM': {
+      const target = lineDescriptionsById.get(a.lineItemId) ?? a.lineItemId;
+      return `Remove "${target}"`;
+    }
+    case 'ADD_SECTION':
+      return `Add section "${a.name}"`;
+  }
+}
+
+function mapApplyError(err: AxiosError): string {
+  const code = backendErrorCode(err);
+  if (code === 'actions_already_applied') return 'Already applied.';
+  if (code === 'cannot_edit_in_current_status') return 'Estimate is locked.';
+  if (code === 'unknown_line_item' || code === 'unknown_section') {
+    return 'Referenced item is gone — ask Quill again.';
+  }
+  return backendErrorMessage(err, 'Could not apply.');
 }
 
 function RunSummary({ output }: { output: GenerateLineItemsOutput }) {

@@ -31,6 +31,7 @@ export interface AskFollowupResult {
   runId: string;
   assistantMessage: string;
   suggestedAction: AskFollowupOutput['suggestedAction'];
+  proposedActions: AskFollowupOutput['proposedActions'];
   output: AskFollowupOutput;
 }
 
@@ -75,8 +76,8 @@ export async function ask(
     authorUserId: userId,
   });
 
-  // 2. Load context: sources, prior history, latest GENERATE run output.
-  const [sourceInputs, history, latestGenerateRun] = await Promise.all([
+  // 2. Load context: sources, schedule, prior history, latest GENERATE output.
+  const [sourceInputs, history, latestGenerateRun, sections, lineItems] = await Promise.all([
     prisma.sourceInput.findMany({
       where: { estimateId, deletedAt: null },
       orderBy: { createdAt: 'asc' },
@@ -95,6 +96,14 @@ export async function ask(
       },
       orderBy: { createdAt: 'desc' },
     }),
+    prisma.scopeSection.findMany({
+      where: { estimateId, organizationId, deletedAt: null },
+      orderBy: { order: 'asc' },
+    }),
+    prisma.lineItem.findMany({
+      where: { estimateId, organizationId, deletedAt: null },
+      orderBy: { order: 'asc' },
+    }),
   ]);
 
   // The history we just loaded already includes the USER message we
@@ -103,6 +112,19 @@ export async function ask(
   const priorHistory = history
     .filter((m) => !(m.role === 'USER' && m.content === userText))
     .slice(-HISTORY_LIMIT);
+
+  const schedule = sections.map((s) => ({
+    sectionId: s.id,
+    name: s.name,
+    items: lineItems
+      .filter((li) => li.scopeSectionId === s.id)
+      .map((li) => ({
+        lineItemId: li.id,
+        description: li.description,
+        quantity: li.quantity.toString(),
+        unitOfMeasure: li.unitOfMeasure,
+      })),
+  }));
 
   const ctx: AskFollowupContext = {
     estimateTitle: estimate.title,
@@ -114,6 +136,7 @@ export async function ask(
       content: s.content,
     })),
     latestDraft: (latestGenerateRun?.outputs as GenerateLineItemsOutput | null) ?? null,
+    schedule,
     history: priorHistory.map((m) => ({ role: m.role, content: m.content })),
     userText,
   };
@@ -153,6 +176,7 @@ export async function ask(
     runId: run.id,
     assistantMessage: output.assistantMessage,
     suggestedAction: output.suggestedAction,
+    proposedActions: output.proposedActions,
     output,
   };
 }

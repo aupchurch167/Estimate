@@ -52,9 +52,37 @@ export interface GenerateLineItemsOutput {
   }[];
 }
 
+export type ProposedAction =
+  | {
+      type: 'ADD_LINE_ITEM';
+      scopeSectionId: string;
+      description: string;
+      quantity: string;
+      unitOfMeasure: string;
+      aiAssumption?: string | null;
+    }
+  | {
+      type: 'UPDATE_LINE_ITEM';
+      lineItemId: string;
+      description?: string;
+      quantity?: string;
+      unitOfMeasure?: string;
+      aiAssumption?: string | null;
+    }
+  | {
+      type: 'REMOVE_LINE_ITEM';
+      lineItemId: string;
+    }
+  | {
+      type: 'ADD_SECTION';
+      name: string;
+      description?: string | null;
+    };
+
 export interface AskFollowupOutput {
   assistantMessage: string;
   suggestedAction: 'none' | 'regenerate_line_items';
+  proposedActions: ProposedAction[];
 }
 
 export type AIRunOutput = GenerateLineItemsOutput | AskFollowupOutput | Record<string, unknown>;

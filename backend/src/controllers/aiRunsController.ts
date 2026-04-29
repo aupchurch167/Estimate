@@ -4,6 +4,7 @@ import * as aiService from '../services/aiService.js';
 import * as aiUsageService from '../services/aiUsageService.js';
 import * as lineGenerationService from '../services/lineGenerationService.js';
 import * as askFollowupService from '../services/askFollowupService.js';
+import * as conversationApplyService from '../services/conversationApplyService.js';
 import { ConflictError, ForbiddenError, ValidationError } from '../lib/errors.js';
 import { ok } from '../lib/response.js';
 import { canCreateEstimate, canManageOrg } from '../lib/permissions.js';
@@ -49,6 +50,22 @@ export async function getUsage(req: Request, res: Response): Promise<void> {
   }
   const data = await aiUsageService.getUsageForOrg(orgId);
   ok(res, data);
+}
+
+export async function applyRunActions(req: Request, res: Response): Promise<void> {
+  const { orgId, user } = actorFrom(req);
+  if (!canCreateEstimate(user.role)) {
+    throw new ForbiddenError('Your role cannot apply AI proposed actions');
+  }
+  const estimateId = String(req.params.id ?? '');
+  const runId = String(req.params.runId ?? '');
+  const result = await conversationApplyService.applyForRun(
+    orgId,
+    user,
+    estimateId,
+    runId,
+  );
+  ok(res, result);
 }
 
 export async function createRun(req: Request, res: Response): Promise<void> {

@@ -101,6 +101,7 @@ describe('askFollowupService.ask', () => {
         makeAnthropicResponse({
           assistantMessage: 'The demo line covers gypsum only — framing is separate.',
           suggestedAction: 'none',
+          proposedActions: [],
         }),
       ),
     );
@@ -191,6 +192,7 @@ describe('askFollowupService.ask', () => {
         return makeAnthropicResponse({
           assistantMessage: 'Yes — swapping ceiling tile changes the finish line. Re-draft it.',
           suggestedAction: 'regenerate_line_items',
+          proposedActions: [],
         });
       }),
     );

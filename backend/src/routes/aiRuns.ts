@@ -14,6 +14,10 @@ estimateAiRouter.post(
   asyncHandler(controller.createRun),
 );
 estimateAiRouter.get('/:id/conversation', asyncHandler(controller.getConversation));
+estimateAiRouter.post(
+  '/:id/ai-runs/:runId/apply',
+  asyncHandler(controller.applyRunActions),
+);
 
 // /api/ai-runs/...
 export const aiRunsRouter = Router();

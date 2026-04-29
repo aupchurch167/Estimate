@@ -509,6 +509,211 @@ describe('ConversationPanel — generate flow', () => {
     expect(screen.queryByTestId('followup-regenerate')).not.toBeInTheDocument();
   });
 
+  it('renders proposed actions with section/line names resolved and an Apply CTA', async () => {
+    setupApi({
+      conversation: { id: 'c1' },
+      messages: [
+        {
+          id: 'msg-a',
+          conversationId: 'c1',
+          role: 'ASSISTANT',
+          content: 'Adding paint touch-up.',
+          runId: 'run-ask-prop',
+          authorUserId: null,
+          order: 0,
+          createdAt: '2026-04-28T00:00:00.000Z',
+        },
+      ],
+      runs: [
+        {
+          id: 'run-ask-prop',
+          conversationId: 'c1',
+          estimateId: 'e1',
+          status: 'SUCCEEDED',
+          runType: 'ASK_FOLLOWUP',
+          outputs: {
+            assistantMessage: 'Adding paint touch-up.',
+            suggestedAction: 'none',
+            proposedActions: [
+              {
+                type: 'ADD_LINE_ITEM',
+                scopeSectionId: 'sec-demo',
+                description: 'Paint touch-up',
+                quantity: '200',
+                unitOfMeasure: 'SF',
+              },
+              {
+                type: 'UPDATE_LINE_ITEM',
+                lineItemId: 'li-1',
+                quantity: '250',
+              },
+            ],
+          },
+          inputs: {},
+          errorMessage: null,
+          modelVersion: 'claude-haiku-4-5-20251001',
+          tokensInput: 0,
+          tokensOutput: 0,
+          costUsd: '0',
+          durationMs: 0,
+          createdAt: '2026-04-28T00:00:00.000Z',
+          completedAt: '2026-04-28T00:00:01.000Z',
+          triggeredById: 'u1',
+        },
+      ],
+    });
+    renderPanel(
+      buildEstimate({
+        scopeSections: [
+          {
+            id: 'sec-demo',
+            estimateId: 'e1',
+            name: 'Demolition',
+            description: null,
+            order: 0,
+            markupPercent: null,
+          },
+        ],
+        lineItems: [
+          {
+            id: 'li-1',
+            estimateId: 'e1',
+            scopeSectionId: 'sec-demo',
+            description: 'Demo back wall',
+            quantity: '100',
+            unitOfMeasure: 'SF',
+            unitCostMaterial: '1',
+            unitCostLabor: '2',
+            markupPercent: '0.20',
+            lineCost: '300',
+            lineSellPrice: '360',
+            status: 'DRAFT',
+            source: 'AI_GENERATED',
+            aiConfidence: '0.9',
+            aiAssumption: null,
+            order: 0,
+          },
+        ],
+      }),
+    );
+
+    await screen.findByTestId('proposed-actions');
+    // Section + line names resolved (not raw IDs).
+    expect(screen.getByText(/Demolition/)).toBeInTheDocument();
+    expect(screen.getByText(/Demo back wall/)).toBeInTheDocument();
+    expect(screen.getByText(/Paint touch-up — 200 SF/)).toBeInTheDocument();
+    expect(screen.getByText(/qty → 250/)).toBeInTheDocument();
+    expect(screen.getByTestId('apply-proposed-actions')).toBeEnabled();
+  });
+
+  it('clicking Apply posts to the run-apply endpoint', async () => {
+    setupApi(
+      {
+        conversation: { id: 'c1' },
+        messages: [
+          {
+            id: 'msg-a',
+            conversationId: 'c1',
+            role: 'ASSISTANT',
+            content: 'Adding paint.',
+            runId: 'run-ask-apply',
+            authorUserId: null,
+            order: 0,
+            createdAt: '2026-04-28T00:00:00.000Z',
+          },
+        ],
+        runs: [
+          {
+            id: 'run-ask-apply',
+            conversationId: 'c1',
+            estimateId: 'e1',
+            status: 'SUCCEEDED',
+            runType: 'ASK_FOLLOWUP',
+            outputs: {
+              assistantMessage: 'Adding paint.',
+              suggestedAction: 'none',
+              proposedActions: [
+                { type: 'ADD_SECTION', name: 'Finishes', description: null },
+              ],
+            },
+            inputs: {},
+            errorMessage: null,
+            modelVersion: 'claude-haiku-4-5-20251001',
+            tokensInput: 0,
+            tokensOutput: 0,
+            costUsd: '0',
+            durationMs: 0,
+            createdAt: '2026-04-28T00:00:00.000Z',
+            completedAt: '2026-04-28T00:00:01.000Z',
+            triggeredById: 'u1',
+          },
+        ],
+      },
+      async () => ({
+        data: {
+          runId: 'run-ask-apply',
+          applied: [{ index: 0, type: 'ADD_SECTION', status: 'applied' }],
+        },
+      }),
+    );
+    const user = userEvent.setup();
+    renderPanel(buildEstimate());
+
+    await user.click(await screen.findByTestId('apply-proposed-actions'));
+    await waitFor(() => {
+      expect(mockedPost).toHaveBeenCalledWith(
+        '/api/estimates/e1/ai-runs/run-ask-apply/apply',
+      );
+    });
+  });
+
+  it('shows "Applied" instead of the Apply button when the run was already applied', async () => {
+    setupApi({
+      conversation: { id: 'c1' },
+      messages: [
+        {
+          id: 'msg-a',
+          conversationId: 'c1',
+          role: 'ASSISTANT',
+          content: 'Done.',
+          runId: 'run-ask-done',
+          authorUserId: null,
+          order: 0,
+          createdAt: '2026-04-28T00:00:00.000Z',
+        },
+      ],
+      runs: [
+        {
+          id: 'run-ask-done',
+          conversationId: 'c1',
+          estimateId: 'e1',
+          status: 'SUCCEEDED',
+          runType: 'ASK_FOLLOWUP',
+          outputs: {
+            assistantMessage: 'Done.',
+            suggestedAction: 'none',
+            proposedActions: [
+              { type: 'ADD_SECTION', name: 'Finishes', description: null },
+            ],
+          },
+          inputs: { actionsAppliedAt: '2026-04-28T00:00:02.000Z' },
+          errorMessage: null,
+          modelVersion: 'claude-haiku-4-5-20251001',
+          tokensInput: 0,
+          tokensOutput: 0,
+          costUsd: '0',
+          durationMs: 0,
+          createdAt: '2026-04-28T00:00:00.000Z',
+          completedAt: '2026-04-28T00:00:01.000Z',
+          triggeredById: 'u1',
+        },
+      ],
+    });
+    renderPanel(buildEstimate());
+    await screen.findByTestId('proposed-actions-applied');
+    expect(screen.queryByTestId('apply-proposed-actions')).not.toBeInTheDocument();
+  });
+
   it('surfaces a friendly cost-cap error and shows a retry button', async () => {
     setupApi(
       { conversation: null, messages: [], runs: [] },
