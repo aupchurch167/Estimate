@@ -32,11 +32,11 @@ let counter = 0;
 const orgIds = new Set<string>();
 
 function fakeEmail() {
-  const sent: { to: string | string[]; subject: string }[] = [];
+  const sent: { to: string | string[]; subject: string; html: string; text: string }[] = [];
   const dispatcher: EmailDispatcher & { sent: typeof sent } = {
     sent,
-    async send({ to, subject }) {
-      sent.push({ to, subject });
+    async send({ to, subject, html, text }) {
+      sent.push({ to, subject, html, text });
       return { dispatched: true };
     },
   };
@@ -225,6 +225,151 @@ describe('notificationService read helpers', () => {
       title: 'private',
     });
     await expect(markRead(ctx.drafter.id, n!.id)).rejects.toThrow();
+  });
+});
+
+describe('notificationService — typed email templates', () => {
+  it('REVIEW_REQUESTED template renders the drafter name + estimate metadata + Open in Quill CTA', async () => {
+    const ctx = await setup();
+    const em = fakeEmail();
+    __setEmailDispatcherForTesting(em);
+    await notify({
+      organizationId: ctx.organizationId,
+      recipientId: ctx.reviewer.id,
+      type: 'REVIEW_REQUESTED',
+      title: 'Estimate NF-26-001 submitted for review',
+      entityType: 'Estimate',
+      entityId: ctx.estimateId,
+      templateData: {
+        template: 'REVIEW_REQUESTED',
+        drafterName: 'Adam Mark',
+        estimateNumber: 'NF-26-001',
+        estimateTitle: 'Sample TI',
+        estimateId: ctx.estimateId,
+        isResubmit: false,
+        note: 'Please review when you can.',
+      },
+    });
+    const sent = em.sent[0];
+    expect(sent).toBeTruthy();
+    expect(sent?.html).toMatch(/Review requested/i);
+    expect(sent?.html).toMatch(/Adam Mark/);
+    expect(sent?.html).toMatch(/NF-26-001/);
+    expect(sent?.html).toMatch(/Sample TI/);
+    expect(sent?.html).toMatch(/Open in Quill/);
+    expect(sent?.html).toMatch(/Please review when you can\./);
+  });
+
+  it('REVIEW_CHANGES_REQUESTED template renders the change-request note prominently', async () => {
+    const ctx = await setup();
+    const em = fakeEmail();
+    __setEmailDispatcherForTesting(em);
+    await notify({
+      organizationId: ctx.organizationId,
+      recipientId: ctx.drafter.id,
+      type: 'REVIEW_CHANGES_REQUESTED',
+      title: 'Changes requested',
+      entityType: 'Estimate',
+      entityId: ctx.estimateId,
+      templateData: {
+        template: 'REVIEW_CHANGES_REQUESTED',
+        reviewerName: 'Reviewer V',
+        estimateNumber: 'NF-26-001',
+        estimateTitle: 'Sample TI',
+        estimateId: ctx.estimateId,
+        note: 'Please add a HVAC line and re-run.',
+      },
+    });
+    expect(em.sent[0]?.html).toMatch(/Changes requested/);
+    expect(em.sent[0]?.html).toMatch(/Reviewer V/);
+    expect(em.sent[0]?.html).toMatch(/HVAC line and re-run/);
+  });
+
+  it('ESTIMATE_ASSIGNED template names the assigner and assignedAs role', async () => {
+    const ctx = await setup();
+    const em = fakeEmail();
+    __setEmailDispatcherForTesting(em);
+    await notify({
+      organizationId: ctx.organizationId,
+      recipientId: ctx.reviewer.id,
+      type: 'ESTIMATE_ASSIGNED',
+      title: 'You were assigned',
+      entityType: 'Estimate',
+      entityId: ctx.estimateId,
+      templateData: {
+        template: 'ESTIMATE_ASSIGNED',
+        assignerName: 'N Owner',
+        assignedAs: 'reviewer',
+        estimateNumber: 'NF-26-001',
+        estimateTitle: 'Sample TI',
+        estimateId: ctx.estimateId,
+      },
+    });
+    expect(em.sent[0]?.html).toMatch(/Assigned as reviewer/);
+    expect(em.sent[0]?.html).toMatch(/N Owner/);
+    expect(em.sent[0]?.html).toMatch(/NF-26-001/);
+  });
+
+  it('AI_RUN_FAILED template surfaces the runTypeLabel and errorCode', async () => {
+    const ctx = await setup();
+    const em = fakeEmail();
+    __setEmailDispatcherForTesting(em);
+    await notify({
+      organizationId: ctx.organizationId,
+      recipientId: ctx.drafter.id,
+      type: 'AI_RUN_FAILED',
+      title: 'AI run failed',
+      entityType: 'Estimate',
+      entityId: ctx.estimateId,
+      templateData: {
+        template: 'AI_RUN_FAILED',
+        estimateNumber: 'NF-26-001',
+        estimateTitle: 'Sample TI',
+        estimateId: ctx.estimateId,
+        runTypeLabel: 'Generate line items',
+        errorCode: 'ai_invalid_api_key',
+      },
+    });
+    expect(em.sent[0]?.html).toMatch(/AI run failed/i);
+    expect(em.sent[0]?.html).toMatch(/Generate line items/i);
+    expect(em.sent[0]?.html).toMatch(/ai_invalid_api_key/);
+  });
+
+  it('INVITATION_ACCEPTED template names the new member and links to /app/team', async () => {
+    const ctx = await setup();
+    const em = fakeEmail();
+    __setEmailDispatcherForTesting(em);
+    await notify({
+      organizationId: ctx.organizationId,
+      recipientId: ctx.drafter.id,
+      type: 'INVITATION_ACCEPTED',
+      title: 'invite accepted',
+      templateData: {
+        template: 'INVITATION_ACCEPTED',
+        acceptedUserName: 'Sam P',
+        acceptedUserEmail: 'sam@x.test',
+        role: 'ESTIMATOR',
+      },
+    });
+    expect(em.sent[0]?.html).toMatch(/Invitation accepted/i);
+    expect(em.sent[0]?.html).toMatch(/Sam P/);
+    expect(em.sent[0]?.html).toMatch(/sam@x\.test/);
+    expect(em.sent[0]?.html).toMatch(/\/app\/team/);
+  });
+
+  it('falls back to the generic body when no templateData is supplied', async () => {
+    const ctx = await setup();
+    const em = fakeEmail();
+    __setEmailDispatcherForTesting(em);
+    await notify({
+      organizationId: ctx.organizationId,
+      recipientId: ctx.reviewer.id,
+      type: 'COMMENT_MENTION',
+      title: 'You were mentioned',
+      body: 'Body line',
+    });
+    expect(em.sent[0]?.html).toMatch(/QUILL · NOTIFICATION/);
+    expect(em.sent[0]?.html).toMatch(/You were mentioned/);
   });
 });
 

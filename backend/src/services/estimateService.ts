@@ -206,6 +206,7 @@ export async function create(
 
       // Notify the assigned reviewer (best-effort, fire-and-forget).
       if (estimate.reviewerId && estimate.reviewerId !== drafterId) {
+        const assignerName = await assignerDisplayName(drafterId);
         void notifications.notify({
           organizationId,
           recipientId: estimate.reviewerId,
@@ -214,6 +215,14 @@ export async function create(
           body: estimate.title,
           entityType: 'Estimate',
           entityId: estimate.id,
+          templateData: {
+            template: 'ESTIMATE_ASSIGNED',
+            assignerName,
+            assignedAs: 'reviewer',
+            estimateNumber: estimate.number,
+            estimateTitle: estimate.title,
+            estimateId: estimate.id,
+          },
         });
       }
 
@@ -370,6 +379,7 @@ export async function update(
     updated.reviewerId !== existing.reviewerId &&
     updated.reviewerId !== actor.id
   ) {
+    const assignerName = await assignerDisplayName(actor.id);
     void notifications.notify({
       organizationId,
       recipientId: updated.reviewerId,
@@ -378,10 +388,28 @@ export async function update(
       body: updated.title,
       entityType: 'Estimate',
       entityId: updated.id,
+      templateData: {
+        template: 'ESTIMATE_ASSIGNED',
+        assignerName,
+        assignedAs: 'reviewer',
+        estimateNumber: updated.number,
+        estimateTitle: updated.title,
+        estimateId: updated.id,
+      },
     });
   }
 
   return updated;
+}
+
+async function assignerDisplayName(userId: string): Promise<string> {
+  const u = await prisma.user.findFirst({
+    where: { id: userId },
+    select: { firstName: true, lastName: true, email: true },
+  });
+  if (!u) return 'A teammate';
+  const full = `${u.firstName} ${u.lastName}`.trim();
+  return full || u.email;
 }
 
 // ─── Soft delete ──────────────────────────────────────────────────────────

@@ -18,6 +18,7 @@ import { ConflictError, NotFoundError, ValidationError } from '../lib/errors.js'
 import { hashPassword, toSafeUser, type AuthTokens, type SafeUser } from './authService.js';
 import { signAccessToken, signRefreshToken } from '../lib/jwt.js';
 import { InvitationEmail } from '../emails/InvitationEmail.js';
+import * as notifications from './notificationService.js';
 
 export const INVITATION_TTL_DAYS = 7;
 
@@ -311,19 +312,6 @@ export async function accept(input: AcceptInvitationInput): Promise<AcceptInvita
       data: { acceptedAt: new Date(), acceptedUserId: user.id },
     });
 
-    // Side effects: notify the inviter; record the activity.
-    await tx.notification.create({
-      data: {
-        organizationId: inv.organizationId,
-        recipientId: inv.invitedById,
-        type: 'INVITATION_ACCEPTED',
-        title: `${user.firstName} ${user.lastName} joined ${inv.organization.name}`,
-        body: `${user.email} accepted your invitation.`,
-        entityType: 'User',
-        entityId: user.id,
-      },
-    });
-
     await tx.activityEvent.create({
       data: {
         organizationId: inv.organizationId,
@@ -337,6 +325,18 @@ export async function accept(input: AcceptInvitationInput): Promise<AcceptInvita
     });
 
     return user;
+  });
+
+  // Notify the inviter — best-effort, after the transaction. Drives the
+  // INVITATION_ACCEPTED React Email template plus the in-app row.
+  // Awaited so the in-app notification is observable as soon as accept()
+  // returns (used by tests + by clients that immediately re-query).
+  await notifyInviter({
+    organizationId: inv.organizationId,
+    invitedById: inv.invitedById,
+    acceptedUser: result,
+    role: inv.role,
+    orgName: inv.organization.name,
   });
 
   const tokens: AuthTokens = {
@@ -354,3 +354,31 @@ export async function accept(input: AcceptInvitationInput): Promise<AcceptInvita
     tokens,
   };
 }
+
+async function notifyInviter(args: {
+  organizationId: string;
+  invitedById: string;
+  acceptedUser: { id: string; firstName: string; lastName: string; email: string };
+  role: UserRole;
+  orgName: string;
+}): Promise<void> {
+  const acceptedUserName =
+    `${args.acceptedUser.firstName} ${args.acceptedUser.lastName}`.trim() ||
+    args.acceptedUser.email;
+  await notifications.notify({
+    organizationId: args.organizationId,
+    recipientId: args.invitedById,
+    type: 'INVITATION_ACCEPTED',
+    title: `${acceptedUserName} joined ${args.orgName}`,
+    body: `${args.acceptedUser.email} accepted your invitation.`,
+    entityType: 'User',
+    entityId: args.acceptedUser.id,
+    templateData: {
+      template: 'INVITATION_ACCEPTED',
+      acceptedUserName,
+      acceptedUserEmail: args.acceptedUser.email,
+      role: args.role,
+    },
+  });
+}
+

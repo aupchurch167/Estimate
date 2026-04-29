@@ -244,6 +244,7 @@ export async function submitForReview(
   // Notify the assigned reviewer (post-update reviewerId, in case of override).
   const reviewerId = result.estimate.reviewerId;
   if (reviewerId && reviewerId !== actor.id) {
+    const drafterName = await actorDisplayName(actor.id);
     void notifications.notify({
       organizationId,
       recipientId: reviewerId,
@@ -254,6 +255,15 @@ export async function submitForReview(
       body: note ?? null,
       entityType: 'Estimate',
       entityId: estimate.id,
+      templateData: {
+        template: 'REVIEW_REQUESTED',
+        drafterName,
+        estimateNumber: estimate.number,
+        estimateTitle: estimate.title,
+        estimateId: estimate.id,
+        isResubmit,
+        note: note ?? null,
+      },
     });
   }
 
@@ -300,6 +310,7 @@ export async function approve(
 
   // Notify the drafter that their estimate was approved.
   if (estimate.drafterId !== actor.id) {
+    const reviewerName = await actorDisplayName(actor.id);
     void notifications.notify({
       organizationId,
       recipientId: estimate.drafterId,
@@ -308,6 +319,14 @@ export async function approve(
       body: note ?? null,
       entityType: 'Estimate',
       entityId: estimate.id,
+      templateData: {
+        template: 'REVIEW_APPROVED',
+        reviewerName,
+        estimateNumber: estimate.number,
+        estimateTitle: estimate.title,
+        estimateId: estimate.id,
+        note: note ?? null,
+      },
     });
   }
 
@@ -352,6 +371,7 @@ export async function requestChanges(
   });
 
   if (estimate.drafterId !== actor.id) {
+    const reviewerName = await actorDisplayName(actor.id);
     void notifications.notify({
       organizationId,
       recipientId: estimate.drafterId,
@@ -360,10 +380,28 @@ export async function requestChanges(
       body: note,
       entityType: 'Estimate',
       entityId: estimate.id,
+      templateData: {
+        template: 'REVIEW_CHANGES_REQUESTED',
+        reviewerName,
+        estimateNumber: estimate.number,
+        estimateTitle: estimate.title,
+        estimateId: estimate.id,
+        note: note ?? '',
+      },
     });
   }
 
   return result;
+}
+
+async function actorDisplayName(userId: string): Promise<string> {
+  const u = await prisma.user.findFirst({
+    where: { id: userId },
+    select: { firstName: true, lastName: true, email: true },
+  });
+  if (!u) return 'A teammate';
+  const full = `${u.firstName} ${u.lastName}`.trim();
+  return full || u.email;
 }
 
 // ─── Unlock approved ──────────────────────────────────────────────────────

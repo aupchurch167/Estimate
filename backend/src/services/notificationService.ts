@@ -13,13 +13,75 @@
  */
 
 import type { NotificationType, Notification } from '@prisma/client';
+import type { ReactElement } from 'react';
 import { prisma } from '../lib/prisma.js';
+import { env } from '../lib/env.js';
 import { logger } from '../lib/logger.js';
 import { NotFoundError } from '../lib/errors.js';
-import { sendRawEmail } from '../lib/email.js';
+import { sendEmail, sendRawEmail } from '../lib/email.js';
+import { ReviewRequestedEmail } from '../emails/ReviewRequestedEmail.js';
+import { ReviewChangesRequestedEmail } from '../emails/ReviewChangesRequestedEmail.js';
+import { ReviewApprovedEmail } from '../emails/ReviewApprovedEmail.js';
+import { EstimateAssignedEmail } from '../emails/EstimateAssignedEmail.js';
+import { AiRunFailedEmail } from '../emails/AiRunFailedEmail.js';
+import { InvitationAcceptedEmail } from '../emails/InvitationAcceptedEmail.js';
 
 const LIST_DEFAULT_LIMIT = 20;
 const LIST_MAX_LIMIT = 100;
+
+/**
+ * Template-specific data the caller passes alongside the in-app fields.
+ * The templates pull the recipient's first name from the User row, so
+ * callers only need to supply the type-specific extras.
+ */
+export type NotifyTemplateData =
+  | {
+      template: 'REVIEW_REQUESTED';
+      drafterName: string;
+      estimateNumber: string;
+      estimateTitle: string;
+      estimateId: string;
+      isResubmit: boolean;
+      note: string | null;
+    }
+  | {
+      template: 'REVIEW_CHANGES_REQUESTED';
+      reviewerName: string;
+      estimateNumber: string;
+      estimateTitle: string;
+      estimateId: string;
+      note: string;
+    }
+  | {
+      template: 'REVIEW_APPROVED';
+      reviewerName: string;
+      estimateNumber: string;
+      estimateTitle: string;
+      estimateId: string;
+      note: string | null;
+    }
+  | {
+      template: 'ESTIMATE_ASSIGNED';
+      assignerName: string;
+      assignedAs: 'drafter' | 'reviewer';
+      estimateNumber: string;
+      estimateTitle: string;
+      estimateId: string;
+    }
+  | {
+      template: 'AI_RUN_FAILED';
+      estimateNumber: string;
+      estimateTitle: string;
+      estimateId: string;
+      runTypeLabel: string;
+      errorCode: string;
+    }
+  | {
+      template: 'INVITATION_ACCEPTED';
+      acceptedUserName: string;
+      acceptedUserEmail: string;
+      role: string;
+    };
 
 export interface NotifyArgs {
   organizationId: string;
@@ -33,6 +95,9 @@ export interface NotifyArgs {
   emailSubject?: string;
   /** Skip email (in-app only). */
   inAppOnly?: boolean;
+  /** When set, the matching React Email template is rendered for the email
+   *  body. Falls back to the generic notification template otherwise. */
+  templateData?: NotifyTemplateData;
 }
 
 /**
@@ -76,18 +141,21 @@ export async function notify(args: NotifyArgs): Promise<Notification | null> {
     // Email — best-effort. Mark emailSent regardless of dispatch result so
     // a permanent backend failure doesn't generate retry storms.
     const subject = args.emailSubject ?? args.title;
-    const html = renderEmailHtml({
-      title: args.title,
-      body: args.body ?? null,
-      recipientFirstName: recipient.firstName,
-    });
-    const text = renderEmailText({ title: args.title, body: args.body ?? null });
-    const result = await sendRawEmail({
-      to: recipient.email,
-      subject,
-      html,
-      text,
-    });
+    const templateElement = args.templateData
+      ? renderTemplate(args.templateData, recipient.firstName)
+      : null;
+    const result = templateElement
+      ? await sendEmail({ to: recipient.email, subject, react: templateElement })
+      : await sendRawEmail({
+          to: recipient.email,
+          subject,
+          html: renderEmailHtml({
+            title: args.title,
+            body: args.body ?? null,
+            recipientFirstName: recipient.firstName,
+          }),
+          text: renderEmailText({ title: args.title, body: args.body ?? null }),
+        });
     await prisma.notification.update({
       where: { id: created.id },
       data: {
@@ -152,6 +220,72 @@ export async function markAllRead(recipientId: string): Promise<number> {
 }
 
 // ─── Email rendering ─────────────────────────────────────────────────────
+
+function estimateUrl(estimateId: string): string {
+  return `${env.APP_URL.replace(/\/$/, '')}/app/estimates/${estimateId}`;
+}
+
+function renderTemplate(
+  data: NotifyTemplateData,
+  recipientFirstName: string | null,
+): ReactElement {
+  switch (data.template) {
+    case 'REVIEW_REQUESTED':
+      return ReviewRequestedEmail({
+        recipientFirstName,
+        drafterName: data.drafterName,
+        estimateNumber: data.estimateNumber,
+        estimateTitle: data.estimateTitle,
+        reviewUrl: estimateUrl(data.estimateId),
+        isResubmit: data.isResubmit,
+        note: data.note,
+      });
+    case 'REVIEW_CHANGES_REQUESTED':
+      return ReviewChangesRequestedEmail({
+        recipientFirstName,
+        reviewerName: data.reviewerName,
+        estimateNumber: data.estimateNumber,
+        estimateTitle: data.estimateTitle,
+        reviewUrl: estimateUrl(data.estimateId),
+        note: data.note,
+      });
+    case 'REVIEW_APPROVED':
+      return ReviewApprovedEmail({
+        recipientFirstName,
+        reviewerName: data.reviewerName,
+        estimateNumber: data.estimateNumber,
+        estimateTitle: data.estimateTitle,
+        reviewUrl: estimateUrl(data.estimateId),
+        note: data.note,
+      });
+    case 'ESTIMATE_ASSIGNED':
+      return EstimateAssignedEmail({
+        recipientFirstName,
+        assignerName: data.assignerName,
+        assignedAs: data.assignedAs,
+        estimateNumber: data.estimateNumber,
+        estimateTitle: data.estimateTitle,
+        estimateUrl: estimateUrl(data.estimateId),
+      });
+    case 'AI_RUN_FAILED':
+      return AiRunFailedEmail({
+        recipientFirstName,
+        estimateNumber: data.estimateNumber,
+        estimateTitle: data.estimateTitle,
+        runTypeLabel: data.runTypeLabel,
+        errorCode: data.errorCode,
+        estimateUrl: estimateUrl(data.estimateId),
+      });
+    case 'INVITATION_ACCEPTED':
+      return InvitationAcceptedEmail({
+        recipientFirstName,
+        acceptedUserName: data.acceptedUserName,
+        acceptedUserEmail: data.acceptedUserEmail,
+        role: data.role,
+        teamUrl: `${env.APP_URL.replace(/\/$/, '')}/app/team`,
+      });
+  }
+}
 
 function renderEmailHtml(args: {
   title: string;

@@ -26,6 +26,7 @@ import { logger } from '../lib/logger.js';
 import { AiUpstreamError, ConflictError, NotFoundError } from '../lib/errors.js';
 import { getAnthropicClient } from '../lib/anthropic.js';
 import { tokenCostDecimal } from '../lib/costing.js';
+import * as notifications from './notificationService.js';
 
 const ANTHROPIC_MAX_TOKENS = 4096;
 const SCHEMA_RETRIES = 1; // i.e. up to 2 attempts total
@@ -263,6 +264,17 @@ export async function createRun<T>(args: CreateRunArgs<T>): Promise<CreateRunRes
     }
   });
 
+  // Notify the user who triggered the run so they don't keep wondering
+  // why nothing happened. Best-effort, fire-and-forget so the typed
+  // upstream error still surfaces immediately.
+  void notifyAiRunFailure({
+    organizationId: args.organizationId,
+    estimateId: args.estimateId,
+    triggeredById: args.userId,
+    runType: args.runType,
+    errorMessage: lastError?.message ?? 'Unknown AI failure',
+  });
+
   // Re-map at the boundary in case we got here without an early break
   // (e.g. transient errors that exhausted retries).
   if (lastError) {
@@ -270,6 +282,61 @@ export async function createRun<T>(args: CreateRunArgs<T>): Promise<CreateRunRes
     if (mapped) throw mapped.error;
   }
   throw lastError ?? new Error('Unknown AI failure');
+}
+
+async function notifyAiRunFailure(args: {
+  organizationId: string;
+  estimateId: string;
+  triggeredById: string;
+  runType: AIRunType;
+  errorMessage: string;
+}): Promise<void> {
+  try {
+    const estimate = await prisma.estimate.findFirst({
+      where: { id: args.estimateId, organizationId: args.organizationId },
+      select: { id: true, number: true, title: true },
+    });
+    if (!estimate) return;
+    const errorCode = args.errorMessage.match(/ai_[a-z_]+/)?.[0] ?? 'internal_error';
+    await notifications.notify({
+      organizationId: args.organizationId,
+      recipientId: args.triggeredById,
+      type: 'AI_RUN_FAILED',
+      title: `AI run failed on estimate ${estimate.number}`,
+      body: args.errorMessage.length > 240
+        ? `${args.errorMessage.slice(0, 237)}…`
+        : args.errorMessage,
+      entityType: 'Estimate',
+      entityId: estimate.id,
+      templateData: {
+        template: 'AI_RUN_FAILED',
+        estimateNumber: estimate.number,
+        estimateTitle: estimate.title,
+        estimateId: estimate.id,
+        runTypeLabel: humanRunType(args.runType),
+        errorCode,
+      },
+    });
+  } catch (err) {
+    logger.warn({ err }, '[ai] AI_RUN_FAILED notification dispatch threw');
+  }
+}
+
+function humanRunType(t: AIRunType): string {
+  switch (t) {
+    case 'GENERATE_LINE_ITEMS':
+      return 'Generate line items';
+    case 'ASK_FOLLOWUP':
+      return 'Follow-up';
+    case 'DRAFT_EXEC_SUMMARY':
+      return 'Executive summary';
+    case 'SUGGEST_PRICE':
+      return 'Price suggestion';
+    case 'CLASSIFY_SCOPE':
+      return 'Scope classification';
+    default:
+      return 'AI';
+  }
 }
 
 /**
