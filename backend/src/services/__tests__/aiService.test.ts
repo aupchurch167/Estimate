@@ -363,6 +363,94 @@ describe('createRun', () => {
     });
     expect(modelSeen).toContain('haiku');
   });
+
+  it('maps an Anthropic 401 to AiUpstreamError with code ai_invalid_api_key, no retry', async () => {
+    const ctx = await makeContext();
+    let calls = 0;
+    __setAnthropicClientForTesting(
+      fakeClient(async () => {
+        calls += 1;
+        const err = new Error(
+          '401 {"type":"error","error":{"type":"authentication_error","message":"invalid x-api-key"}}',
+        ) as Error & {
+          status?: number;
+          error?: { error?: { type?: string; message?: string } };
+        };
+        err.status = 401;
+        err.error = {
+          error: { type: 'authentication_error', message: 'invalid x-api-key' },
+        };
+        throw err;
+      }),
+    );
+    await expect(
+      createRun({
+        ...baseRunArgs,
+        organizationId: ctx.organizationId,
+        estimateId: ctx.estimateId,
+        userId: ctx.userId,
+      }),
+    ).rejects.toMatchObject({ code: 'ai_invalid_api_key', statusCode: 502 });
+    // Permanent error → bail before the second attempt.
+    expect(calls).toBe(1);
+  });
+
+  it('maps an Anthropic 404 model_not_found to ai_model_not_found, no retry', async () => {
+    const ctx = await makeContext();
+    let calls = 0;
+    __setAnthropicClientForTesting(
+      fakeClient(async () => {
+        calls += 1;
+        const err = new Error('404 not found') as Error & {
+          status?: number;
+          error?: { error?: { type?: string; message?: string } };
+        };
+        err.status = 404;
+        err.error = {
+          error: { type: 'not_found_error', message: 'model: bogus' },
+        };
+        throw err;
+      }),
+    );
+    await expect(
+      createRun({
+        ...baseRunArgs,
+        organizationId: ctx.organizationId,
+        estimateId: ctx.estimateId,
+        userId: ctx.userId,
+      }),
+    ).rejects.toMatchObject({ code: 'ai_model_not_found' });
+    expect(calls).toBe(1);
+  });
+
+  it('maps an Anthropic 429 to ai_rate_limited but still retries (transient)', async () => {
+    const ctx = await makeContext();
+    let calls = 0;
+    __setAnthropicClientForTesting(
+      fakeClient(async () => {
+        calls += 1;
+        const err = new Error('429 rate limit') as Error & {
+          status?: number;
+          error?: { error?: { type?: string; message?: string } };
+        };
+        err.status = 429;
+        err.error = {
+          error: { type: 'rate_limit_error', message: 'slow down' },
+        };
+        throw err;
+      }),
+    );
+    await expect(
+      createRun({
+        ...baseRunArgs,
+        organizationId: ctx.organizationId,
+        estimateId: ctx.estimateId,
+        userId: ctx.userId,
+      }),
+    ).rejects.toMatchObject({ code: 'ai_rate_limited' });
+    // Transient — retried once (so 2 calls total).
+    expect(calls).toBe(2);
+  });
 });
 
 describe('appendMessage', () => {

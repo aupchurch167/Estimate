@@ -336,6 +336,8 @@ function formatStamp(iso: string): string {
 function mapGenerateError(err: AxiosError): string {
   const status = err.response?.status;
   const code = backendErrorCode(err);
+  const upstream = mapAiUpstreamError(code);
+  if (upstream) return upstream;
   if (code === 'monthly_ai_limit_reached') {
     return 'Monthly AI cost cap reached. Contact an admin to raise the cap.';
   }
@@ -354,6 +356,8 @@ function mapGenerateError(err: AxiosError): string {
 function mapAskError(err: AxiosError): string {
   const status = err.response?.status;
   const code = backendErrorCode(err);
+  const upstream = mapAiUpstreamError(code);
+  if (upstream) return upstream;
   if (code === 'monthly_ai_limit_reached') {
     return 'Monthly AI cost cap reached. Contact an admin to raise the cap.';
   }
@@ -364,4 +368,30 @@ function mapAskError(err: AxiosError): string {
     return 'Your role cannot send follow-ups.';
   }
   return backendErrorMessage(err, 'Could not send the follow-up.');
+}
+
+/**
+ * Shared mapping for the typed AiUpstreamError codes the backend
+ * surfaces from Anthropic. Returns null when the code isn't one of
+ * ours so the caller can fall through to its own defaults.
+ */
+function mapAiUpstreamError(code: string | null): string | null {
+  switch (code) {
+    case 'ai_invalid_api_key':
+      return 'AI key invalid — an admin needs to update ANTHROPIC_API_KEY and restart the backend.';
+    case 'ai_permission_denied':
+      return 'AI key lacks access to the requested model. Check Anthropic console or pick a different model.';
+    case 'ai_model_not_found':
+      return 'Requested AI model not found. Check AI_MODEL_PRIMARY / AI_MODEL_LIGHT in the backend env.';
+    case 'ai_rate_limited':
+      return 'Anthropic rate-limited that request — wait a moment and retry.';
+    case 'ai_overloaded':
+      return 'Anthropic is temporarily overloaded — try again shortly.';
+    case 'ai_temporary_failure':
+      return 'Anthropic returned a temporary error — try again shortly.';
+    case 'ai_network_error':
+      return 'Could not reach Anthropic — check the backend’s network connection.';
+    default:
+      return null;
+  }
 }

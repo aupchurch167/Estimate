@@ -66,3 +66,26 @@ export class ConflictError extends AppError {
     this.code = code;
   }
 }
+
+/**
+ * The Anthropic API (or any other AI provider) returned an error we
+ * mapped to a known cause. We render these as 502 so the client knows
+ * it's an upstream-dependency problem, not a request problem on their
+ * side. Specific causes are surfaced via `code` so the UI can render
+ * targeted copy ("AI key invalid — admin needs to update it", etc.).
+ */
+export class AiUpstreamError extends AppError {
+  public readonly statusCode: number;
+  public readonly code: string;
+
+  constructor(
+    message: string,
+    code: string,
+    statusCode = 502,
+    details?: ErrorDetails,
+  ) {
+    super(message, details);
+    this.code = code;
+    this.statusCode = statusCode;
+  }
+}

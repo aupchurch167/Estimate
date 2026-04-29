@@ -23,7 +23,7 @@ import type { ZodSchema } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { env } from '../lib/env.js';
 import { logger } from '../lib/logger.js';
-import { ConflictError, NotFoundError } from '../lib/errors.js';
+import { AiUpstreamError, ConflictError, NotFoundError } from '../lib/errors.js';
 import { getAnthropicClient } from '../lib/anthropic.js';
 import { tokenCostDecimal } from '../lib/costing.js';
 
@@ -224,6 +224,14 @@ export async function createRun<T>(args: CreateRunArgs<T>): Promise<CreateRunRes
         { err: lastError, runId: initialRun.id, attempt },
         '[ai] run attempt failed',
       );
+      // Permanent upstream failures (bad key, missing model, …) won't get
+      // better with a retry — bail out of the loop and let the FAILED
+      // bookkeeping below run, then throw the typed AiUpstreamError.
+      const mapped = mapAnthropicError(lastError, model);
+      if (mapped && mapped.permanent) {
+        lastError = mapped.error;
+        break;
+      }
     }
   }
 
@@ -254,7 +262,114 @@ export async function createRun<T>(args: CreateRunArgs<T>): Promise<CreateRunRes
       });
     }
   });
+
+  // Re-map at the boundary in case we got here without an early break
+  // (e.g. transient errors that exhausted retries).
+  if (lastError) {
+    const mapped = mapAnthropicError(lastError, model);
+    if (mapped) throw mapped.error;
+  }
   throw lastError ?? new Error('Unknown AI failure');
+}
+
+/**
+ * Translate raw Anthropic SDK errors into typed AiUpstreamErrors so
+ * the controller can return useful 4xx/5xx codes and the frontend can
+ * render a friendly banner. Returns { permanent: true } for errors we
+ * shouldn't retry (bad key, wrong model name, schema mismatch from the
+ * model that won't self-correct).
+ */
+function mapAnthropicError(
+  err: Error,
+  model: string,
+): { error: AiUpstreamError; permanent: boolean } | null {
+  // Anthropic SDK errors carry `status` + a structured `error` payload.
+  const anthroLike = err as Error & {
+    status?: number;
+    error?: { error?: { type?: string; message?: string } };
+  };
+  const status = anthroLike.status;
+  const upstreamType = anthroLike.error?.error?.type;
+  const upstreamMessage = anthroLike.error?.error?.message;
+
+  if (status === 401 || upstreamType === 'authentication_error') {
+    return {
+      permanent: true,
+      error: new AiUpstreamError(
+        'Anthropic rejected the API key. An admin needs to update ANTHROPIC_API_KEY in the backend environment and restart the server.',
+        'ai_invalid_api_key',
+        502,
+        { upstreamMessage },
+      ),
+    };
+  }
+  if (status === 403 || upstreamType === 'permission_error') {
+    return {
+      permanent: true,
+      error: new AiUpstreamError(
+        'The Anthropic key is valid but lacks access to the requested model.',
+        'ai_permission_denied',
+        502,
+        { upstreamMessage, model },
+      ),
+    };
+  }
+  if (status === 404 || upstreamType === 'not_found_error') {
+    return {
+      permanent: true,
+      error: new AiUpstreamError(
+        `Anthropic does not recognize model "${model}". Check AI_MODEL_PRIMARY / AI_MODEL_LIGHT in the backend environment.`,
+        'ai_model_not_found',
+        502,
+        { upstreamMessage, model },
+      ),
+    };
+  }
+  if (status === 429 || upstreamType === 'rate_limit_error') {
+    return {
+      permanent: false,
+      error: new AiUpstreamError(
+        'Anthropic rate-limited this request. Wait a moment and try again.',
+        'ai_rate_limited',
+        503,
+        { upstreamMessage },
+      ),
+    };
+  }
+  if (status === 529 || upstreamType === 'overloaded_error') {
+    return {
+      permanent: false,
+      error: new AiUpstreamError(
+        'Anthropic is temporarily overloaded. Try again shortly.',
+        'ai_overloaded',
+        503,
+        { upstreamMessage },
+      ),
+    };
+  }
+  if (typeof status === 'number' && status >= 500) {
+    return {
+      permanent: false,
+      error: new AiUpstreamError(
+        'Anthropic returned a temporary error. Try again shortly.',
+        'ai_temporary_failure',
+        502,
+        { status, upstreamMessage },
+      ),
+    };
+  }
+  // Network-level failures (no `status`).
+  if (err.message?.toLowerCase().includes('connection error') || err.name === 'APIConnectionError') {
+    return {
+      permanent: false,
+      error: new AiUpstreamError(
+        'Could not reach Anthropic. Check your network connection.',
+        'ai_network_error',
+        502,
+      ),
+    };
+  }
+  return null;
 }
 
 function attemptUserMessage(
