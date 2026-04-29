@@ -6,6 +6,9 @@ export interface PipelineSummary {
   totalSentSellPrice: string;
   wonThisMonthSellPrice: string;
   wonThisMonthCount: number;
+  winRate: number | null;
+  avgDaysInPipeline: number | null;
+  activePipelineValue: string;
 }
 
 export interface DashboardEstimateRow {
@@ -20,6 +23,24 @@ export interface DashboardEstimateRow {
   reviewer: { id: string; firstName: string; lastName: string } | null;
 }
 
+export type NeedsAttentionReason =
+  | 'my_draft'
+  | 'my_revised'
+  | 'awaiting_my_review'
+  | 'stale_in_flight';
+
+export interface NeedsAttentionItem {
+  id: string;
+  number: string;
+  title: string;
+  status: EstimateStatus;
+  clientCompanyName: string | null;
+  totalSellPrice: string;
+  updatedAt: string;
+  reason: NeedsAttentionReason;
+  ageDays: number;
+}
+
 export interface DashboardActivityRow {
   id: string;
   eventType: string;
@@ -29,9 +50,27 @@ export interface DashboardActivityRow {
   actor: { id: string; firstName: string; lastName: string } | null;
 }
 
+export interface AiUsageByUserRow {
+  userId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  runCount: number;
+  costUsd: string;
+}
+
+export interface AiUsagePayload {
+  monthToDateUsd: string;
+  monthToDateRunCount: number;
+  capUsd: string | null;
+  byUser: AiUsageByUserRow[];
+}
+
 export interface DashboardPayload {
   pipeline: PipelineSummary;
+  needsAttention: NeedsAttentionItem[];
   assignedReviews: DashboardEstimateRow[];
   myDrafts: DashboardEstimateRow[];
   recentActivity: DashboardActivityRow[];
+  aiUsage: AiUsagePayload | null;
 }

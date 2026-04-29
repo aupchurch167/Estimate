@@ -53,10 +53,15 @@ const emptyDashboard: DashboardPayload = {
     totalSentSellPrice: '0',
     wonThisMonthSellPrice: '0',
     wonThisMonthCount: 0,
+    winRate: null,
+    avgDaysInPipeline: null,
+    activePipelineValue: '0',
   },
+  needsAttention: [],
   assignedReviews: [],
   myDrafts: [],
   recentActivity: [],
+  aiUsage: null,
 };
 
 function setupApi(payload: DashboardPayload | (() => Promise<DashboardPayload>)) {
@@ -119,6 +124,9 @@ describe('Dashboard', () => {
         totalSentSellPrice: '34500',
         wonThisMonthSellPrice: '5000',
         wonThisMonthCount: 1,
+        winRate: 0.5,
+        avgDaysInPipeline: 4.2,
+        activePipelineValue: '60000',
       },
     });
     renderInClient();
@@ -132,10 +140,10 @@ describe('Dashboard', () => {
     expect(strip.textContent).toMatch(/3/);
   });
 
-  it('lists assigned reviews and links to the estimate', async () => {
+  it('surfaces an in-review estimate in Needs Attention with a Review CTA', async () => {
     setupApi({
       ...emptyDashboard,
-      assignedReviews: [
+      needsAttention: [
         {
           id: 'e-1',
           number: 'MAC-26-001',
@@ -144,26 +152,102 @@ describe('Dashboard', () => {
           clientCompanyName: 'Acme',
           totalSellPrice: '8400',
           updatedAt: '2026-04-28T00:00:00.000Z',
-          drafter: null,
-          reviewer: null,
+          reason: 'awaiting_my_review',
+          ageDays: 1,
         },
       ],
     });
     renderInClient();
-    const rows = await screen.findAllByTestId('dashboard-estimate-row');
+    const rows = await screen.findAllByTestId('needs-attention-row');
     expect(rows).toHaveLength(1);
     const row = rows[0]!;
+    expect(row.getAttribute('data-reason')).toBe('awaiting_my_review');
     expect(row.textContent).toMatch(/MAC-26-001/);
     expect(row.textContent).toMatch(/Acme TI/);
     expect(row.textContent).toMatch(/\$8,400/);
+    expect(row.textContent).toMatch(/Review/);
     const link = row.querySelector('a');
     expect(link?.getAttribute('href')).toBe('/app/estimates/e-1');
   });
 
-  it('shows "Nothing waiting on you." when assignedReviews is empty', async () => {
+  it('shows "Nothing waiting on you." when needsAttention is empty', async () => {
     setupApi(emptyDashboard);
     renderInClient();
     expect(await screen.findByText(/nothing waiting on you/i)).toBeInTheDocument();
+  });
+
+  it('renders KPI tiles for active pipeline / win rate / avg days / won this month', async () => {
+    setupApi({
+      ...emptyDashboard,
+      pipeline: {
+        ...emptyDashboard.pipeline,
+        activePipelineValue: '60000',
+        winRate: 0.6,
+        avgDaysInPipeline: 7.5,
+        wonThisMonthSellPrice: '12000',
+        wonThisMonthCount: 2,
+      },
+    });
+    renderInClient();
+    const kpis = await screen.findByTestId('dashboard-kpis');
+    expect(kpis.textContent).toMatch(/\$60,000/);
+    expect(kpis.textContent).toMatch(/60%/);
+    expect(kpis.textContent).toMatch(/7\.5/);
+    expect(kpis.textContent).toMatch(/\$12,000/);
+    expect(kpis.textContent).toMatch(/2 estimates/);
+  });
+
+  it('shows em dashes when winRate / avgDaysInPipeline are null', async () => {
+    setupApi(emptyDashboard);
+    renderInClient();
+    const kpis = await screen.findByTestId('dashboard-kpis');
+    // Two em dashes — one for win rate, one for avg days.
+    expect(kpis.textContent?.match(/—/g)?.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('renders the admin AI Usage card when aiUsage payload is present', async () => {
+    setupApi({
+      ...emptyDashboard,
+      aiUsage: {
+        monthToDateUsd: '12.50',
+        monthToDateRunCount: 24,
+        capUsd: '50.00',
+        byUser: [
+          {
+            userId: 'u-a',
+            firstName: 'Adam',
+            lastName: 'Mark',
+            email: 'a@b.c',
+            runCount: 18,
+            costUsd: '10.00',
+          },
+          {
+            userId: 'u-b',
+            firstName: 'Sam',
+            lastName: 'P',
+            email: 's@x',
+            runCount: 6,
+            costUsd: '2.50',
+          },
+        ],
+      },
+    });
+    renderInClient();
+    const card = await screen.findByTestId('dashboard-ai-usage');
+    expect(card.textContent).toMatch(/AI usage/);
+    expect(card.textContent).toMatch(/\$13 spent/);
+    expect(card.textContent).toMatch(/\$50 cap/);
+    expect(card.textContent).toMatch(/24 runs/);
+    expect(card.textContent).toMatch(/Adam Mark/);
+    expect(card.textContent).toMatch(/Sam P/);
+    expect(screen.getByTestId('ai-usage-bar').getAttribute('data-pct')).toBe('25');
+  });
+
+  it('hides the AI Usage card for non-admins', async () => {
+    setupApi(emptyDashboard);
+    renderInClient();
+    await screen.findByTestId('dashboard-pipeline');
+    expect(screen.queryByTestId('dashboard-ai-usage')).not.toBeInTheDocument();
   });
 
   it('renders recent activity newest-first with actor + estimate link', async () => {

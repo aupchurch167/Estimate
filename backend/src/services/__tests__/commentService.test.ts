@@ -474,14 +474,14 @@ describe('activityFeedService.listForEstimate', () => {
     await commentService.create(ctx.organizationId, ctx.reviewer, ctx.estimateId, {
       body: 'second',
     });
-    const events = await activityFeedService.listForEstimate(
+    const result = await activityFeedService.listForEstimate(
       ctx.organizationId,
       ctx.estimateId,
     );
-    expect(events.length).toBeGreaterThanOrEqual(2);
+    expect(result.events.length).toBeGreaterThanOrEqual(2);
     // newest first, author info present
-    expect(events[0]?.eventType).toBe('COMMENT_ADDED');
-    expect(events[0]?.actor?.firstName).toBeTruthy();
+    expect(result.events[0]?.eventType).toBe('COMMENT_ADDED');
+    expect(result.events[0]?.actor?.firstName).toBeTruthy();
   });
 
   it('throws NotFound for a different org', async () => {

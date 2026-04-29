@@ -104,15 +104,32 @@ export async function deleteComment(req: Request, res: Response): Promise<void> 
   res.status(204).end();
 }
 
+function readLimit(value: unknown): number | undefined {
+  return typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : undefined;
+}
+
+function readCursor(value: unknown): string | null {
+  return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
 export async function listActivity(req: Request, res: Response): Promise<void> {
   const { orgId } = actorFrom(req);
-  const limitRaw = req.query.limit;
-  const limit =
-    typeof limitRaw === 'string' && /^\d+$/.test(limitRaw) ? Number(limitRaw) : undefined;
-  const events = await activityFeedService.listForEstimate(
+  const result = await activityFeedService.listForEstimate(
     orgId,
     String(req.params.id ?? ''),
-    limit,
+    {
+      limit: readLimit(req.query.limit),
+      cursor: readCursor(req.query.cursor),
+    },
   );
-  ok(res, { events });
+  ok(res, result);
+}
+
+export async function listOrgActivity(req: Request, res: Response): Promise<void> {
+  const { orgId } = actorFrom(req);
+  const result = await activityFeedService.listForOrganization(orgId, {
+    limit: readLimit(req.query.limit),
+    cursor: readCursor(req.query.cursor),
+  });
+  ok(res, result);
 }

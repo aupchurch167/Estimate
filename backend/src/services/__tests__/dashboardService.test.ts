@@ -117,7 +117,10 @@ describe('dashboardService.loadDashboard', () => {
       sellPrice: '3000',
     });
 
-    const dash = await loadDashboard(ctx.organizationId, ctx.reviewer.id);
+    const dash = await loadDashboard(ctx.organizationId, {
+      id: ctx.reviewer.id,
+      role: ctx.reviewer.role,
+    });
 
     // Pipeline counts cover every status.
     expect(dash.pipeline.counts.DRAFT).toBe(1);
@@ -139,7 +142,10 @@ describe('dashboardService.loadDashboard', () => {
     expect(dash.assignedReviews[0]?.status).toBe('IN_REVIEW');
 
     // Drafter sees their DRAFT + REVISED in myDrafts (load as drafter).
-    const drafterDash = await loadDashboard(ctx.organizationId, ctx.drafter.id);
+    const drafterDash = await loadDashboard(ctx.organizationId, {
+      id: ctx.drafter.id,
+      role: ctx.drafter.role,
+    });
     expect(drafterDash.myDrafts.map((e) => e.status).sort()).toEqual(['DRAFT', 'REVISED']);
 
     // No assigned reviews for the drafter (they're not the reviewer).
@@ -162,7 +168,10 @@ describe('dashboardService.loadDashboard', () => {
     });
     await markWon(ctx.organizationId, ctx.reviewer, e.id);
 
-    const dash = await loadDashboard(ctx.organizationId, ctx.drafter.id);
+    const dash = await loadDashboard(ctx.organizationId, {
+      id: ctx.drafter.id,
+      role: ctx.drafter.role,
+    });
     const eventTypes = dash.recentActivity.map((a) => a.eventType);
     // Newest first, and includes the four transitions we just made.
     expect(eventTypes).toContain('ESTIMATE_WON');
@@ -190,7 +199,10 @@ describe('dashboardService.loadDashboard', () => {
       status: 'WON',
       sellPrice: '9999',
     });
-    const dashA = await loadDashboard(a.organizationId, a.drafter.id);
+    const dashA = await loadDashboard(a.organizationId, {
+      id: a.drafter.id,
+      role: a.drafter.role,
+    });
     expect(dashA.pipeline.counts.WON).toBe(1);
     expect(Number(dashA.pipeline.wonThisMonthSellPrice)).toBe(1000);
   });
