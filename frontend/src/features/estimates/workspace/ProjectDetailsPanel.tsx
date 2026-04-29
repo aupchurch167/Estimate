@@ -2,14 +2,18 @@ import type { EstimateDetail } from '@/features/estimates/types';
 import { Card } from '@/components/ui';
 
 /**
- * Project details summary card (Phase 8.1 layout).
+ * Project details summary (Phase 8.1 layout).
  *
- * Sits in the top row of the draft workspace alongside Sources and
- * Assumptions. Shows the at-a-glance "what is this estimate for"
- * fields so the drafter doesn't have to leave the workspace to see
- * the basics.
+ * `bare` mode skips the Card wrapper for use inside the tabbed
+ * Project Context card.
  */
-export function ProjectDetailsPanel({ estimate }: { estimate: EstimateDetail }) {
+export function ProjectDetailsPanel({
+  estimate,
+  bare = false,
+}: {
+  estimate: EstimateDetail;
+  bare?: boolean;
+}) {
   const issued = new Date(estimate.createdAt).toLocaleDateString(undefined, {
     year: 'numeric',
     month: 'short',
@@ -23,76 +27,95 @@ export function ProjectDetailsPanel({ estimate }: { estimate: EstimateDetail }) 
     estimate.projectPostalCode,
   ].filter((s): s is string => Boolean(s && s.trim().length > 0));
 
-  return (
-    <Card title="Project details" className="flex h-full flex-col">
-      <dl className="flex flex-col gap-3 text-[13px]">
-        <Row label="Estimate">
-          <span className="font-mono tabular-nums text-text-primary">{estimate.number}</span>
+  const body = (
+    <dl className="grid grid-cols-1 gap-x-6 gap-y-3 text-[13px] sm:grid-cols-2">
+      <Row label="Estimate">
+        <span className="font-mono tabular-nums text-text-primary">{estimate.number}</span>
+      </Row>
+      <Row label="Issued">
+        <span className="tabular-nums text-text-primary">{issued}</span>
+      </Row>
+      <Row label="Total">
+        <span className="font-mono font-semibold tabular-nums text-text-primary">
+          ${Number(estimate.totalSellPrice).toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}
+        </span>
+      </Row>
+      <Row label="Client">
+        <span className="text-text-primary">{estimate.clientCompanyName ?? '—'}</span>
+      </Row>
+      {estimate.clientContactName ? (
+        <Row label="Contact">
+          <span className="text-text-primary">{estimate.clientContactName}</span>
         </Row>
-        <Row label="Issued">
-          <span className="tabular-nums text-text-primary">{issued}</span>
+      ) : null}
+      {estimate.clientContactEmail ? (
+        <Row label="Email">
+          <a
+            href={`mailto:${estimate.clientContactEmail}`}
+            className="font-medium text-primary hover:underline"
+          >
+            {estimate.clientContactEmail}
+          </a>
         </Row>
-        <Row label="Total">
-          <span className="font-mono font-semibold tabular-nums text-text-primary">
-            ${Number(estimate.totalSellPrice).toLocaleString(undefined, {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}
+      ) : null}
+      {estimate.clientContactPhone ? (
+        <Row label="Phone">
+          <span className="font-mono tabular-nums text-text-primary">
+            {estimate.clientContactPhone}
           </span>
         </Row>
-        <div className="border-t border-border-primary pt-3">
-          <Row label="Client">
-            <span className="text-text-primary">{estimate.clientCompanyName ?? '—'}</span>
-          </Row>
-          {estimate.clientContactName ? (
-            <Row label="Contact">
-              <span className="text-text-primary">{estimate.clientContactName}</span>
-            </Row>
-          ) : null}
-          {estimate.clientContactEmail ? (
-            <Row label="Email">
-              <a
-                href={`mailto:${estimate.clientContactEmail}`}
-                className="font-medium text-primary hover:underline"
-              >
-                {estimate.clientContactEmail}
-              </a>
-            </Row>
-          ) : null}
-          {estimate.clientContactPhone ? (
-            <Row label="Phone">
-              <span className="font-mono tabular-nums text-text-primary">
-                {estimate.clientContactPhone}
-              </span>
-            </Row>
-          ) : null}
-        </div>
-        {addressParts.length > 0 ? (
-          <div className="border-t border-border-primary pt-3">
-            <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-text-tertiary">
-              Site address
-            </p>
-            <div className="mt-1 text-text-primary">
-              {addressParts.map((line, i) => (
-                <p key={i} className="text-[13px]">
-                  {line}
-                </p>
-              ))}
-            </div>
+      ) : null}
+      {addressParts.length > 0 ? (
+        <Row label="Site address" stack>
+          <div className="text-text-primary">
+            {addressParts.map((line, i) => (
+              <p key={i} className="text-[13px]">
+                {line}
+              </p>
+            ))}
           </div>
-        ) : null}
-      </dl>
+        </Row>
+      ) : null}
+    </dl>
+  );
+
+  if (bare) return body;
+  return (
+    <Card title="Project details" className="flex h-full flex-col">
+      {body}
     </Card>
   );
 }
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
+function Row({
+  label,
+  children,
+  stack = false,
+}: {
+  label: string;
+  children: React.ReactNode;
+  stack?: boolean;
+}) {
+  if (stack) {
+    return (
+      <div className="col-span-full">
+        <dt className="text-[11px] font-medium uppercase tracking-[0.06em] text-text-tertiary">
+          {label}
+        </dt>
+        <dd className="mt-1">{children}</dd>
+      </div>
+    );
+  }
   return (
-    <div className="flex items-baseline justify-between gap-3">
+    <div className="flex flex-col gap-0.5">
       <dt className="text-[11px] font-medium uppercase tracking-[0.06em] text-text-tertiary">
         {label}
       </dt>
-      <dd className="text-right">{children}</dd>
+      <dd>{children}</dd>
     </div>
   );
 }
+

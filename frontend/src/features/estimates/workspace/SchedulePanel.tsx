@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import type { EstimateDetail, LineItem } from '@/features/estimates/types';
 import { LineItemEditor } from '@/features/estimates/grid/LineItemEditor';
-import { Badge } from '@/components/ui';
+import { useDeleteLineItem } from '@/features/estimates/grid/useLineItems';
+import { Badge, Modal } from '@/components/ui';
 
 const READ_ONLY_STATUSES = new Set(['SENT', 'WON', 'LOST']);
 
@@ -20,6 +21,8 @@ export function SchedulePanel({ estimate }: { estimate: EstimateDetail }) {
     () => new Set(estimate.scopeSections.map((s) => s.id)),
   );
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [deletingItem, setDeletingItem] = useState<LineItem | null>(null);
+  const deleteLine = useDeleteLineItem(estimate.id);
 
   const sections = estimate.scopeSections.map((s) => {
     const items = estimate.lineItems
@@ -97,7 +100,9 @@ export function SchedulePanel({ estimate }: { estimate: EstimateDetail }) {
                         <li key={item.id}>
                           <ScheduleLineRow
                             item={item}
+                            readOnly={readOnly}
                             onClick={() => setEditingItemId(item.id)}
+                            onDelete={() => setDeletingItem(item)}
                           />
                         </li>
                       ))}
@@ -128,11 +133,63 @@ export function SchedulePanel({ estimate }: { estimate: EstimateDetail }) {
           onClose={() => setEditingItemId(null)}
         />
       ) : null}
+
+      {deletingItem ? (
+        <Modal
+          open
+          onClose={() => {
+            deleteLine.reset();
+            setDeletingItem(null);
+          }}
+          title="Delete line item"
+          size="sm"
+          footer={
+            <Modal.Footer
+              onCancel={() => {
+                deleteLine.reset();
+                setDeletingItem(null);
+              }}
+              onPrimary={async () => {
+                deleteLine.reset();
+                try {
+                  await deleteLine.mutateAsync(deletingItem.id);
+                  setDeletingItem(null);
+                } catch {
+                  /* banner stays */
+                }
+              }}
+              primaryLabel="Delete"
+              primaryVariant="danger"
+              primaryLoading={deleteLine.isPending}
+            />
+          }
+        >
+          <p className="text-[14px] text-text-primary">
+            Remove <span className="font-medium">"{deletingItem.description}"</span> from
+            the schedule? This can't be undone — re-add it manually if you change your mind.
+          </p>
+          {deleteLine.error ? (
+            <p role="alert" className="mt-3 text-[13px] text-danger">
+              Could not delete — try again, or refresh if the line is already gone.
+            </p>
+          ) : null}
+        </Modal>
+      ) : null}
     </section>
   );
 }
 
-function ScheduleLineRow({ item, onClick }: { item: LineItem; onClick: () => void }) {
+function ScheduleLineRow({
+  item,
+  readOnly,
+  onClick,
+  onDelete,
+}: {
+  item: LineItem;
+  readOnly: boolean;
+  onClick: () => void;
+  onDelete: () => void;
+}) {
   const flagVariant: 'warning' | 'danger' | undefined =
     item.status === 'NO_PRICE'
       ? 'danger'
@@ -150,31 +207,54 @@ function ScheduleLineRow({ item, onClick }: { item: LineItem; onClick: () => voi
             ? 'Assumed'
             : null;
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      data-testid={`schedule-line-${item.id}`}
-      className="flex w-full items-baseline justify-between gap-2 rounded-md px-2 py-1.5 text-left hover:bg-bg-tertiary"
-    >
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <p className="truncate text-[13px] text-text-primary" title={item.description}>
-            {item.description}
+    <div className="group flex items-center gap-1 rounded-md hover:bg-bg-tertiary">
+      <button
+        type="button"
+        onClick={onClick}
+        data-testid={`schedule-line-${item.id}`}
+        className="flex flex-1 items-baseline justify-between gap-2 px-2 py-1.5 text-left"
+      >
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="truncate text-[13px] text-text-primary" title={item.description}>
+              {item.description}
+            </p>
+            {flagVariant && flagLabel ? (
+              <Badge variant={flagVariant} size="sm">
+                {flagLabel}
+              </Badge>
+            ) : null}
+          </div>
+          <p className="text-[11px] tabular-nums text-text-tertiary">
+            {fmtQty(item.quantity)} {item.unitOfMeasure}
           </p>
-          {flagVariant && flagLabel ? (
-            <Badge variant={flagVariant} size="sm">
-              {flagLabel}
-            </Badge>
-          ) : null}
         </div>
-        <p className="text-[11px] tabular-nums text-text-tertiary">
-          {fmtQty(item.quantity)} {item.unitOfMeasure}
+        <p className="font-mono text-[12px] tabular-nums text-text-primary">
+          {fmt(Number(item.lineSellPrice))}
         </p>
-      </div>
-      <p className="font-mono text-[12px] tabular-nums text-text-primary">
-        {fmt(Number(item.lineSellPrice))}
-      </p>
-    </button>
+      </button>
+      {!readOnly ? (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+          aria-label={`Delete ${item.description}`}
+          data-testid={`schedule-line-${item.id}-delete`}
+          className="mr-1 rounded p-1 text-text-tertiary opacity-0 transition-opacity duration-fast hover:bg-danger-light hover:text-danger focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus group-hover:opacity-100"
+        >
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path
+              d="M4 4l8 8M12 4l-8 8"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+            />
+          </svg>
+        </button>
+      ) : null}
+    </div>
   );
 }
 

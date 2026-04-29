@@ -1,7 +1,5 @@
 import { TitleBlock } from './TitleBlock';
-import { SourcesPanel } from './SourcesPanel';
-import { ProjectDetailsPanel } from './ProjectDetailsPanel';
-import { AssumptionsPanel } from './AssumptionsPanel';
+import { ProjectContextCard } from './ProjectContextCard';
 import { ConversationPanel } from './ConversationPanel';
 import { SchedulePanel } from './SchedulePanel';
 import { SubmitForReviewButton } from '@/features/estimates/review/ReviewActions';
@@ -19,13 +17,15 @@ interface DraftModeLayoutProps {
 }
 
 /**
- * Draft-mode layout (Phase 8.1).
+ * Draft-mode layout (Phase 8.1, layout iteration 2).
  *
  * Two horizontal bands:
- *   1. Top — three detail cards side-by-side: project details / sources /
- *      assumptions. Reference info the drafter glances at while drafting.
+ *   1. Top — single collapsible "Project context" card with tabs for
+ *      Details / Sources / Assumptions. Reference info the drafter
+ *      glances at; can be hidden to give the work area more room.
  *   2. Bottom — 1/3 width chat on the left, 2/3 width schedule on the
- *      right. Chat is for talking to Quill; schedule is the work output.
+ *      right. Chat is for talking to Quill; schedule is the work
+ *      output.
  *
  * Stacks vertically below the lg breakpoint so the layout still works
  * on a narrow window or tablet.
@@ -44,14 +44,8 @@ export function DraftModeLayout({ estimate, modeSwitch }: DraftModeLayoutProps) 
         }
       />
       <main className="mx-auto flex max-w-[1280px] flex-col gap-4 px-6 py-6">
-        {/* Top: 3 detail cards. Stacks on small screens, 3-up at md+. */}
-        <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <ProjectDetailsPanel estimate={estimate} />
-          <SourcesPanel estimate={estimate} />
-          <AssumptionsPanel estimate={estimate} />
-        </section>
+        <ProjectContextCard estimate={estimate} />
 
-        {/* Bottom: chat 1/3, schedule 2/3. Stacks under lg. */}
         <section className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:[grid-template-rows:minmax(560px,calc(100vh-340px))]">
           <div className="lg:col-span-1 lg:h-full">
             <ConversationPanel estimate={estimate} />

@@ -9,7 +9,13 @@ import { Badge, Card, EmptyState } from '@/components/ui';
  * so the drafter sees the "things Quill wasn't sure about" without
  * scrolling the schedule.
  */
-export function AssumptionsPanel({ estimate }: { estimate: EstimateDetail }) {
+export function AssumptionsPanel({
+  estimate,
+  bare = false,
+}: {
+  estimate: EstimateDetail;
+  bare?: boolean;
+}) {
   const sectionsById = new Map(estimate.scopeSections.map((s) => [s.id, s.name]));
   const flagged = estimate.lineItems
     .map((li) => {
@@ -40,24 +46,15 @@ export function AssumptionsPanel({ estimate }: { estimate: EstimateDetail }) {
     })
     .filter((x): x is NonNullable<typeof x> => x !== null);
 
-  return (
-    <Card
-      title={
-        <span className="flex items-baseline gap-2">
-          <span>Assumptions</span>
-          <span className="text-[12px] tabular-nums text-text-tertiary">{flagged.length}</span>
-        </span>
-      }
-      className="!p-0 flex h-full flex-col"
-    >
-      {flagged.length === 0 ? (
-        <EmptyState
-          title="Nothing flagged"
-          description="When Quill makes assumptions or can't price something, it'll show up here."
-          className="px-4 py-6"
-        />
-      ) : (
-        <ul className="flex-1 overflow-auto">
+  const body =
+    flagged.length === 0 ? (
+      <EmptyState
+        title="Nothing flagged"
+        description="When Quill makes assumptions or can't price something, it'll show up here."
+        className="px-4 py-6"
+      />
+    ) : (
+      <ul className="flex-1 overflow-auto">
           {flagged.map((f) => (
             <li
               key={f.id}
@@ -94,7 +91,20 @@ export function AssumptionsPanel({ estimate }: { estimate: EstimateDetail }) {
             </li>
           ))}
         </ul>
-      )}
+      );
+
+  if (bare) return <div className="flex flex-col">{body}</div>;
+  return (
+    <Card
+      title={
+        <span className="flex items-baseline gap-2">
+          <span>Assumptions</span>
+          <span className="text-[12px] tabular-nums text-text-tertiary">{flagged.length}</span>
+        </span>
+      }
+      className="!p-0 flex h-full flex-col"
+    >
+      {body}
     </Card>
   );
 }
