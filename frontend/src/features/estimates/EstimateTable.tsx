@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import type { SafeUser } from '@/features/auth/types';
 import type { Estimate } from './types';
-import { StatusStamp } from './StatusStamp';
+import { Badge, Table } from '@/components/ui';
 
 export type SortField = 'updatedAt' | 'createdAt' | 'number' | 'totalSellPrice';
 export type SortOrder = 'asc' | 'desc';
@@ -28,153 +28,65 @@ export function EstimateTable({
     return m ? `${m.firstName} ${m.lastName}` : '—';
   };
 
-  const toggleSort = (field: SortField) => {
-    if (sort === field) {
-      onSortChange(field, order === 'asc' ? 'desc' : 'asc');
-    } else {
-      onSortChange(field, 'desc');
-    }
+  const sortHeader = (field: SortField) => {
+    const direction = sort === field ? order : undefined;
+    return {
+      sort: direction,
+      onSort: () => onSortChange(field, sort === field && order === 'desc' ? 'asc' : 'desc'),
+    };
   };
 
-  const arrow = (field: SortField) =>
-    sort === field ? (order === 'asc' ? ' ↑' : ' ↓') : '';
-
-  if (estimates.length === 0) {
-    return (
-      <div className="border border-dashed border-rule bg-paper-elevated p-12 text-center">
-        <p className="font-mono text-[10px] uppercase tracking-label text-dim">No estimates</p>
-        <p className="mt-2 font-sans text-[13px] text-dim">
-          Click "New estimate" to start your first one.
-        </p>
-      </div>
-    );
-  }
-
   return (
-    <table className="w-full border-collapse font-sans text-[13px]">
-      <thead>
-        <tr className="border-b border-rule text-left">
-          <ThSortable
-            field="number"
-            label="Number"
-            sort={sort}
-            order={order}
-            onClick={toggleSort}
-            arrow={arrow('number')}
-          />
-          <Th>Title</Th>
-          <Th>Status</Th>
-          <Th>Drafter</Th>
-          <Th>Reviewer</Th>
-          <Th className="text-right">
-            <button
-              type="button"
-              onClick={() => toggleSort('totalSellPrice')}
-              className="font-mono text-[10px] uppercase tracking-label text-dim hover:text-ink"
-            >
-              Total{arrow('totalSellPrice')}
-            </button>
-          </Th>
-          <Th className="text-right">
-            <button
-              type="button"
-              onClick={() => toggleSort('updatedAt')}
-              className="font-mono text-[10px] uppercase tracking-label text-dim hover:text-ink"
-            >
-              Updated{arrow('updatedAt')}
-            </button>
-          </Th>
+    <Table>
+      <Table.Head>
+        <tr>
+          <Table.Header {...sortHeader('number')}>Number</Table.Header>
+          <Table.Header>Title</Table.Header>
+          <Table.Header>Status</Table.Header>
+          <Table.Header>Drafter</Table.Header>
+          <Table.Header>Reviewer</Table.Header>
+          <Table.Header {...sortHeader('totalSellPrice')} className="text-right">
+            Total
+          </Table.Header>
+          <Table.Header {...sortHeader('updatedAt')} className="text-right">
+            Updated
+          </Table.Header>
         </tr>
-      </thead>
-      <tbody>
+      </Table.Head>
+      <Table.Body>
         {estimates.map((e) => (
-          <tr
-            key={e.id}
-            onClick={() => navigate(`/app/estimates/${e.id}`)}
-            className="cursor-pointer border-b border-rule-soft last:border-b-0 hover:bg-paper"
-          >
-            <Td className="py-2 font-mono text-[11px] text-ink">{e.number}</Td>
-            <Td className="py-2">
-              <p>{e.title}</p>
+          <Table.Row key={e.id} onRowClick={() => navigate(`/app/estimates/${e.id}`)}>
+            <Table.Cell className="font-mono text-[12px] text-text-secondary">
+              {e.number}
+            </Table.Cell>
+            <Table.Cell>
+              <p className="font-medium text-text-primary">{e.title}</p>
               {e.clientCompanyName ? (
-                <p className="font-mono text-[10px] uppercase tracking-label text-dim">
-                  {e.clientCompanyName}
-                </p>
+                <p className="text-[12px] text-text-tertiary">{e.clientCompanyName}</p>
               ) : null}
-            </Td>
-            <Td className="py-2">
-              <StatusStamp status={e.status} />
-            </Td>
-            <Td className="py-2 font-mono text-[11px] text-dim">{memberLabel(e.drafterId)}</Td>
-            <Td className="py-2 font-mono text-[11px] text-dim">{memberLabel(e.reviewerId)}</Td>
-            <Td className="py-2 text-right font-mono tabular-nums">
+            </Table.Cell>
+            <Table.Cell>
+              <Badge status={e.status} size="sm">
+                {e.status.replace('_', ' ').toLowerCase()}
+              </Badge>
+            </Table.Cell>
+            <Table.Cell className="text-[13px] text-text-secondary">
+              {memberLabel(e.drafterId)}
+            </Table.Cell>
+            <Table.Cell className="text-[13px] text-text-secondary">
+              {memberLabel(e.reviewerId)}
+            </Table.Cell>
+            <Table.Cell className="text-right font-medium tabular-nums">
               {fmt(e.totalSellPrice)}
-            </Td>
-            <Td className="py-2 text-right font-mono text-[11px] text-dim tabular-nums">
+            </Table.Cell>
+            <Table.Cell className="text-right text-[13px] tabular-nums text-text-tertiary">
               {fmtDate(e.updatedAt)}
-            </Td>
-          </tr>
+            </Table.Cell>
+          </Table.Row>
         ))}
-      </tbody>
-    </table>
+      </Table.Body>
+    </Table>
   );
-}
-
-function Th({
-  children,
-  className = '',
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <th
-      className={`font-mono text-[10px] uppercase tracking-label text-dim font-normal pb-2 pr-3 ${className}`}
-    >
-      {children}
-    </th>
-  );
-}
-
-function ThSortable({
-  field,
-  label,
-  sort,
-  order,
-  onClick,
-  arrow,
-}: {
-  field: SortField;
-  label: string;
-  sort: SortField;
-  order: SortOrder;
-  onClick: (field: SortField) => void;
-  arrow: string;
-}) {
-  void sort;
-  void order;
-  return (
-    <th className="pb-2 pr-3 text-left">
-      <button
-        type="button"
-        onClick={() => onClick(field)}
-        className="font-mono text-[10px] uppercase tracking-label text-dim hover:text-ink"
-      >
-        {label}
-        {arrow}
-      </button>
-    </th>
-  );
-}
-
-function Td({
-  children,
-  className = '',
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return <td className={`pr-3 ${className}`}>{children}</td>;
 }
 
 function fmt(value: string): string {

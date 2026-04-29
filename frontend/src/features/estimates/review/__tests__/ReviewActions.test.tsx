@@ -180,14 +180,17 @@ describe('ReviewerActions', () => {
     renderInClient(<ReviewerActions estimate={buildEstimate({ status: 'IN_REVIEW' })} />);
     await user.click(await screen.findByTestId('request-changes'));
 
-    const modal = await screen.findByTestId('note-dialog');
+    const modal = await screen.findByRole('dialog');
     expect(modal).toBeInTheDocument();
 
-    const submit = screen.getByTestId('note-submit');
-    expect(submit).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: /send back to drafter/i }),
+    ).toBeDisabled();
 
     await user.type(screen.getByTestId('note-input'), 'tighten the demo numbers');
-    await user.click(submit);
+    await user.click(
+      await screen.findByRole('button', { name: /send back to drafter/i }),
+    );
 
     await waitFor(() => {
       expect(mockedPost).toHaveBeenCalledWith('/api/estimates/e1/request-changes', {
@@ -241,7 +244,8 @@ describe('UnlockButton', () => {
     const user = userEvent.setup();
     renderInClient(<UnlockButton estimate={buildEstimate({ status: 'APPROVED' })} />);
     await user.click(await screen.findByTestId('unlock-estimate'));
-    await user.click(screen.getByTestId('note-submit'));
+    // Modal exposes its action via the visible button name.
+    await user.click(await screen.findByRole('button', { name: /^unlock$/i }));
     await waitFor(() => {
       expect(mockedPost).toHaveBeenCalledWith('/api/estimates/e1/unlock', { note: null });
     });

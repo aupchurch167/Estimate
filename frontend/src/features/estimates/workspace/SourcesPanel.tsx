@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { EstimateDetail } from '@/features/estimates/types';
 import { AddSourceModal } from '@/features/estimates/sources/AddSourceModal';
 import { EditSourceModal } from '@/features/estimates/sources/EditSourceModal';
+import { Button, Card } from '@/components/ui';
 
 const READ_ONLY_STATUSES = new Set(['SENT', 'WON', 'LOST']);
 
@@ -14,36 +15,30 @@ export function SourcesPanel({ estimate }: { estimate: EstimateDetail }) {
     : null;
 
   return (
-    <section className="flex h-full flex-col border border-rule bg-paper-elevated">
-      <header className="flex items-baseline justify-between border-b border-rule-soft px-4 py-3">
-        <div>
-          <p className="font-mono text-[10px] uppercase tracking-label text-dim">
-            A · Sources{' '}
-            <span className="ml-1 font-mono text-[10px] tabular-nums">
-              {estimate.sourceInputs.length}
-            </span>
-          </p>
-          <p className="mt-1 font-sans text-[12px] text-dim">Transcripts, emails, scope notes</p>
-        </div>
-        {!readOnly ? (
-          <button
-            type="button"
-            onClick={() => setAddOpen(true)}
-            className="border border-ink px-2 py-0.5 font-mono text-[10px] uppercase tracking-label text-ink hover:bg-ink hover:text-ink-inverse"
-          >
+    <Card
+      title={
+        <span className="flex items-baseline gap-2">
+          <span>Sources</span>
+          <span className="text-[12px] tabular-nums text-text-tertiary">
+            {estimate.sourceInputs.length}
+          </span>
+        </span>
+      }
+      actions={
+        !readOnly ? (
+          <Button size="sm" variant="secondary" onClick={() => setAddOpen(true)}>
             + Add
-          </button>
-        ) : null}
-      </header>
-
+          </Button>
+        ) : null
+      }
+      className="!p-0 flex h-full flex-col"
+    >
       <div className="flex-1 overflow-auto p-4">
         {estimate.sourceInputs.length === 0 ? (
-          <div className="border border-dashed border-rule p-6 text-center">
-            <p className="font-mono text-[10px] uppercase tracking-label text-dim">
-              No sources yet
-            </p>
-            <p className="mt-2 font-sans text-[12px] text-dim">
-              Paste a transcript, email, or notes to give the AI context for the draft.
+          <div className="rounded-md border border-dashed border-border-secondary bg-bg-tertiary p-6 text-center">
+            <p className="text-[13px] font-medium text-text-primary">No sources yet</p>
+            <p className="mt-1 text-[12px] text-text-secondary">
+              Paste a transcript, email, or notes so Quill has context.
             </p>
           </div>
         ) : (
@@ -54,15 +49,15 @@ export function SourcesPanel({ estimate }: { estimate: EstimateDetail }) {
                   type="button"
                   onClick={() => setEditingId(s.id)}
                   data-testid={`source-${s.id}-open`}
-                  className="group block w-full border border-rule-soft bg-paper p-3 text-left transition hover:border-ink hover:bg-paper-elevated"
+                  className="block w-full rounded-md border border-border-primary bg-bg-primary p-3 text-left transition-colors duration-fast hover:border-border-secondary hover:bg-bg-tertiary"
                 >
-                  <p className="font-mono text-[10px] uppercase tracking-label text-dim">
+                  <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-text-tertiary">
                     {labelType(s.type)}
                     {s.fileUrl ? ' · file' : null}
                   </p>
-                  <p className="mt-1 font-sans text-[12px] text-ink">{s.title}</p>
+                  <p className="mt-1 text-[13px] font-medium text-text-primary">{s.title}</p>
                   {s.content ? (
-                    <p className="mt-1 line-clamp-2 font-sans text-[11px] text-dim">
+                    <p className="mt-1 line-clamp-2 text-[12px] text-text-secondary">
                       {s.content}
                     </p>
                   ) : null}
@@ -73,11 +68,7 @@ export function SourcesPanel({ estimate }: { estimate: EstimateDetail }) {
         )}
       </div>
 
-      <AddSourceModal
-        open={addOpen}
-        onClose={() => setAddOpen(false)}
-        estimateId={estimate.id}
-      />
+      <AddSourceModal open={addOpen} onClose={() => setAddOpen(false)} estimateId={estimate.id} />
       {editingSource ? (
         <EditSourceModal
           key={editingSource.id}
@@ -87,7 +78,7 @@ export function SourcesPanel({ estimate }: { estimate: EstimateDetail }) {
           onClose={() => setEditingId(null)}
         />
       ) : null}
-    </section>
+    </Card>
   );
 }
 

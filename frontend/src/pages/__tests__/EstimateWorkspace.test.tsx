@@ -111,19 +111,22 @@ function renderAt(id: string) {
 }
 
 describe('EstimateWorkspace mode selection', () => {
-  it('DRAFT renders Draft Mode (3-panel) with Submit for review action', async () => {
+  it('DRAFT renders Draft Mode with the Project / Sources / Assumptions cards + Submit for review action', async () => {
     setupApi(buildEstimate('DRAFT'));
     renderAt('e1');
-    await waitFor(() => screen.getByText(/^A · Sources$/));
-    expect(screen.getByText(/^B · Draft Session$/)).toBeInTheDocument();
-    expect(screen.getByText(/^C · Schedule$/)).toBeInTheDocument();
+    // The new draft layout shows three top-row cards.
+    await waitFor(() => screen.getByText('Project details'));
+    expect(screen.getByText('Sources')).toBeInTheDocument();
+    expect(screen.getByText('Assumptions')).toBeInTheDocument();
+    expect(screen.getByText(/draft session/i)).toBeInTheDocument();
+    expect(screen.getByText('Schedule')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /submit for review/i })).toBeInTheDocument();
   });
 
   it('REVISED also renders Draft Mode but labels the mode as Revising', async () => {
     setupApi(buildEstimate('REVISED'));
     renderAt('e1');
-    await waitFor(() => screen.getByText(/^A · Sources$/));
+    await waitFor(() => screen.getByText('Project details'));
     expect(screen.getByText(/Revising/)).toBeInTheDocument();
   });
 
@@ -167,7 +170,7 @@ describe('EstimateWorkspace mode selection', () => {
 
     const user = userEvent.setup();
     renderAt('e1');
-    await waitFor(() => screen.getByText(/^A · Sources$/));
+    await waitFor(() => screen.getByText('Project details'));
     expect(screen.getByRole('button', { name: /peek as reviewer/i })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /peek as reviewer/i }));
     await waitFor(() => {

@@ -178,7 +178,7 @@ describe('SendButton', () => {
       );
     });
     await waitFor(() => {
-      expect(screen.queryByTestId('send-dialog')).not.toBeInTheDocument();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
   });
 
@@ -198,7 +198,7 @@ describe('SendButton', () => {
     await waitFor(() => {
       expect(screen.getByRole('alert')).toHaveTextContent(/refresh and try again/i);
     });
-    expect(screen.getByTestId('send-dialog')).toBeInTheDocument();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 
   it('sendMethod=link: hides recipients/subject/message, posts no recipients, shows the URL on success', async () => {
@@ -232,7 +232,7 @@ describe('SendButton', () => {
     const url = await screen.findByTestId('send-link-url');
     expect((url as HTMLInputElement).value).toBe('https://signed.test/abc?sig=fake');
     expect(screen.getByTestId('send-link-copy')).toBeInTheDocument();
-    expect(screen.getByTestId('send-dialog')).toBeInTheDocument();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 
   it('sendMethod=download: opens the URL in a new tab and confirms the action', async () => {

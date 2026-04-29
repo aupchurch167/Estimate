@@ -11,6 +11,7 @@ import {
   canUnlockApprovedEstimate,
 } from '@/lib/permissions';
 import type { EstimateDetail } from '@/features/estimates/types';
+import { Button, Modal, Textarea } from '@/components/ui';
 import {
   useApproveEstimate,
   useRequestChanges,
@@ -20,9 +21,7 @@ import {
 
 /**
  * Drafter-side affordance: "Submit for review" or "Resubmit for review"
- * (when the estimate has been bounced back as REVISED). Visibility is
- * gated by canSubmitEstimateForReview; rendering returns null when the
- * viewer cannot see the button.
+ * when the estimate has been bounced back as REVISED.
  */
 export function SubmitForReviewButton({ estimate }: { estimate: EstimateDetail }) {
   const { user } = useAuthContext();
@@ -37,24 +36,18 @@ export function SubmitForReviewButton({ estimate }: { estimate: EstimateDetail }
     },
   );
   if (!allowed) return null;
-  const label =
-    estimate.status === 'REVISED' ? 'Resubmit for review' : 'Submit for review';
+  const label = estimate.status === 'REVISED' ? 'Resubmit for review' : 'Submit for review';
   return (
     <div className="flex flex-col items-end gap-1">
-      <button
-        type="button"
+      <Button
         onClick={() => submit.mutate({})}
-        disabled={submit.isPending}
+        loading={submit.isPending}
         data-testid="submit-for-review"
-        className="border border-ink bg-ink px-4 py-2 font-mono text-[11px] uppercase tracking-label text-ink-inverse transition hover:bg-ink/90 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {submit.isPending ? 'Submitting…' : label}
-      </button>
+        {label}
+      </Button>
       {submit.error ? (
-        <p
-          role="alert"
-          className="font-mono text-[10px] uppercase tracking-label text-mark-red"
-        >
+        <p role="alert" className="text-[12px] text-danger">
           {mapTransitionError(submit.error as AxiosError, 'Could not submit.')}
         </p>
       ) : null}
@@ -64,8 +57,7 @@ export function SubmitForReviewButton({ estimate }: { estimate: EstimateDetail }
 
 /**
  * Reviewer-side affordances on an IN_REVIEW estimate: Approve and
- * Request changes. The drafter (or anyone who isn't the reviewer or an
- * admin) sees nothing.
+ * Request changes.
  */
 export function ReviewerActions({ estimate }: { estimate: EstimateDetail }) {
   const { user } = useAuthContext();
@@ -100,56 +92,52 @@ export function ReviewerActions({ estimate }: { estimate: EstimateDetail }) {
 
   return (
     <>
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={onApprove}
-          disabled={approve.isPending || requestChanges.isPending}
-          data-testid="approve-estimate"
-          className="border border-mark-green bg-mark-green/10 px-4 py-2 font-mono text-[11px] uppercase tracking-label text-mark-green hover:bg-mark-green hover:text-ink-inverse disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {approve.isPending ? 'Approving…' : 'Approve'}
-        </button>
-        <button
-          type="button"
+      <div className="flex items-center gap-2">
+        <Button
+          variant="secondary"
           onClick={onRequest}
           disabled={approve.isPending || requestChanges.isPending}
           data-testid="request-changes"
-          className="border border-mark-red px-4 py-2 font-mono text-[11px] uppercase tracking-label text-mark-red hover:bg-mark-red hover:text-ink-inverse disabled:cursor-not-allowed disabled:opacity-60"
         >
           Request changes
-        </button>
+        </Button>
+        <Button
+          onClick={onApprove}
+          loading={approve.isPending}
+          disabled={requestChanges.isPending}
+          data-testid="approve-estimate"
+        >
+          Approve
+        </Button>
       </div>
       {error ? (
-        <p
-          role="alert"
-          className="font-mono text-[10px] uppercase tracking-label text-mark-red"
-        >
+        <p role="alert" className="mt-1 text-[12px] text-danger">
           {mapTransitionError(error as AxiosError, 'Could not record review action.')}
         </p>
       ) : null}
-      {requesting ? (
-        <NoteDialog
-          title="Request changes"
-          submitLabel={requestChanges.isPending ? 'Sending…' : 'Send back to drafter'}
-          placeholder="What needs to change before approval?"
-          required
-          pending={requestChanges.isPending}
-          error={
-            requestChanges.error
-              ? mapTransitionError(
-                  requestChanges.error as AxiosError,
-                  'Could not request changes.',
-                )
-              : null
-          }
-          onCancel={() => {
-            requestChanges.reset();
-            setRequesting(false);
-          }}
-          onSubmit={submitChange}
-        />
-      ) : null}
+      <NoteDialog
+        open={requesting}
+        title="Request changes"
+        description="What needs to change before you can approve?"
+        submitLabel="Send back to drafter"
+        placeholder="Required — be specific so the drafter can act."
+        required
+        primaryVariant="primary"
+        pending={requestChanges.isPending}
+        error={
+          requestChanges.error
+            ? mapTransitionError(
+                requestChanges.error as AxiosError,
+                'Could not request changes.',
+              )
+            : null
+        }
+        onCancel={() => {
+          requestChanges.reset();
+          setRequesting(false);
+        }}
+        onSubmit={submitChange}
+      />
     </>
   );
 }
@@ -177,113 +165,103 @@ export function UnlockButton({ estimate }: { estimate: EstimateDetail }) {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        data-testid="unlock-estimate"
-        className="border border-rule px-4 py-2 font-mono text-[11px] uppercase tracking-label text-ink hover:border-ink"
-      >
+      <Button variant="secondary" onClick={() => setOpen(true)} data-testid="unlock-estimate">
         Unlock for revision
-      </button>
-      {open ? (
-        <NoteDialog
-          title="Unlock for revision"
-          submitLabel={unlock.isPending ? 'Unlocking…' : 'Unlock'}
-          placeholder="Optional note for the drafter…"
-          required={false}
-          pending={unlock.isPending}
-          error={
-            unlock.error
-              ? mapTransitionError(unlock.error as AxiosError, 'Could not unlock.')
-              : null
-          }
-          onCancel={() => {
-            unlock.reset();
-            setOpen(false);
-          }}
-          onSubmit={submit}
-        />
-      ) : null}
+      </Button>
+      <NoteDialog
+        open={open}
+        title="Unlock for revision"
+        description="The drafter will be able to make changes and resubmit."
+        submitLabel="Unlock"
+        placeholder="Optional note for the drafter…"
+        required={false}
+        primaryVariant="primary"
+        pending={unlock.isPending}
+        error={
+          unlock.error ? mapTransitionError(unlock.error as AxiosError, 'Could not unlock.') : null
+        }
+        onCancel={() => {
+          unlock.reset();
+          setOpen(false);
+        }}
+        onSubmit={submit}
+      />
     </>
   );
 }
 
 // ─── Note dialog ──────────────────────────────────────────────────────────
 
-function NoteDialog({
-  title,
-  submitLabel,
-  placeholder,
-  required,
-  pending,
-  error,
-  onCancel,
-  onSubmit,
-}: {
+interface NoteDialogProps {
+  open: boolean;
   title: string;
+  description?: string;
   submitLabel: string;
   placeholder: string;
   required: boolean;
+  primaryVariant: 'primary' | 'danger';
   pending: boolean;
   error: string | null;
   onCancel: () => void;
   onSubmit: (note: string) => void;
-}) {
+}
+
+function NoteDialog({
+  open,
+  title,
+  description,
+  submitLabel,
+  placeholder,
+  required,
+  primaryVariant,
+  pending,
+  error,
+  onCancel,
+  onSubmit,
+}: NoteDialogProps) {
   const [note, setNote] = useState('');
   const trimmed = note.trim();
   const disabled = pending || (required && trimmed.length === 0);
+
+  if (!open) return null;
   return (
-    <div
-      role="dialog"
-      aria-label={title}
-      className="fixed inset-0 z-40 flex items-center justify-center bg-ink/40 px-4"
-      data-testid="note-dialog"
+    <Modal
+      open={open}
+      onClose={() => {
+        setNote('');
+        onCancel();
+      }}
+      title={title}
+      description={description}
+      size="sm"
+      footer={
+        <Modal.Footer
+          onCancel={() => {
+            setNote('');
+            onCancel();
+          }}
+          onPrimary={() => {
+            onSubmit(trimmed);
+            setNote('');
+          }}
+          primaryLabel={submitLabel}
+          primaryVariant={primaryVariant}
+          primaryLoading={pending}
+          primaryDisabled={disabled}
+        />
+      }
     >
-      <div className="w-full max-w-[480px] border border-ink bg-paper-elevated">
-        <header className="border-b border-rule-soft px-5 py-3">
-          <p className="font-mono text-[10px] uppercase tracking-label text-dim">{title}</p>
-        </header>
-        <div className="flex flex-col gap-2 p-5">
-          <textarea
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder={placeholder}
-            rows={4}
-            maxLength={2000}
-            disabled={pending}
-            data-testid="note-input"
-            className="w-full border border-rule bg-paper px-3 py-2 font-sans text-[13px] text-ink placeholder:text-dim focus:border-ink focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-          />
-          {error ? (
-            <p
-              role="alert"
-              className="font-mono text-[10px] uppercase tracking-label text-mark-red"
-            >
-              {error}
-            </p>
-          ) : null}
-        </div>
-        <footer className="flex items-center justify-end gap-3 border-t border-rule-soft bg-paper px-5 py-3">
-          <button
-            type="button"
-            onClick={onCancel}
-            data-testid="note-cancel"
-            className="font-mono text-[10px] uppercase tracking-label text-dim hover:text-ink"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={() => onSubmit(trimmed)}
-            disabled={disabled}
-            data-testid="note-submit"
-            className="border border-ink bg-ink px-4 py-2 font-mono text-[11px] uppercase tracking-label text-ink-inverse hover:bg-ink/90 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {submitLabel}
-          </button>
-        </footer>
-      </div>
-    </div>
+      <Textarea
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        placeholder={placeholder}
+        rows={4}
+        maxLength={2000}
+        disabled={pending}
+        data-testid="note-input"
+        error={error}
+      />
+    </Modal>
   );
 }
 

@@ -12,6 +12,8 @@ interface BaseBadgeProps {
   icon?: ReactNode;
   children: ReactNode;
   className?: string;
+  /** Pass-through so callers can override the default `badge` test id. */
+  'data-testid'?: string;
 }
 
 interface ExplicitBadgeProps extends BaseBadgeProps {
@@ -60,6 +62,7 @@ const SIZE_CLASSES: Record<BadgeSize, string> = {
  */
 export function Badge(props: BadgeProps) {
   const { size = 'md', dot, icon, children, className } = props;
+  const testId = props['data-testid'] ?? 'badge';
   const variant: BadgeVariant =
     'variant' in props && props.variant
       ? props.variant
@@ -67,7 +70,7 @@ export function Badge(props: BadgeProps) {
 
   return (
     <span
-      data-testid="badge"
+      data-testid={testId}
       data-variant={variant}
       className={[
         'inline-flex items-center gap-1.5 rounded-full font-medium leading-none',

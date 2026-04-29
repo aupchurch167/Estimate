@@ -145,11 +145,16 @@ describe('CloseOutActions', () => {
     renderInClient(<CloseOutActions estimate={buildEstimate()} />);
     await user.click(await screen.findByTestId('mark-lost'));
 
-    const submit = await screen.findByTestId('closeout-submit');
-    expect(submit).toBeDisabled();
+    // Submit is disabled before any reason is typed.
+    expect(
+      await screen.findByRole('button', { name: /^mark as lost$/i }),
+    ).toBeDisabled();
 
     await user.type(screen.getByTestId('closeout-input'), 'Client picked another GC');
-    await user.click(submit);
+
+    // Re-query — Button keeps the same node but its disabled state
+    // updates on each render; the clearer pattern is to query fresh.
+    await user.click(await screen.findByRole('button', { name: /^mark as lost$/i }));
 
     await waitFor(() => {
       expect(mockedPost).toHaveBeenCalledWith('/api/estimates/e1/mark-lost', {
@@ -168,7 +173,7 @@ describe('CloseOutActions', () => {
     await user.click(await screen.findByTestId('revise-from-sent'));
 
     // note optional — submit enabled even with no input
-    const submit = screen.getByTestId('closeout-submit');
+    const submit = await screen.findByRole('button', { name: /reopen for revision/i });
     expect(submit).toBeEnabled();
     await user.click(submit);
 
@@ -190,10 +195,10 @@ describe('CloseOutActions', () => {
     renderInClient(<CloseOutActions estimate={buildEstimate()} />);
     await user.click(await screen.findByTestId('mark-lost'));
     await user.type(screen.getByTestId('closeout-input'), 'reason');
-    await user.click(screen.getByTestId('closeout-submit'));
+    await user.click(await screen.findByRole('button', { name: /^mark as lost$/i }));
     await waitFor(() => {
       expect(screen.getByRole('alert')).toHaveTextContent(/refresh and try again/i);
     });
-    expect(screen.getByTestId('closeout-dialog')).toBeInTheDocument();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 });

@@ -1,21 +1,17 @@
 import { useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuthContext } from '@/context/useAuthContext';
-import { useLogout } from '@/features/auth/useAuth';
-import { NotificationBell } from '@/features/notifications/NotificationBell';
+import { useSearchParams } from 'react-router-dom';
+import { AppHeader } from '@/components/AppHeader';
 import { usePermissions } from '@/hooks/usePermissions';
-import { RoleGate } from '@/components/RoleGate';
 import { useUsers } from '@/features/team/useTeam';
 import { CreateEstimateModal } from '@/features/estimates/CreateEstimateModal';
 import { EstimateTable, type SortField, type SortOrder } from '@/features/estimates/EstimateTable';
 import { FilterBar, type FilterValues } from '@/features/estimates/FilterBar';
 import { useEstimates } from '@/features/estimates/useEstimates';
 import { ESTIMATE_STATUSES, type EstimateStatus } from '@/features/estimates/types';
+import { Button, Card, EmptyState, SkeletonRow, TitleBlock } from '@/components/ui';
+import { ErrorState } from '@/components/states';
 
 export function EstimatesPage() {
-  const navigate = useNavigate();
-  const { user, organization } = useAuthContext();
-  const logout = useLogout();
   const { canCreateEstimate } = usePermissions();
   const usersQuery = useUsers();
 
@@ -38,7 +34,7 @@ export function EstimatesPage() {
       setOrDelete(p, 'drafterId', next.drafterId);
       setOrDelete(p, 'reviewerId', next.reviewerId);
       setOrDelete(p, 'search', next.search);
-      p.delete('page'); // reset to page 1 on filter change
+      p.delete('page');
     });
   };
 
@@ -69,95 +65,25 @@ export function EstimatesPage() {
   });
 
   const [createOpen, setCreateOpen] = useState(false);
-
-  const handleLogout = async () => {
-    await logout.mutateAsync();
-    navigate('/login', { replace: true });
-  };
-
-  const Header = (
-    <header className="border-b-[1.5px] border-ink bg-paper">
-      <div className="mx-auto flex max-w-[1280px] items-stretch justify-between px-6">
-        <div className="flex items-center gap-6 py-4">
-          <Link to="/app" className="font-mono text-[16px] uppercase tracking-title text-ink">
-            Quill
-          </Link>
-          {organization ? (
-            <span className="border-l border-rule-soft pl-6 font-mono text-[10px] uppercase tracking-label text-dim">
-              {organization.name}
-            </span>
-          ) : null}
-        </div>
-        <div className="flex items-center gap-4 py-4">
-          <Link
-            to="/app/estimates"
-            className="font-mono text-[10px] uppercase tracking-label text-ink"
-          >
-            Estimates
-          </Link>
-          <RoleGate allowedRoles={['OWNER', 'ADMIN']}>
-            <Link
-              to="/app/pricing"
-              className="font-mono text-[10px] uppercase tracking-label text-dim hover:text-ink"
-            >
-              Pricing
-            </Link>
-            <Link
-              to="/app/team"
-              className="font-mono text-[10px] uppercase tracking-label text-dim hover:text-ink"
-            >
-              Team
-            </Link>
-            <Link
-              to="/app/settings"
-              className="font-mono text-[10px] uppercase tracking-label text-dim hover:text-ink"
-            >
-              Settings
-            </Link>
-          </RoleGate>
-          <NotificationBell />
-          {user ? (
-            <Link
-              to="/app/account"
-              className="font-mono text-[10px] uppercase tracking-label text-dim hover:text-ink"
-            >
-              {user.firstName} {user.lastName}
-              <span className="mx-2 text-rule-soft">·</span>
-              {user.role}
-            </Link>
-          ) : null}
-          <button
-            type="button"
-            onClick={handleLogout}
-            disabled={logout.isPending}
-            className="border border-ink px-3 py-1 font-mono text-[10px] uppercase tracking-label text-ink transition hover:bg-ink hover:text-ink-inverse disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {logout.isPending ? 'Signing out…' : 'Sign out'}
-          </button>
-        </div>
-      </div>
-    </header>
-  );
+  const hasResults = (estimatesQuery.data?.data.length ?? 0) > 0;
 
   return (
-    <div className="min-h-screen bg-paper">
-      {Header}
-      <main className="mx-auto max-w-[1280px] px-6 py-12">
-        <div className="flex items-end justify-between border-b border-rule pb-3">
-          <div>
-            <p className="font-mono text-[10px] uppercase tracking-label text-dim">Pipeline</p>
-            <h1 className="mt-2 font-sans text-[20px] text-ink">Estimates</h1>
-          </div>
-          <button
-            type="button"
-            onClick={() => setCreateOpen(true)}
-            disabled={!canCreateEstimate}
-            title={canCreateEstimate ? '' : 'Your role cannot create estimates'}
-            className="border border-ink bg-ink px-4 py-2 font-mono text-[11px] uppercase tracking-label text-ink-inverse transition hover:bg-ink/90 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            New estimate
-          </button>
-        </div>
+    <div className="min-h-screen bg-bg-secondary">
+      <AppHeader />
+      <main className="mx-auto max-w-[1280px] px-6 py-6">
+        <TitleBlock
+          title="Estimates"
+          subtitle="Drafts, reviews, and sent estimates across your pipeline."
+          actions={
+            <Button
+              onClick={() => setCreateOpen(true)}
+              disabled={!canCreateEstimate}
+              title={canCreateEstimate ? '' : 'Your role cannot create estimates'}
+            >
+              New estimate
+            </Button>
+          }
+        />
 
         <div className="mt-6">
           <FilterBar value={filters} onChange={onFilterChange} members={usersQuery.data ?? []} />
@@ -165,16 +91,25 @@ export function EstimatesPage() {
 
         <div className="mt-6">
           {estimatesQuery.isLoading ? (
-            <p className="font-mono text-[10px] uppercase tracking-label text-dim">Loading…</p>
+            <Card className="!p-0">
+              <table className="w-full border-separate border-spacing-0">
+                <tbody>
+                  <SkeletonRow columns={6} />
+                  <SkeletonRow columns={6} />
+                  <SkeletonRow columns={6} />
+                  <SkeletonRow columns={6} />
+                  <SkeletonRow columns={6} />
+                </tbody>
+              </table>
+            </Card>
           ) : estimatesQuery.isError || !estimatesQuery.data ? (
-            <p
-              role="alert"
-              className="border border-mark-red/60 bg-paper-elevated p-6 font-mono text-[10px] uppercase tracking-label text-mark-red"
-            >
-              Could not load estimates.
-            </p>
-          ) : (
-            <>
+            <ErrorState
+              error={estimatesQuery.error}
+              fallback="Could not load estimates."
+              onRetry={() => estimatesQuery.refetch()}
+            />
+          ) : hasResults ? (
+            <Card className="!p-0">
               <EstimateTable
                 estimates={estimatesQuery.data.data}
                 members={usersQuery.data ?? []}
@@ -183,32 +118,45 @@ export function EstimatesPage() {
                 onSortChange={onSortChange}
               />
               {estimatesQuery.data.totalPages > 1 ? (
-                <div className="mt-4 flex items-center justify-between border-t border-rule-soft pt-3">
-                  <p className="font-mono text-[10px] uppercase tracking-label text-dim">
+                <div className="flex items-center justify-between border-t border-border-primary px-5 py-3">
+                  <p className="text-[13px] text-text-secondary">
                     Page {estimatesQuery.data.page} of {estimatesQuery.data.totalPages} —{' '}
                     {estimatesQuery.data.total} total
                   </p>
                   <div className="flex gap-2">
-                    <button
-                      type="button"
+                    <Button
+                      variant="secondary"
+                      size="sm"
                       disabled={estimatesQuery.data.page <= 1}
                       onClick={() => setPage(page - 1)}
-                      className="border border-rule px-2 py-0.5 font-mono text-[10px] uppercase tracking-label text-ink hover:border-ink disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      Prev
-                    </button>
-                    <button
-                      type="button"
+                      Previous
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
                       disabled={estimatesQuery.data.page >= estimatesQuery.data.totalPages}
                       onClick={() => setPage(page + 1)}
-                      className="border border-rule px-2 py-0.5 font-mono text-[10px] uppercase tracking-label text-ink hover:border-ink disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Next
-                    </button>
+                    </Button>
                   </div>
                 </div>
               ) : null}
-            </>
+            </Card>
+          ) : (
+            <Card>
+              <EmptyState
+                title="No estimates match these filters"
+                description={
+                  filters.status.length > 0 || filters.search || filters.drafterId
+                    ? 'Try clearing the filters or adjusting your search.'
+                    : 'Create your first estimate to start drafting with Quill.'
+                }
+                actionLabel={canCreateEstimate ? 'New estimate' : undefined}
+                onAction={canCreateEstimate ? () => setCreateOpen(true) : undefined}
+              />
+            </Card>
           )}
         </div>
       </main>

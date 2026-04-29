@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { EstimateDetail, LineItem } from '@/features/estimates/types';
 import { LineItemEditor } from '@/features/estimates/grid/LineItemEditor';
+import { Badge } from '@/components/ui';
 
 const READ_ONLY_STATUSES = new Set(['SENT', 'WON', 'LOST']);
 
@@ -42,23 +43,19 @@ export function SchedulePanel({ estimate }: { estimate: EstimateDetail }) {
     : null;
 
   return (
-    <section className="flex h-full flex-col border border-rule bg-paper-elevated">
-      <header className="border-b border-rule-soft px-4 py-3">
-        <p className="font-mono text-[10px] uppercase tracking-label text-dim">
-          C · Schedule
-        </p>
-        <p className="mt-1 font-sans text-[12px] text-dim">
+    <section className="flex h-full flex-col overflow-hidden rounded-lg border border-border-primary bg-bg-primary shadow-sm">
+      <header className="border-b border-border-primary px-4 py-3">
+        <p className="text-[15px] font-medium text-text-primary">Schedule</p>
+        <p className="mt-0.5 text-[12px] text-text-secondary">
           {readOnly ? 'Read-only — estimate is locked.' : 'Click any line to edit.'}
         </p>
       </header>
-      <div className="flex-1 overflow-auto p-4">
+      <div className="flex-1 overflow-auto p-2">
         {sections.length === 0 ? (
-          <div className="border border-dashed border-rule p-6 text-center">
-            <p className="font-mono text-[10px] uppercase tracking-label text-dim">
-              No scope sections
-            </p>
-            <p className="mt-2 font-sans text-[12px] text-dim">
-              Generate a draft (left) and Quill will populate sections here.
+          <div className="m-4 rounded-md border border-dashed border-border-secondary bg-bg-tertiary p-6 text-center">
+            <p className="text-[13px] font-medium text-text-primary">No scope sections yet</p>
+            <p className="mt-1 text-[12px] text-text-secondary">
+              Generate a draft on the left and Quill will populate sections here.
             </p>
           </div>
         ) : (
@@ -66,31 +63,36 @@ export function SchedulePanel({ estimate }: { estimate: EstimateDetail }) {
             {sections.map((s, i) => {
               const open = expanded.has(s.id);
               return (
-                <li key={s.id} className="border-b border-rule-soft last:border-b-0">
+                <li
+                  key={s.id}
+                  className="border-b border-border-primary last:border-b-0"
+                >
                   <button
                     type="button"
                     onClick={() => toggle(s.id)}
                     aria-expanded={open}
                     data-testid={`schedule-section-${s.id}`}
-                    className="flex w-full items-center justify-between gap-2 py-2 text-left hover:bg-paper"
+                    className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-bg-tertiary"
                   >
-                    <div className="min-w-0 flex-1">
-                      <p className="font-mono text-[10px] uppercase tracking-label text-dim">
-                        <span aria-hidden className="mr-1 text-dim">
-                          {open ? '▾' : '▸'}
-                        </span>
-                        {String.fromCharCode(65 + i)} · {s.name}
-                      </p>
-                      <p className="font-mono text-[10px] tabular-nums text-dim">
-                        {s.items.length} item{s.items.length === 1 ? '' : 's'}
-                      </p>
+                    <div className="flex min-w-0 flex-1 items-center gap-2">
+                      <span aria-hidden className="text-text-tertiary">
+                        {open ? '▾' : '▸'}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-medium text-text-primary">
+                          {String.fromCharCode(65 + i)} · {s.name}
+                        </p>
+                        <p className="text-[11px] tabular-nums text-text-tertiary">
+                          {s.items.length} item{s.items.length === 1 ? '' : 's'}
+                        </p>
+                      </div>
                     </div>
-                    <p className="font-mono text-[12px] tabular-nums text-ink">
+                    <p className="font-mono text-[13px] tabular-nums text-text-primary">
                       {fmt(s.sell)}
                     </p>
                   </button>
                   {open && s.items.length > 0 ? (
-                    <ul className="flex flex-col border-l border-rule-soft pl-3">
+                    <ul className="flex flex-col border-l border-border-primary pl-2 mx-3 mb-2">
                       {s.items.map((item) => (
                         <li key={item.id}>
                           <ScheduleLineRow
@@ -107,10 +109,12 @@ export function SchedulePanel({ estimate }: { estimate: EstimateDetail }) {
           </ul>
         )}
       </div>
-      <footer className="border-t-[1.5px] border-ink px-4 py-3">
+      <footer className="border-t border-border-primary bg-bg-secondary px-4 py-3">
         <div className="flex items-baseline justify-between">
-          <p className="font-mono text-[10px] uppercase tracking-label text-dim">Total</p>
-          <p className="font-mono text-[16px] tabular-nums text-ink">
+          <p className="text-[12px] font-medium uppercase tracking-[0.06em] text-text-secondary">
+            Total
+          </p>
+          <p className="font-mono text-[18px] font-semibold tabular-nums text-text-primary">
             {fmt(Number(estimate.totalSellPrice))}
           </p>
         </div>
@@ -128,37 +132,46 @@ export function SchedulePanel({ estimate }: { estimate: EstimateDetail }) {
   );
 }
 
-function ScheduleLineRow({
-  item,
-  onClick,
-}: {
-  item: LineItem;
-  onClick: () => void;
-}) {
+function ScheduleLineRow({ item, onClick }: { item: LineItem; onClick: () => void }) {
+  const flagVariant: 'warning' | 'danger' | undefined =
+    item.status === 'NO_PRICE'
+      ? 'danger'
+      : item.status === 'NEEDS_REVIEW' || item.status === 'PENDING_SUB_QUOTE' || item.aiAssumption
+        ? 'warning'
+        : undefined;
+  const flagLabel =
+    item.status === 'NO_PRICE'
+      ? 'No price'
+      : item.status === 'NEEDS_REVIEW'
+        ? 'Review'
+        : item.status === 'PENDING_SUB_QUOTE'
+          ? 'Sub-quote'
+          : item.aiAssumption
+            ? 'Assumed'
+            : null;
   return (
     <button
       type="button"
       onClick={onClick}
       data-testid={`schedule-line-${item.id}`}
-      className="flex w-full items-baseline justify-between gap-2 border-b border-rule-soft py-1.5 pr-1 text-left last:border-b-0 hover:bg-paper"
+      className="flex w-full items-baseline justify-between gap-2 rounded-md px-2 py-1.5 text-left hover:bg-bg-tertiary"
     >
       <div className="min-w-0 flex-1">
-        <p className="truncate font-sans text-[12px] text-ink" title={item.description}>
-          {item.description}
-        </p>
-        <p className="font-mono text-[10px] uppercase tracking-label text-dim tabular-nums">
+        <div className="flex items-center gap-2">
+          <p className="truncate text-[13px] text-text-primary" title={item.description}>
+            {item.description}
+          </p>
+          {flagVariant && flagLabel ? (
+            <Badge variant={flagVariant} size="sm">
+              {flagLabel}
+            </Badge>
+          ) : null}
+        </div>
+        <p className="text-[11px] tabular-nums text-text-tertiary">
           {fmtQty(item.quantity)} {item.unitOfMeasure}
-          {item.aiAssumption ? ' · assumed' : ''}
-          {item.status === 'NO_PRICE'
-            ? ' · no price'
-            : item.status === 'NEEDS_REVIEW'
-              ? ' · review'
-              : item.status === 'PENDING_SUB_QUOTE'
-                ? ' · sub'
-                : ''}
         </p>
       </div>
-      <p className="font-mono text-[11px] tabular-nums text-ink">
+      <p className="font-mono text-[12px] tabular-nums text-text-primary">
         {fmt(Number(item.lineSellPrice))}
       </p>
     </button>

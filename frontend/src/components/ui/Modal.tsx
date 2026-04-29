@@ -44,17 +44,22 @@ export function Modal({
 }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
+  // Hold the latest onClose in a ref so the effect doesn't re-run on
+  // every parent render. Listing onClose as a dep would re-fire the
+  // cleanup and steal focus away from inputs inside the dialog every
+  // time the parent re-rendered (e.g. on keystroke-driven state).
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
-  // Focus management + Esc-to-close.
+  // Focus management + Esc-to-close. Runs only when `open` flips.
   useEffect(() => {
     if (!open) return undefined;
     previouslyFocused.current = document.activeElement as HTMLElement | null;
-    // Focus the dialog itself so the screen reader announces the title.
     dialogRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.stopPropagation();
-        onClose();
+        onCloseRef.current();
       }
     };
     window.addEventListener('keydown', onKey);
@@ -62,7 +67,7 @@ export function Modal({
       window.removeEventListener('keydown', onKey);
       previouslyFocused.current?.focus();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
   return (

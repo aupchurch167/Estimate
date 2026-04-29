@@ -17,6 +17,7 @@ import type {
 import type { EstimateDetail } from '@/features/estimates/types';
 import { useAuthContext } from '@/context/useAuthContext';
 import { useQueryClient } from '@tanstack/react-query';
+import { Avatar, Button } from '@/components/ui';
 
 const READ_ONLY_STATUSES = new Set(['SENT', 'WON', 'LOST']);
 
@@ -60,7 +61,6 @@ export function ConversationPanel({ estimate }: { estimate: EstimateDetail }) {
       ? mapAskError(ask.error as AxiosError)
       : null;
 
-  // Optimistic re-fetch handle for the manual retry button.
   const onGenerate = async () => {
     await generate.mutateAsync().catch(() => {});
     qc.invalidateQueries({ queryKey: conversationKey(estimate.id) });
@@ -80,51 +80,54 @@ export function ConversationPanel({ estimate }: { estimate: EstimateDetail }) {
   };
 
   return (
-    <section className="flex h-full flex-col border border-rule bg-paper-elevated">
-      <header className="flex items-baseline justify-between border-b border-rule-soft px-4 py-3">
-        <div>
-          <p className="font-mono text-[10px] uppercase tracking-label text-dim">
-            B · Draft Session
-          </p>
-          <p className="mt-1 font-sans text-[12px] text-dim">
-            Generate + refine line items with Quill
+    <section className="flex h-full flex-col overflow-hidden rounded-lg border border-border-primary bg-bg-primary shadow-sm">
+      <header className="flex items-center justify-between border-b border-border-primary px-4 py-3">
+        <div className="min-w-0">
+          <p className="text-[15px] font-medium text-text-primary">Draft session</p>
+          <p className="text-[12px] text-text-secondary">
+            Generate and refine line items with Quill.
           </p>
         </div>
         {!isEmpty && !readOnly ? (
-          <button
-            type="button"
+          <Button
+            size="sm"
+            variant="secondary"
             onClick={onGenerate}
-            disabled={generate.isPending}
-            className="border border-rule px-2 py-0.5 font-mono text-[10px] uppercase tracking-label text-dim hover:border-ink hover:text-ink disabled:cursor-not-allowed disabled:opacity-50"
+            loading={generate.isPending}
           >
-            {generate.isPending ? 'Drafting…' : 'Regenerate'}
-          </button>
+            Regenerate
+          </Button>
         ) : null}
       </header>
 
-      <div ref={scrollRef} className="flex-1 overflow-auto p-4">
+      <div ref={scrollRef} className="flex-1 overflow-auto bg-bg-secondary p-4">
         {banner ? (
           <div className="mb-4">
             <ErrorBubble message={banner} onRetry={onGenerate} />
           </div>
         ) : null}
         {isLoading ? (
-          <p className="font-mono text-[10px] uppercase tracking-label text-dim">Loading…</p>
+          <p className="text-[13px] text-text-tertiary">Loading…</p>
         ) : isEmpty ? (
-          <EmptyState
+          <EmptyConversation
             disabled={generate.isPending || readOnly}
             pending={generate.isPending}
             onClick={onGenerate}
             hasSources={estimate.sourceInputs.length > 0}
           />
         ) : (
-          <ul className="flex flex-col gap-3">
+          <ul className="flex flex-col gap-4">
             {messages.map((m) => (
               <li key={m.id}>
                 <MessageBubble
                   message={m}
                   run={m.runId ? runById.get(m.runId) : undefined}
                   authorIsMe={m.authorUserId === user?.id}
+                  authorName={
+                    m.authorUserId === user?.id && user
+                      ? `${user.firstName} ${user.lastName}`
+                      : 'Quill'
+                  }
                   onRegenerate={!readOnly && !generate.isPending ? onGenerate : null}
                   sectionNamesById={sectionNamesById}
                   lineDescriptionsById={lineDescriptionsById}
@@ -148,7 +151,7 @@ export function ConversationPanel({ estimate }: { estimate: EstimateDetail }) {
         )}
       </div>
 
-      <footer className="border-t border-rule-soft px-4 py-3">
+      <footer className="border-t border-border-primary bg-bg-primary px-4 py-3">
         <FollowupForm
           value={draft}
           onChange={setDraft}
@@ -178,52 +181,56 @@ function FollowupForm({ value, onChange, onSubmit, disabled, pending }: Followup
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder={disabled ? 'Conversation locked' : 'Ask a follow-up…'}
+        placeholder={disabled ? 'Conversation locked' : 'Ask Quill a follow-up…'}
         disabled={disabled || pending}
         maxLength={2000}
         data-testid="followup-input"
-        className="flex-1 border border-rule bg-paper px-3 py-2 font-sans text-[13px] text-ink placeholder:text-dim focus:border-ink focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+        className="h-9 flex-1 rounded-md border border-border-secondary bg-bg-tertiary px-3 text-[14px] text-text-primary placeholder:text-text-tertiary focus-visible:border-border-focus focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus disabled:cursor-not-allowed disabled:opacity-50"
       />
-      <button
+      <Button
         type="submit"
+        size="md"
         disabled={sendDisabled}
+        loading={pending}
         data-testid="followup-send"
-        className="border border-ink bg-ink px-3 py-2 font-mono text-[10px] uppercase tracking-label text-ink-inverse hover:bg-ink/90 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {pending ? 'Sending…' : 'Send'}
-      </button>
+        Send
+      </Button>
     </form>
   );
 }
 
 // ─── Components ───────────────────────────────────────────────────────────
 
-interface EmptyStateProps {
+interface EmptyConversationProps {
   hasSources: boolean;
   disabled: boolean;
   pending: boolean;
   onClick: () => void;
 }
 
-function EmptyState({ hasSources, disabled, pending, onClick }: EmptyStateProps) {
+function EmptyConversation({ hasSources, disabled, pending, onClick }: EmptyConversationProps) {
   return (
-    <div className="flex h-full flex-col items-center justify-center text-center">
-      <p className="font-mono text-[10px] uppercase tracking-label text-dim">Draft an estimate</p>
-      <h2 className="mt-2 max-w-[40ch] font-sans text-[18px] text-ink">
+    <div className="flex h-full flex-col items-center justify-center px-6 text-center">
+      <p className="text-[13px] uppercase tracking-[0.06em] text-text-secondary">
+        Draft an estimate
+      </p>
+      <h2 className="mt-2 max-w-[40ch] text-[18px] font-medium leading-7 text-text-primary">
         {hasSources
           ? "Quill will produce an 80% first-draft from your sources. You'll review and finalize."
           : 'Add at least one source on the left, then ask Quill to draft an estimate.'}
       </h2>
-      <button
-        type="button"
+      <Button
         onClick={onClick}
         disabled={disabled || !hasSources}
         title={!hasSources ? 'Add a source on the left first' : ''}
         data-testid="generate-draft"
-        className="mt-6 border border-ink bg-ink px-5 py-3 font-mono text-[11px] uppercase tracking-label text-ink-inverse transition hover:bg-ink/90 disabled:cursor-not-allowed disabled:opacity-50"
+        loading={pending}
+        size="lg"
+        className="mt-6"
       >
-        {pending ? 'Drafting…' : 'Generate draft'}
-      </button>
+        Generate draft
+      </Button>
     </div>
   );
 }
@@ -232,8 +239,7 @@ interface MessageBubbleProps {
   message: AIMessage;
   run: AIRun | undefined;
   authorIsMe: boolean;
-  /** Re-run GENERATE_LINE_ITEMS. null when the action is not allowed
-   * (read-only estimate, generation already in flight). */
+  authorName: string;
   onRegenerate: (() => void) | null;
   sectionNamesById: Map<string, string>;
   lineDescriptionsById: Map<string, string>;
@@ -247,6 +253,7 @@ function MessageBubble({
   message,
   run,
   authorIsMe,
+  authorName,
   onRegenerate,
   sectionNamesById,
   lineDescriptionsById,
@@ -255,6 +262,7 @@ function MessageBubble({
   applyError,
   pendingRunId,
 }: MessageBubbleProps) {
+  void authorIsMe; // kept on the props for parity with the older signature
   const isUser = message.role === 'USER';
   const stamp = formatStamp(message.createdAt);
   const askOutputs =
@@ -264,58 +272,51 @@ function MessageBubble({
           proposedActions?: ProposedAction[];
         } | null)
       : null;
-  const followupSuggested =
-    askOutputs?.suggestedAction === 'regenerate_line_items';
+  const followupSuggested = askOutputs?.suggestedAction === 'regenerate_line_items';
   const proposedActions = askOutputs?.proposedActions ?? [];
   const runInputs = (run?.inputs ?? null) as { actionsAppliedAt?: string } | null;
   const alreadyApplied = Boolean(runInputs?.actionsAppliedAt);
 
   return (
-    <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
-      <p className="mb-1 font-mono text-[10px] uppercase tracking-label text-dim">
-        {(authorIsMe ? 'You' : labelRole(message.role))} · {stamp}
-      </p>
-      <div
-        className={`max-w-[80%] border ${
-          isUser
-            ? 'border-ink bg-ink text-ink-inverse'
-            : 'border-rule bg-paper text-ink'
-        } px-4 py-2 font-sans text-[13px] leading-relaxed`}
-      >
-        <p className="whitespace-pre-wrap">{message.content}</p>
-        {run?.status === 'SUCCEEDED' &&
-        run.runType === 'GENERATE_LINE_ITEMS' &&
-        run.outputs ? (
-          <RunSummary output={run.outputs as GenerateLineItemsOutput} />
-        ) : null}
-        {proposedActions.length > 0 ? (
-          <ProposedActionsCard
-            actions={proposedActions}
-            sectionNamesById={sectionNamesById}
-            lineDescriptionsById={lineDescriptionsById}
-            alreadyApplied={alreadyApplied}
-            onApply={onApplyActions}
-            isApplying={applyPending && pendingRunId === run?.id}
-            error={
-              applyError && pendingRunId === run?.id ? applyError : null
-            }
-          />
-        ) : null}
-        {followupSuggested && onRegenerate ? (
-          <div className="mt-3 flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onRegenerate}
-              data-testid="followup-regenerate"
-              className="border border-ink bg-ink px-3 py-1 font-mono text-[10px] uppercase tracking-label text-ink-inverse hover:bg-ink/90"
-            >
-              Re-draft now
-            </button>
-            <span className="font-mono text-[10px] uppercase tracking-label text-dim">
-              Quill suggests regenerating
-            </span>
-          </div>
-        ) : null}
+    <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : ''}`}>
+      <div className="flex-none pt-1">
+        <Avatar name={isUser ? authorName : 'Quill'} size="sm" />
+      </div>
+      <div className={`min-w-0 flex-1 ${isUser ? 'flex flex-col items-end' : ''}`}>
+        <p className="mb-1 text-[12px] text-text-tertiary">
+          {authorName} · {stamp}
+        </p>
+        <div
+          className={`max-w-[85%] rounded-lg px-4 py-2 text-[14px] leading-relaxed shadow-sm ${
+            isUser
+              ? 'bg-primary text-text-inverse'
+              : 'border border-border-primary bg-bg-primary text-text-primary'
+          }`}
+        >
+          <p className="whitespace-pre-wrap">{message.content}</p>
+          {run?.status === 'SUCCEEDED' && run.runType === 'GENERATE_LINE_ITEMS' && run.outputs ? (
+            <RunSummary output={run.outputs as GenerateLineItemsOutput} />
+          ) : null}
+          {proposedActions.length > 0 ? (
+            <ProposedActionsCard
+              actions={proposedActions}
+              sectionNamesById={sectionNamesById}
+              lineDescriptionsById={lineDescriptionsById}
+              alreadyApplied={alreadyApplied}
+              onApply={onApplyActions}
+              isApplying={applyPending && pendingRunId === run?.id}
+              error={applyError && pendingRunId === run?.id ? applyError : null}
+            />
+          ) : null}
+          {followupSuggested && onRegenerate ? (
+            <div className="mt-3 flex items-center gap-2">
+              <Button size="sm" onClick={onRegenerate} data-testid="followup-regenerate">
+                Re-draft now
+              </Button>
+              <span className="text-[12px] text-text-tertiary">Quill suggests regenerating</span>
+            </div>
+          ) : null}
+        </div>
       </div>
     </div>
   );
@@ -344,41 +345,36 @@ function ProposedActionsCard({
   return (
     <div
       data-testid="proposed-actions"
-      className="mt-3 border border-dashed border-mark-amber/70 bg-paper-elevated p-2"
+      className="mt-3 rounded-md border border-warning/40 bg-warning-light p-3"
     >
-      <p className="font-mono text-[10px] uppercase tracking-label text-mark-amber">
+      <p className="text-[12px] font-medium uppercase tracking-[0.06em] text-warning">
         Quill proposes
       </p>
-      <ul className="mt-1 ml-4 list-disc font-sans text-[12px] text-ink">
+      <ul className="mt-2 ml-4 list-disc text-[13px] text-text-primary">
         {actions.map((a, i) => (
-          <li key={i}>
-            {describeAction(a, sectionNamesById, lineDescriptionsById)}
-          </li>
+          <li key={i}>{describeAction(a, sectionNamesById, lineDescriptionsById)}</li>
         ))}
       </ul>
       {alreadyApplied ? (
         <p
           data-testid="proposed-actions-applied"
-          className="mt-2 font-mono text-[10px] uppercase tracking-label text-dim"
+          className="mt-2 text-[12px] font-medium text-text-secondary"
         >
           Applied
         </p>
       ) : (
-        <div className="mt-2 flex items-center gap-2">
-          <button
-            type="button"
+        <div className="mt-3 flex items-center gap-3">
+          <Button
+            size="sm"
             onClick={onApply ?? undefined}
             disabled={!onApply || isApplying}
+            loading={isApplying}
             data-testid="apply-proposed-actions"
-            className="border border-ink bg-ink px-3 py-1 font-mono text-[10px] uppercase tracking-label text-ink-inverse hover:bg-ink/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isApplying ? 'Applying…' : 'Apply'}
-          </button>
+            Apply
+          </Button>
           {errorText ? (
-            <span
-              role="alert"
-              className="font-mono text-[10px] uppercase tracking-label text-mark-red"
-            >
+            <span role="alert" className="text-[12px] text-danger">
               {errorText}
             </span>
           ) : null}
@@ -434,27 +430,24 @@ function RunSummary({ output }: { output: GenerateLineItemsOutput }) {
   return (
     <div className="mt-3 flex flex-col gap-2">
       {output.assumptions.length > 0 ? (
-        <div className="border border-dashed border-mark-amber/70 bg-paper-elevated p-2">
-          <p className="font-mono text-[10px] uppercase tracking-label text-mark-amber">
+        <div className="rounded-md border border-warning/40 bg-warning-light p-3">
+          <p className="text-[12px] font-medium uppercase tracking-[0.06em] text-warning">
             Assumptions
           </p>
-          <ul className="mt-1 ml-4 list-disc font-sans text-[12px] text-ink">
+          <ul className="mt-1 ml-4 list-disc text-[13px] text-text-primary">
             {output.assumptions.map((a, i) => (
               <li key={i}>{a}</li>
             ))}
           </ul>
         </div>
       ) : null}
-      <p className="font-mono text-[10px] uppercase tracking-label text-dim tabular-nums">
-        {totalLines} {totalLines === 1 ? 'line' : 'lines'} ·{' '}
-        {output.sections.length} {output.sections.length === 1 ? 'section' : 'sections'}
+      <p className="text-[12px] text-text-tertiary tabular-nums">
+        {totalLines} {totalLines === 1 ? 'line' : 'lines'} · {output.sections.length}{' '}
+        {output.sections.length === 1 ? 'section' : 'sections'}
         {unpriced > 0 ? (
           <>
             {' '}
-            ·{' '}
-            <span className="text-mark-red">
-              {unpriced} unpriced
-            </span>
+            · <span className="font-medium text-danger">{unpriced} unpriced</span>
           </>
         ) : null}
       </p>
@@ -464,53 +457,30 @@ function RunSummary({ output }: { output: GenerateLineItemsOutput }) {
 
 function Pending() {
   return (
-    <div className="flex flex-col items-start">
-      <p className="mb-1 font-mono text-[10px] uppercase tracking-label text-dim">
-        Quill · drafting…
-      </p>
-      <div className="border border-rule bg-paper px-4 py-2 font-mono text-[12px] text-dim">
-        <span className="inline-block h-1 w-1 animate-pulse rounded-full bg-dim" />{' '}
-        <span className="inline-block h-1 w-1 animate-pulse rounded-full bg-dim" />{' '}
-        <span className="inline-block h-1 w-1 animate-pulse rounded-full bg-dim" />
-      </div>
+    <div className="flex items-center gap-3 text-[13px] text-text-tertiary">
+      <Avatar name="Quill" size="sm" />
+      <span>Quill is drafting</span>
+      <span className="inline-flex gap-1">
+        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-text-tertiary" />
+        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-text-tertiary [animation-delay:120ms]" />
+        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-text-tertiary [animation-delay:240ms]" />
+      </span>
     </div>
   );
 }
 
 function ErrorBubble({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <div className="flex flex-col items-start gap-2">
-      <p className="font-mono text-[10px] uppercase tracking-label text-mark-red">
-        Quill · error
-      </p>
-      <div
-        role="alert"
-        className="border border-mark-red/60 bg-paper px-4 py-2 font-mono text-[11px] uppercase tracking-label text-mark-red"
-      >
+    <div className="flex flex-col items-start gap-2 rounded-md border border-danger/40 bg-danger-light p-3">
+      <p className="text-[12px] font-medium uppercase tracking-[0.06em] text-danger">Quill · error</p>
+      <p role="alert" className="text-[13px] text-text-primary">
         {message}
-      </div>
-      <button
-        type="button"
-        onClick={onRetry}
-        className="border border-rule px-3 py-0.5 font-mono text-[10px] uppercase tracking-label text-ink hover:border-ink"
-      >
+      </p>
+      <Button variant="secondary" size="sm" onClick={onRetry}>
         Retry
-      </button>
+      </Button>
     </div>
   );
-}
-
-function labelRole(role: string): string {
-  switch (role) {
-    case 'USER':
-      return 'You';
-    case 'ASSISTANT':
-      return 'Quill';
-    case 'SYSTEM':
-      return 'System';
-    default:
-      return role;
-  }
 }
 
 function formatStamp(iso: string): string {
@@ -557,11 +527,6 @@ function mapAskError(err: AxiosError): string {
   return backendErrorMessage(err, 'Could not send the follow-up.');
 }
 
-/**
- * Shared mapping for the typed AiUpstreamError codes the backend
- * surfaces from Anthropic. Returns null when the code isn't one of
- * ours so the caller can fall through to its own defaults.
- */
 function mapAiUpstreamError(code: string | null): string | null {
   switch (code) {
     case 'ai_invalid_api_key':

@@ -1,26 +1,12 @@
 import { useState } from 'react';
 import type { AxiosError } from 'axios';
 import { useAuthContext } from '@/context/useAuthContext';
-import {
-  backendErrorCode,
-  backendErrorMessage,
-} from '@/features/auth/useAuth';
+import { backendErrorCode, backendErrorMessage } from '@/features/auth/useAuth';
 import { canCloseOutEstimate } from '@/lib/permissions';
 import type { EstimateDetail } from '@/features/estimates/types';
-import {
-  useMarkLost,
-  useMarkWon,
-  useReviseFromSent,
-} from './useReviewWorkspace';
+import { Button, Modal, Textarea } from '@/components/ui';
+import { useMarkLost, useMarkWon, useReviseFromSent } from './useReviewWorkspace';
 
-/**
- * SENT-state close-out actions: Mark won, Mark lost (reason required),
- * Revise.
- *
- * Visibility: admin always; ESTIMATOR drafter or reviewer. Backend
- * canCloseOutEstimate is the source of truth; this is just the
- * client-side mirror.
- */
 export function CloseOutActions({ estimate }: { estimate: EstimateDetail }) {
   const { user } = useAuthContext();
   const won = useMarkWon(estimate.id);
@@ -67,164 +53,146 @@ export function CloseOutActions({ estimate }: { estimate: EstimateDetail }) {
 
   return (
     <>
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={onWon}
-          disabled={won.isPending}
-          data-testid="mark-won"
-          className="border border-mark-green bg-mark-green/10 px-4 py-2 font-mono text-[11px] uppercase tracking-label text-mark-green hover:bg-mark-green hover:text-ink-inverse disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {won.isPending ? 'Saving…' : 'Mark won'}
-        </button>
-        <button
-          type="button"
-          onClick={() => setLostOpen(true)}
-          disabled={lost.isPending}
-          data-testid="mark-lost"
-          className="border border-mark-red px-4 py-2 font-mono text-[11px] uppercase tracking-label text-mark-red hover:bg-mark-red hover:text-ink-inverse disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          Mark lost
-        </button>
-        <button
-          type="button"
+      <div className="flex items-center gap-2">
+        <Button
+          variant="secondary"
           onClick={() => setReviseOpen(true)}
           disabled={revise.isPending}
           data-testid="revise-from-sent"
-          className="border border-rule px-4 py-2 font-mono text-[11px] uppercase tracking-label text-ink hover:border-ink disabled:cursor-not-allowed disabled:opacity-60"
         >
           Revise
-        </button>
+        </Button>
+        <Button
+          variant="danger"
+          onClick={() => setLostOpen(true)}
+          disabled={lost.isPending}
+          data-testid="mark-lost"
+        >
+          Mark lost
+        </Button>
+        <Button onClick={onWon} loading={won.isPending} data-testid="mark-won">
+          Mark won
+        </Button>
       </div>
       {error ? (
-        <p
-          role="alert"
-          className="font-mono text-[10px] uppercase tracking-label text-mark-red"
-        >
+        <p role="alert" className="mt-1 text-[12px] text-danger">
           {mapCloseOutError(error as AxiosError, 'Could not mark as won.')}
         </p>
       ) : null}
 
-      {lostOpen ? (
-        <CloseOutDialog
-          title="Mark as lost"
-          submitLabel={lost.isPending ? 'Saving…' : 'Mark as lost'}
-          placeholder="Why did this lose? Price, scope, timing, competitor…"
-          required
-          pending={lost.isPending}
-          error={
-            lost.error
-              ? mapCloseOutError(lost.error as AxiosError, 'Could not mark as lost.')
-              : null
-          }
-          onCancel={() => {
-            lost.reset();
-            setLostOpen(false);
-          }}
-          onSubmit={submitLost}
-        />
-      ) : null}
+      <CloseOutDialog
+        open={lostOpen}
+        title="Mark as lost"
+        description="Capture why so we learn from it."
+        submitLabel="Mark as lost"
+        primaryVariant="danger"
+        placeholder="Why did this lose? Price, scope, timing, competitor…"
+        required
+        pending={lost.isPending}
+        error={
+          lost.error ? mapCloseOutError(lost.error as AxiosError, 'Could not mark as lost.') : null
+        }
+        onCancel={() => {
+          lost.reset();
+          setLostOpen(false);
+        }}
+        onSubmit={submitLost}
+      />
 
-      {reviseOpen ? (
-        <CloseOutDialog
-          title="Revise after send"
-          submitLabel={revise.isPending ? 'Reopening…' : 'Reopen for revision'}
-          placeholder="Optional note for the activity log…"
-          required={false}
-          pending={revise.isPending}
-          error={
-            revise.error
-              ? mapCloseOutError(
-                  revise.error as AxiosError,
-                  'Could not reopen for revision.',
-                )
-              : null
-          }
-          onCancel={() => {
-            revise.reset();
-            setReviseOpen(false);
-          }}
-          onSubmit={submitRevise}
-        />
-      ) : null}
+      <CloseOutDialog
+        open={reviseOpen}
+        title="Revise after send"
+        description="Reopens the estimate for changes; the previous SEND snapshot is preserved."
+        submitLabel="Reopen for revision"
+        primaryVariant="primary"
+        placeholder="Optional note for the activity log…"
+        required={false}
+        pending={revise.isPending}
+        error={
+          revise.error
+            ? mapCloseOutError(revise.error as AxiosError, 'Could not reopen for revision.')
+            : null
+        }
+        onCancel={() => {
+          revise.reset();
+          setReviseOpen(false);
+        }}
+        onSubmit={submitRevise}
+      />
     </>
   );
 }
 
-function CloseOutDialog({
-  title,
-  submitLabel,
-  placeholder,
-  required,
-  pending,
-  error,
-  onCancel,
-  onSubmit,
-}: {
+interface CloseOutDialogProps {
+  open: boolean;
   title: string;
+  description?: string;
   submitLabel: string;
+  primaryVariant: 'primary' | 'danger';
   placeholder: string;
   required: boolean;
   pending: boolean;
   error: string | null;
   onCancel: () => void;
   onSubmit: (value: string) => void;
-}) {
+}
+
+function CloseOutDialog({
+  open,
+  title,
+  description,
+  submitLabel,
+  primaryVariant,
+  placeholder,
+  required,
+  pending,
+  error,
+  onCancel,
+  onSubmit,
+}: CloseOutDialogProps) {
   const [value, setValue] = useState('');
   const trimmed = value.trim();
   const disabled = pending || (required && trimmed.length === 0);
+
+  if (!open) return null;
   return (
-    <div
-      role="dialog"
-      aria-label={title}
-      className="fixed inset-0 z-40 flex items-center justify-center bg-ink/40 px-4"
-      data-testid="closeout-dialog"
+    <Modal
+      open={open}
+      onClose={() => {
+        setValue('');
+        onCancel();
+      }}
+      title={title}
+      description={description}
+      size="sm"
+      footer={
+        <Modal.Footer
+          onCancel={() => {
+            setValue('');
+            onCancel();
+          }}
+          onPrimary={() => {
+            onSubmit(trimmed);
+            setValue('');
+          }}
+          primaryLabel={submitLabel}
+          primaryVariant={primaryVariant}
+          primaryLoading={pending}
+          primaryDisabled={disabled}
+        />
+      }
     >
-      <div className="w-full max-w-[480px] border border-ink bg-paper-elevated">
-        <header className="border-b border-rule-soft px-5 py-3">
-          <p className="font-mono text-[10px] uppercase tracking-label text-dim">{title}</p>
-        </header>
-        <div className="flex flex-col gap-2 p-5">
-          <textarea
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            placeholder={placeholder}
-            rows={4}
-            maxLength={2000}
-            disabled={pending}
-            data-testid="closeout-input"
-            className="w-full border border-rule bg-paper px-3 py-2 font-sans text-[13px] text-ink placeholder:text-dim focus:border-ink focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-          />
-          {error ? (
-            <p
-              role="alert"
-              className="font-mono text-[10px] uppercase tracking-label text-mark-red"
-            >
-              {error}
-            </p>
-          ) : null}
-        </div>
-        <footer className="flex items-center justify-end gap-3 border-t border-rule-soft bg-paper px-5 py-3">
-          <button
-            type="button"
-            onClick={onCancel}
-            data-testid="closeout-cancel"
-            className="font-mono text-[10px] uppercase tracking-label text-dim hover:text-ink"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={() => onSubmit(trimmed)}
-            disabled={disabled}
-            data-testid="closeout-submit"
-            className="border border-ink bg-ink px-4 py-2 font-mono text-[11px] uppercase tracking-label text-ink-inverse hover:bg-ink/90 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {submitLabel}
-          </button>
-        </footer>
-      </div>
-    </div>
+      <Textarea
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder={placeholder}
+        rows={4}
+        maxLength={2000}
+        disabled={pending}
+        data-testid="closeout-input"
+        error={error}
+      />
+    </Modal>
   );
 }
 
