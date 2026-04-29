@@ -18,6 +18,12 @@ const schema = z.object({
     .url()
     .default('http://localhost:5173')
     .describe('Public app URL'),
+  VITE_SENTRY_DSN: z
+    .string()
+    .url()
+    .optional()
+    .or(z.literal(''))
+    .describe('Sentry DSN for the browser SDK (prod only)'),
 });
 
 type Env = z.infer<typeof schema>;
@@ -51,6 +57,7 @@ function loadEnv(): Env {
     return schema.parse({
       VITE_API_URL: 'http://localhost:4000',
       VITE_APP_URL: 'http://localhost:5173',
+      VITE_SENTRY_DSN: '',
     });
   }
   return parsed.data;

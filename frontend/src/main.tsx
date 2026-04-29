@@ -1,4 +1,5 @@
 import './lib/env';
+import { initSentry } from './lib/sentry';
 import { StrictMode } from 'react';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
@@ -10,6 +11,11 @@ import App from './App';
 import { queryClient } from './lib/queryClient';
 import { AuthProvider } from './context/AuthContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
+
+// Sentry must init before the React tree mounts so it can catch
+// errors thrown during initial render. No-ops when VITE_SENTRY_DSN is
+// empty (dev / preview builds).
+initSentry();
 
 // Accessibility audit (Phase 8.4) — load @axe-core/react in dev only.
 // It runs after every render and logs WCAG-A/AA violations to the

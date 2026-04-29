@@ -166,6 +166,9 @@ See [DEPLOYMENT.md](./DEPLOYMENT.md) for the recipe — Neon DB, Render web
 services, Anthropic + SendGrid + DigitalOcean Spaces accounts, and the
 migration / smoke-test flow.
 
+For error reporting + uptime monitoring (Sentry, `/healthz`), see
+[docs/monitoring.md](./docs/monitoring.md).
+
 ## License
 
 Proprietary. © Mark Allan Contracting / Built Different.

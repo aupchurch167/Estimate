@@ -11,6 +11,7 @@
 import type { ErrorRequestHandler, NextFunction, Request, Response } from 'express';
 import { AppError } from '../lib/errors.js';
 import { logger } from '../lib/logger.js';
+import { captureExceptionIfNotAppError } from '../lib/sentry.js';
 
 interface ErrorBody {
   error: {
@@ -40,6 +41,7 @@ export const errorHandler: ErrorRequestHandler = (
     }
 
     logger.error({ err }, 'unhandled error');
+    captureExceptionIfNotAppError(err);
 
     const body: ErrorBody = {
       error: {
