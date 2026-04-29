@@ -177,6 +177,20 @@ async function moveToApproved(ctx: Awaited<ReturnType<typeof setup>>) {
   await approve(ctx.organizationId, ctx.reviewer, ctx.estimateId);
 }
 
+/**
+ * Filters the fake email inbox to only client-bound emails so workflow
+ * notification fire-and-forget calls (which go to the drafter/reviewer
+ * test accounts at *@example.test) don't race the assertions on slower
+ * machines. Replaces the older `await wait(50ms); em.sent.length = 0`
+ * pattern that flaked on Windows + slower Postgres.
+ */
+function clientEmails(em: ReturnType<typeof fakeEmail>) {
+  return em.sent.filter((e) => {
+    const recipients = Array.isArray(e.to) ? e.to : [e.to];
+    return recipients.some((addr) => !addr.endsWith('@example.test'));
+  });
+}
+
 describe('sendService.sendEstimate', () => {
   it('full happy path: SEND snapshot + export row + status SENT + email with PDF attached', async () => {
     const ctx = await setup();
@@ -186,11 +200,6 @@ describe('sendService.sendEstimate', () => {
     __setEmailDispatcherForTesting(em);
 
     await moveToApproved(ctx);
-    // submitForReview + approve fire-and-forget notification emails;
-    // wait for those to drain, then reset the inbox so the assertions
-    // below are about the client-facing send only.
-    await new Promise((r) => setTimeout(r, 50));
-    em.sent.length = 0;
 
     const result = await sendEstimate(ctx.organizationId, ctx.admin, ctx.estimateId, {
       recipients: ['client@acme.test'],
@@ -207,10 +216,11 @@ describe('sendService.sendEstimate', () => {
     expect(sp.uploads[0]?.contentType).toBe('application/pdf');
     expect(sp.uploads[0]?.key).toMatch(/send-/);
 
-    expect(em.sent).toHaveLength(1);
-    expect(em.sent[0]?.to).toEqual(['client@acme.test']);
-    expect(em.sent[0]?.subject).toBe('Your estimate');
-    expect(em.sent[0]?.attachmentBytes).toBeGreaterThan(500);
+    const toClient = clientEmails(em);
+    expect(toClient).toHaveLength(1);
+    expect(toClient[0]?.to).toEqual(['client@acme.test']);
+    expect(toClient[0]?.subject).toBe('Your estimate');
+    expect(toClient[0]?.attachmentBytes).toBeGreaterThan(500);
 
     const activity = await prisma.activityEvent.findFirst({
       where: { estimateId: ctx.estimateId, eventType: 'ESTIMATE_SENT' },
@@ -300,8 +310,6 @@ describe('sendService.sendEstimate', () => {
     __setSpacesClientForTesting(sp);
     __setEmailDispatcherForTesting(em);
     await moveToApproved(ctx);
-    await new Promise((r) => setTimeout(r, 50));
-    em.sent.length = 0;
 
     const result = await sendEstimate(ctx.organizationId, ctx.admin, ctx.estimateId, {
       sendMethod: 'link',
@@ -312,7 +320,7 @@ describe('sendService.sendEstimate', () => {
     expect(result.sendMethod).toBe('link');
     expect(result.downloadUrl).toMatch(/^https:\/\/signed.test\//);
     expect(result.email).toBeNull();
-    expect(em.sent).toHaveLength(0);
+    expect(clientEmails(em)).toHaveLength(0);
     expect(sp.uploads).toHaveLength(1);
 
     const activity = await prisma.activityEvent.findFirst({
@@ -329,8 +337,6 @@ describe('sendService.sendEstimate', () => {
     __setSpacesClientForTesting(sp);
     __setEmailDispatcherForTesting(em);
     await moveToApproved(ctx);
-    await new Promise((r) => setTimeout(r, 50));
-    em.sent.length = 0;
 
     const result = await sendEstimate(ctx.organizationId, ctx.admin, ctx.estimateId, {
       sendMethod: 'download',
@@ -339,7 +345,7 @@ describe('sendService.sendEstimate', () => {
     expect(result.estimate.status).toBe('SENT');
     expect(result.sendMethod).toBe('download');
     expect(result.email).toBeNull();
-    expect(em.sent).toHaveLength(0);
+    expect(clientEmails(em)).toHaveLength(0);
 
     const activity = await prisma.activityEvent.findFirst({
       where: { estimateId: ctx.estimateId, eventType: 'ESTIMATE_SENT' },
