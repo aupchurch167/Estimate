@@ -385,6 +385,8 @@ function mapAiUpstreamError(code: string | null): string | null {
       return 'Requested AI model not found. Check AI_MODEL_PRIMARY / AI_MODEL_LIGHT in the backend env.';
     case 'ai_rate_limited':
       return 'Anthropic rate-limited that request — wait a moment and retry.';
+    case 'ai_rate_limited_local':
+      return 'You are running AI requests too quickly — wait a moment and retry.';
     case 'ai_overloaded':
       return 'Anthropic is temporarily overloaded — try again shortly.';
     case 'ai_temporary_failure':

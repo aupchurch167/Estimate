@@ -2,12 +2,17 @@ import { Router } from 'express';
 import * as controller from '../controllers/aiRunsController.js';
 import { requireAuth } from '../middleware/requireAuth.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
+import { aiLimiter } from '../middleware/rateLimit.js';
 
 // Mounted under /api/estimates so :id is the estimate id.
 export const estimateAiRouter = Router();
 estimateAiRouter.use(requireAuth);
 estimateAiRouter.get('/:id/ai-runs', asyncHandler(controller.listForEstimate));
-estimateAiRouter.post('/:id/ai-runs', asyncHandler(controller.createRun));
+estimateAiRouter.post(
+  '/:id/ai-runs',
+  aiLimiter,
+  asyncHandler(controller.createRun),
+);
 estimateAiRouter.get('/:id/conversation', asyncHandler(controller.getConversation));
 
 // /api/ai-runs/...
