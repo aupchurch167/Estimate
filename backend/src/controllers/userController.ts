@@ -1,8 +1,10 @@
 /**
  * User HTTP controllers.
  *
- * For Phase 1.5: self-service profile, password, and avatar-signed-upload.
- * Admin tools (role changes, deactivate, delete) arrive in Phase 7.1.
+ * Phase 1.5: self-service profile, password, and avatar signed-upload.
+ * Phase 7.1: admin tools — role changes, deactivate, reactivate. Admin
+ * endpoints live on dedicated paths so the existing self-service PATCH
+ * (`assertSelf`) keeps its tight scope.
  */
 
 import type { Request, Response } from 'express';
@@ -79,4 +81,48 @@ export async function listUsers(req: Request, res: Response): Promise<void> {
   if (!req.organization) throw new ForbiddenError('Not authenticated');
   const users = await userService.listByOrganization(req.organization.id);
   ok(res, { users });
+}
+
+// ─── Admin endpoints (Phase 7.1) ─────────────────────────────────────────
+
+const roleBody = z.object({
+  role: z.enum(['ADMIN', 'ESTIMATOR', 'PM', 'VIEWER']),
+});
+
+function adminContext(req: Request): {
+  actor: { id: string; role: 'OWNER' | 'ADMIN' | 'ESTIMATOR' | 'PM' | 'VIEWER' };
+  organizationId: string;
+  targetUserId: string;
+} {
+  if (!req.user || !req.organization) throw new ForbiddenError('Not authenticated');
+  const targetUserId = String(req.params.id ?? '');
+  if (!targetUserId) {
+    throw new ValidationError('Missing user id', {
+      issues: [{ path: 'id', message: 'Required' }],
+    });
+  }
+  return {
+    actor: { id: req.user.id, role: req.user.role },
+    organizationId: req.organization.id,
+    targetUserId,
+  };
+}
+
+export async function adminChangeRole(req: Request, res: Response): Promise<void> {
+  const { actor, organizationId, targetUserId } = adminContext(req);
+  const input = parse(roleBody, req.body);
+  const user = await userService.changeRole(actor, organizationId, targetUserId, input.role);
+  ok(res, { user });
+}
+
+export async function adminDeactivate(req: Request, res: Response): Promise<void> {
+  const { actor, organizationId, targetUserId } = adminContext(req);
+  const user = await userService.deactivate(actor, organizationId, targetUserId);
+  ok(res, { user });
+}
+
+export async function adminReactivate(req: Request, res: Response): Promise<void> {
+  const { actor, organizationId, targetUserId } = adminContext(req);
+  const user = await userService.reactivate(actor, organizationId, targetUserId);
+  ok(res, { user });
 }

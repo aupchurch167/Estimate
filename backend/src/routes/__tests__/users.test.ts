@@ -230,3 +230,94 @@ describe('GET /api/users', () => {
     expect(res.status).toBe(401);
   });
 });
+
+describe('Admin user management routes (Phase 7.1)', () => {
+  async function bootstrap() {
+    const owner = await makeOwner();
+    counter += 1;
+    const memberSignup = await serviceSignup({
+      companyName: `RouteMate-${counter}-${RUN_ID}`,
+      email: `route-mate-${counter}-${RUN_ID}@example.test`,
+      password: PASSWORD,
+      firstName: 'Mate',
+      lastName: 'Y',
+    });
+    orgIds.add(memberSignup.organization.id);
+    const member = await prisma.user.update({
+      where: { id: memberSignup.user.id },
+      data: { organizationId: owner.organization.id, role: 'ESTIMATOR' },
+    });
+    return { owner, member };
+  }
+
+  it('PATCH /:id/role flips role for an admin actor', async () => {
+    const { owner, member } = await bootstrap();
+    const agent = await login(owner.user.email);
+    const res = await agent
+      .patch(`/api/users/${member.id}/role`)
+      .send({ role: 'PM' });
+    expect(res.status).toBe(200);
+    expect(res.body.user.role).toBe('PM');
+  });
+
+  it('PATCH /:id/role 403 for ESTIMATOR actor', async () => {
+    const { member } = await bootstrap();
+    // Promote nothing — login as ESTIMATOR member; build a third teammate
+    // for them to target so the failure isn't tied to self-rejection.
+    const { owner: targetOwner } = await bootstrap();
+    void targetOwner;
+
+    // Reset member's password via prisma so login works.
+    await prisma.user.update({
+      where: { id: member.id },
+      data: { passwordHash: (await import('../../services/authService.js')).hashPassword
+        ? await (await import('../../services/authService.js')).hashPassword(PASSWORD)
+        : '' },
+    });
+    // Easier path: log in as member with their original credentials.
+    // Their email was set above; password is PASSWORD.
+    const agent = request.agent(app);
+    await agent.post('/api/auth/login').send({ email: member.email, password: PASSWORD }).expect(200);
+    const res = await agent.patch(`/api/users/${member.id}/role`).send({ role: 'PM' });
+    expect(res.status).toBe(403);
+  });
+
+  it('POST /:id/deactivate then POST /:id/reactivate round-trip works', async () => {
+    const { owner, member } = await bootstrap();
+    const agent = await login(owner.user.email);
+
+    const off = await agent.post(`/api/users/${member.id}/deactivate`).send();
+    expect(off.status).toBe(200);
+    expect(off.body.user.isActive).toBe(false);
+
+    const on = await agent.post(`/api/users/${member.id}/reactivate`).send();
+    expect(on.status).toBe(200);
+    expect(on.body.user.isActive).toBe(true);
+  });
+
+  it('POST /:id/deactivate 409 when targeting self', async () => {
+    const { owner } = await bootstrap();
+    const agent = await login(owner.user.email);
+    const res = await agent.post(`/api/users/${owner.user.id}/deactivate`).send();
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('cannot_target_self');
+  });
+
+  it('PATCH /:id/role 409 when targeting OWNER', async () => {
+    const { owner, member } = await bootstrap();
+    void member;
+    const agent = await login(owner.user.email);
+    const res = await agent.patch(`/api/users/${owner.user.id}/role`).send({ role: 'ESTIMATOR' });
+    // Hits cannot_target_self before owner_role_immutable.
+    expect(res.status).toBe(409);
+  });
+
+  it('PATCH /:id/role 400 on invalid role', async () => {
+    const { owner, member } = await bootstrap();
+    const agent = await login(owner.user.email);
+    const res = await agent
+      .patch(`/api/users/${member.id}/role`)
+      .send({ role: 'NOT_A_ROLE' });
+    expect(res.status).toBe(400);
+  });
+});

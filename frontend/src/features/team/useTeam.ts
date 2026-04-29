@@ -17,6 +17,58 @@ export function useUsers() {
   });
 }
 
+export type AdminAssignableRole = 'ADMIN' | 'ESTIMATOR' | 'PM' | 'VIEWER';
+
+export function useChangeUserRole() {
+  const qc = useQueryClient();
+  return useMutation<
+    SafeUser,
+    AxiosError,
+    { userId: string; role: AdminAssignableRole }
+  >({
+    mutationFn: async ({ userId, role }) => {
+      const res = await api.patch<{ user: SafeUser }>(
+        `/api/users/${userId}/role`,
+        { role },
+      );
+      return res.data.user;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: USERS_QUERY_KEY });
+    },
+  });
+}
+
+export function useDeactivateUser() {
+  const qc = useQueryClient();
+  return useMutation<SafeUser, AxiosError, { userId: string }>({
+    mutationFn: async ({ userId }) => {
+      const res = await api.post<{ user: SafeUser }>(
+        `/api/users/${userId}/deactivate`,
+      );
+      return res.data.user;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: USERS_QUERY_KEY });
+    },
+  });
+}
+
+export function useReactivateUser() {
+  const qc = useQueryClient();
+  return useMutation<SafeUser, AxiosError, { userId: string }>({
+    mutationFn: async ({ userId }) => {
+      const res = await api.post<{ user: SafeUser }>(
+        `/api/users/${userId}/reactivate`,
+      );
+      return res.data.user;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: USERS_QUERY_KEY });
+    },
+  });
+}
+
 export function useInvitations(status?: InvitationStatus | 'all') {
   return useQuery<InvitationListItem[], AxiosError>({
     queryKey: [...INVITATIONS_QUERY_KEY, status ?? 'all'],
