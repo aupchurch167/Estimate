@@ -164,6 +164,7 @@ afterAll(async () => {
     await prisma.lineItem.deleteMany({ where: { organizationId: orgId } });
     await prisma.scopeSection.deleteMany({ where: { organizationId: orgId } });
     await prisma.estimate.deleteMany({ where: { organizationId: orgId } });
+    await prisma.notification.deleteMany({ where: { organizationId: orgId } });
     await prisma.user.deleteMany({ where: { organizationId: orgId } });
     await prisma.orgSettings.deleteMany({ where: { organizationId: orgId } });
     await prisma.organization.delete({ where: { id: orgId } }).catch(() => {});
@@ -185,6 +186,11 @@ describe('sendService.sendEstimate', () => {
     __setEmailDispatcherForTesting(em);
 
     await moveToApproved(ctx);
+    // submitForReview + approve fire-and-forget notification emails;
+    // wait for those to drain, then reset the inbox so the assertions
+    // below are about the client-facing send only.
+    await new Promise((r) => setTimeout(r, 50));
+    em.sent.length = 0;
 
     const result = await sendEstimate(ctx.organizationId, ctx.admin, ctx.estimateId, {
       recipients: ['client@acme.test'],

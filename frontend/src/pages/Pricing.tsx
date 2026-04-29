@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthContext } from '@/context/useAuthContext';
 import { useLogout } from '@/features/auth/useAuth';
+import { NotificationBell } from '@/features/notifications/NotificationBell';
 import { usePermissions } from '@/hooks/usePermissions';
 import {
   useCategories,
@@ -65,6 +66,7 @@ export function PricingPage() {
           ) : null}
         </div>
         <div className="flex items-center gap-4 py-4">
+          <NotificationBell />
           {user ? (
             <Link
               to="/app/account"

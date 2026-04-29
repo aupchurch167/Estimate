@@ -38,6 +38,7 @@ import {
   canUnlockApprovedEstimate,
 } from '../lib/permissions.js';
 import { createSnapshotInTx } from './snapshotService.js';
+import * as notifications from './notificationService.js';
 
 export interface Actor {
   id: string;
@@ -225,7 +226,7 @@ export async function submitForReview(
 
   const isResubmit = estimate.status === 'REVISED';
 
-  return commitTransition({
+  const result = await commitTransition({
     organizationId,
     actor,
     estimate,
@@ -239,6 +240,24 @@ export async function submitForReview(
     note,
     reviewerId: reviewerOverride,
   });
+
+  // Notify the assigned reviewer (post-update reviewerId, in case of override).
+  const reviewerId = result.estimate.reviewerId;
+  if (reviewerId && reviewerId !== actor.id) {
+    void notifications.notify({
+      organizationId,
+      recipientId: reviewerId,
+      type: 'REVIEW_REQUESTED',
+      title: isResubmit
+        ? `Estimate ${estimate.number} resubmitted for review`
+        : `Estimate ${estimate.number} submitted for review`,
+      body: note ?? null,
+      entityType: 'Estimate',
+      entityId: estimate.id,
+    });
+  }
+
+  return result;
 }
 
 // ─── Approve ──────────────────────────────────────────────────────────────
@@ -266,7 +285,7 @@ export async function approve(
 
   const note = trimNote(opts.note, false, 'Approval');
 
-  return commitTransition({
+  const result = await commitTransition({
     organizationId,
     actor,
     estimate,
@@ -278,6 +297,21 @@ export async function approve(
     note,
     snapshotType: 'APPROVAL',
   });
+
+  // Notify the drafter that their estimate was approved.
+  if (estimate.drafterId !== actor.id) {
+    void notifications.notify({
+      organizationId,
+      recipientId: estimate.drafterId,
+      type: 'REVIEW_APPROVED',
+      title: `Estimate ${estimate.number} approved`,
+      body: note ?? null,
+      entityType: 'Estimate',
+      entityId: estimate.id,
+    });
+  }
+
+  return result;
 }
 
 // ─── Request changes ──────────────────────────────────────────────────────
@@ -305,7 +339,7 @@ export async function requestChanges(
 
   const note = trimNote(opts.note, true, 'Change-request');
 
-  return commitTransition({
+  const result = await commitTransition({
     organizationId,
     actor,
     estimate,
@@ -316,6 +350,20 @@ export async function requestChanges(
     summary: `Requested changes on estimate ${estimate.number}`,
     note,
   });
+
+  if (estimate.drafterId !== actor.id) {
+    void notifications.notify({
+      organizationId,
+      recipientId: estimate.drafterId,
+      type: 'REVIEW_CHANGES_REQUESTED',
+      title: `Changes requested on estimate ${estimate.number}`,
+      body: note,
+      entityType: 'Estimate',
+      entityId: estimate.id,
+    });
+  }
+
+  return result;
 }
 
 // ─── Unlock approved ──────────────────────────────────────────────────────
@@ -380,7 +428,7 @@ export async function markWon(
     throw new ForbiddenError('You cannot close out this estimate');
   }
   const note = trimNote(opts.note, false, 'Mark-won');
-  return commitTransition({
+  const result = await commitTransition({
     organizationId,
     actor,
     estimate,
@@ -392,6 +440,21 @@ export async function markWon(
     note,
     extraEstimateData: { wonAt: new Date() },
   });
+
+  // Notify the drafter (and reviewer if different) — celebratory.
+  for (const recipientId of uniqueOthers([estimate.drafterId, estimate.reviewerId], actor.id)) {
+    void notifications.notify({
+      organizationId,
+      recipientId,
+      type: 'ESTIMATE_WON',
+      title: `Estimate ${estimate.number} marked as won`,
+      body: note ?? null,
+      entityType: 'Estimate',
+      entityId: estimate.id,
+    });
+  }
+
+  return result;
 }
 
 export interface MarkLostOpts extends CommonOpts {
@@ -419,7 +482,7 @@ export async function markLost(
   }
   const lostReason = trimNote(opts.lostReason, true, 'Lost-reason');
   const note = trimNote(opts.note, false, 'Mark-lost');
-  return commitTransition({
+  const result = await commitTransition({
     organizationId,
     actor,
     estimate,
@@ -431,6 +494,28 @@ export async function markLost(
     note,
     extraEstimateData: { lostAt: new Date(), lostReason },
   });
+
+  for (const recipientId of uniqueOthers([estimate.drafterId, estimate.reviewerId], actor.id)) {
+    void notifications.notify({
+      organizationId,
+      recipientId,
+      type: 'ESTIMATE_LOST',
+      title: `Estimate ${estimate.number} marked as lost`,
+      body: lostReason,
+      entityType: 'Estimate',
+      entityId: estimate.id,
+    });
+  }
+
+  return result;
+}
+
+function uniqueOthers(ids: (string | null)[], excludeId: string): string[] {
+  const out = new Set<string>();
+  for (const id of ids) {
+    if (id && id !== excludeId) out.add(id);
+  }
+  return [...out];
 }
 
 export async function reviseFromSent(

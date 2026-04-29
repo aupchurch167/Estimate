@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthContext } from '@/context/useAuthContext';
 import { useLogout } from '@/features/auth/useAuth';
+import { NotificationBell } from '@/features/notifications/NotificationBell';
 import { RoleGate } from '@/components/RoleGate';
 
 export function AppShell() {
@@ -52,6 +53,7 @@ export function AppShell() {
                 Settings
               </Link>
             </RoleGate>
+            <NotificationBell />
             {user ? (
               <Link
                 to="/app/account"

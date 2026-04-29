@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthContext } from '@/context/useAuthContext';
 import { useLogout } from '@/features/auth/useAuth';
+import { NotificationBell } from '@/features/notifications/NotificationBell';
 import { usePermissions } from '@/hooks/usePermissions';
 import { IdentitySection } from '@/features/settings/IdentitySection';
 import { BrandingSection } from '@/features/settings/BrandingSection';
@@ -35,6 +36,7 @@ export function SettingsPage() {
           ) : null}
         </div>
         <div className="flex items-center gap-4 py-4">
+          <NotificationBell />
           {user ? (
             <Link
               to="/app/account"

@@ -60,6 +60,7 @@ async function makeNonAdmin(orgId: string, role: 'PM' | 'VIEWER' | 'ESTIMATOR') 
 
 afterAll(async () => {
   for (const orgId of orgIds) {
+    await prisma.notification.deleteMany({ where: { organizationId: orgId } });
     await prisma.user.deleteMany({ where: { organizationId: orgId } });
     await prisma.orgSettings.deleteMany({ where: { organizationId: orgId } });
     await prisma.organization.delete({ where: { id: orgId } }).catch(() => {});

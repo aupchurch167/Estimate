@@ -23,6 +23,7 @@ import {
   ValidationError,
 } from '../lib/errors.js';
 import { logger } from '../lib/logger.js';
+import * as notifications from './notificationService.js';
 
 const NUMBER_RETRY_LIMIT = 5;
 
@@ -202,6 +203,20 @@ export async function create(
         });
         return created;
       });
+
+      // Notify the assigned reviewer (best-effort, fire-and-forget).
+      if (estimate.reviewerId && estimate.reviewerId !== drafterId) {
+        void notifications.notify({
+          organizationId,
+          recipientId: estimate.reviewerId,
+          type: 'ESTIMATE_ASSIGNED',
+          title: `You were assigned as reviewer on ${estimate.number}`,
+          body: estimate.title,
+          entityType: 'Estimate',
+          entityId: estimate.id,
+        });
+      }
+
       return estimate;
     } catch (err) {
       if (
@@ -346,6 +361,26 @@ export async function update(
     });
     return next;
   });
+
+  // If the reviewer assignment actually changed (and isn't the actor),
+  // notify the new reviewer.
+  if (
+    'reviewerId' in patch &&
+    updated.reviewerId &&
+    updated.reviewerId !== existing.reviewerId &&
+    updated.reviewerId !== actor.id
+  ) {
+    void notifications.notify({
+      organizationId,
+      recipientId: updated.reviewerId,
+      type: 'ESTIMATE_ASSIGNED',
+      title: `You were assigned as reviewer on ${updated.number}`,
+      body: updated.title,
+      entityType: 'Estimate',
+      entityId: updated.id,
+    });
+  }
+
   return updated;
 }
 

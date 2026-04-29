@@ -33,6 +33,7 @@ import {
   sourceInputsRouter,
 } from './routes/sourceInputs.js';
 import { aiRunsRouter, estimateAiRouter } from './routes/aiRuns.js';
+import { notificationsRouter } from './routes/notifications.js';
 
 export function createApp(): Express {
   const app = express();
@@ -72,6 +73,7 @@ export function createApp(): Express {
   app.use('/api/source-inputs', sourceInputsRouter);
   app.use('/api/estimates', estimateAiRouter);
   app.use('/api/ai-runs', aiRunsRouter);
+  app.use('/api/notifications', notificationsRouter);
 
   app.get('/', (_req, res) => {
     res.json({ app: 'Quill', status: 'ok' });

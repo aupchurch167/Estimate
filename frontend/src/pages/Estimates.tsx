@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthContext } from '@/context/useAuthContext';
 import { useLogout } from '@/features/auth/useAuth';
+import { NotificationBell } from '@/features/notifications/NotificationBell';
 import { usePermissions } from '@/hooks/usePermissions';
 import { RoleGate } from '@/components/RoleGate';
 import { useUsers } from '@/features/team/useTeam';
@@ -114,6 +115,7 @@ export function EstimatesPage() {
               Settings
             </Link>
           </RoleGate>
+          <NotificationBell />
           {user ? (
             <Link
               to="/app/account"

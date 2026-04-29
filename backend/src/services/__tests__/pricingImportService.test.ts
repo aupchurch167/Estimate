@@ -43,6 +43,7 @@ afterAll(async () => {
     await prisma.priceBookEntry.deleteMany({ where: { organizationId: orgId } });
     await prisma.priceBookCategory.deleteMany({ where: { organizationId: orgId } });
     await prisma.priceBook.deleteMany({ where: { organizationId: orgId } });
+    await prisma.notification.deleteMany({ where: { organizationId: orgId } });
     await prisma.user.deleteMany({ where: { organizationId: orgId } });
     await prisma.orgSettings.deleteMany({ where: { organizationId: orgId } });
     await prisma.organization.delete({ where: { id: orgId } }).catch(() => {});

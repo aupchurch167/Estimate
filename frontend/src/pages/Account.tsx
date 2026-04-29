@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthContext } from '@/context/useAuthContext';
 import { useLogout } from '@/features/auth/useAuth';
+import { NotificationBell } from '@/features/notifications/NotificationBell';
 import { ProfileForm } from '@/features/account/ProfileForm';
 import { PasswordForm } from '@/features/account/PasswordForm';
 
@@ -29,6 +30,7 @@ export function AccountPage() {
             ) : null}
           </div>
           <div className="flex items-center gap-4 py-4">
+            <NotificationBell />
             {user ? (
               <span className="font-mono text-[10px] uppercase tracking-label text-dim">
                 {user.firstName} {user.lastName}

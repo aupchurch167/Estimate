@@ -60,6 +60,7 @@ afterAll(async () => {
     await prisma.priceBook.deleteMany({ where: { organizationId: orgId } });
     await prisma.activityEvent.deleteMany({ where: { organizationId: orgId } });
     await prisma.estimate.deleteMany({ where: { organizationId: orgId } });
+    await prisma.notification.deleteMany({ where: { organizationId: orgId } });
     await prisma.user.deleteMany({ where: { organizationId: orgId } });
     await prisma.orgSettings.deleteMany({ where: { organizationId: orgId } });
     await prisma.organization.delete({ where: { id: orgId } }).catch(() => {});
