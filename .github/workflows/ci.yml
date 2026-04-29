@@ -1,0 +1,163 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main]
+
+# Cancel in-flight runs when a branch gets a new commit so we don't waste
+# minutes on stale work.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Backend env-validation requires every var. Provide CI placeholders
+  # for the ones we don't truly exercise (S3, SendGrid, Anthropic).
+  NODE_ENV: test
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/quill_test
+  APP_URL: http://localhost:5173
+  API_URL: http://localhost:4000
+  LOG_LEVEL: warn
+  JWT_ACCESS_SECRET: ci-access-secret-must-be-at-least-32-bytes-of-padding-here
+  JWT_REFRESH_SECRET: ci-refresh-secret-must-be-at-least-32-bytes-of-padding-x
+  JWT_ACCESS_EXPIRES_IN: 15m
+  JWT_REFRESH_EXPIRES_IN: 7d
+  BCRYPT_ROUNDS: '4'
+  ANTHROPIC_API_KEY: sk-ant-ci-placeholder
+  AI_MODEL_PRIMARY: claude-sonnet-4-6
+  AI_MODEL_LIGHT: claude-haiku-4-5-20251001
+  DEFAULT_MONTHLY_AI_CAP_USD: '100'
+  SENDGRID_API_KEY: SG.ci-placeholder
+  SENDGRID_FROM_EMAIL: noreply@quill.test
+  SENDGRID_FROM_NAME: Quill CI
+  SPACES_KEY: ci-access
+  SPACES_SECRET: ci-secret
+  SPACES_ENDPOINT: https://nyc3.digitaloceanspaces.com
+  SPACES_BUCKET: ci-bucket
+  SPACES_REGION: nyc3
+  SIGNED_UPLOAD_EXPIRES_SECONDS: '900'
+  ENABLE_SIGNUP: 'true'
+
+jobs:
+  # Fast feedback: types + lint break the build before we burn minutes
+  # on the heavier test job.
+  check:
+    name: Typecheck + lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Generate Prisma client
+        run: npm --workspace backend run prisma:generate
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+
+  backend-tests:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    needs: check
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: quill_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Generate Prisma client
+        run: npm --workspace backend run prisma:generate
+      - name: Apply migrations
+        run: npx prisma migrate deploy --schema backend/prisma/schema.prisma
+      - name: Run tests
+        run: npm --workspace backend run test
+      - name: Upload coverage (if generated)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/coverage/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  frontend-tests:
+    name: Frontend tests
+    runs-on: ubuntu-latest
+    needs: check
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Run tests
+        run: npm --workspace frontend run test
+      - name: Build production bundle
+        run: npm --workspace frontend run build
+
+  # E2E is heavier (browser download + both servers boot) so we run it
+  # only on PRs to main and on pushes to main itself. Branch pushes
+  # skip it for fast iteration.
+  e2e:
+    name: Playwright E2E
+    runs-on: ubuntu-latest
+    needs: check
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: quill_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      E2E_FAKE_ANTHROPIC: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Generate Prisma client
+        run: npm --workspace backend run prisma:generate
+      - name: Apply migrations
+        run: npx prisma migrate deploy --schema backend/prisma/schema.prisma
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+      - name: Run Playwright tests
+        run: npx playwright test
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
