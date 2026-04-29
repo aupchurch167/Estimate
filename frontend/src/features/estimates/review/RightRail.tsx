@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { AxiosError } from 'axios';
 import { useAuthContext } from '@/context/useAuthContext';
 import {
@@ -6,12 +6,15 @@ import {
   backendErrorMessage,
 } from '@/features/auth/useAuth';
 import type { EstimateDetail } from '@/features/estimates/types';
+import { useUsers } from '@/features/team/useTeam';
+import type { SafeUser } from '@/features/auth/types';
 import {
   useActivity,
   useComments,
   useCreateComment,
   useCreateExport,
   useDeleteComment,
+  useEditComment,
   useResolveComment,
   useSnapshots,
   type SnapshotMeta,
@@ -21,6 +24,8 @@ import type {
   ActivityEventType,
   Comment,
 } from './types';
+
+const EDIT_WINDOW_MS = 15 * 60 * 1000;
 
 type Tab = 'assumptions' | 'comments' | 'versions' | 'activity';
 
@@ -152,6 +157,30 @@ function confidenceClass(confidence: number): string {
 
 // ─── Comments ─────────────────────────────────────────────────────────────
 
+interface ThreadedComment {
+  parent: Comment;
+  replies: Comment[];
+}
+
+function buildThreads(flat: Comment[]): ThreadedComment[] {
+  const parents = flat.filter((c) => !c.parentCommentId);
+  const repliesByParent = new Map<string, Comment[]>();
+  for (const c of flat) {
+    if (c.parentCommentId) {
+      const list = repliesByParent.get(c.parentCommentId) ?? [];
+      list.push(c);
+      repliesByParent.set(c.parentCommentId, list);
+    }
+  }
+  for (const list of repliesByParent.values()) {
+    list.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  }
+  return parents.map((p) => ({
+    parent: p,
+    replies: repliesByParent.get(p.id) ?? [],
+  }));
+}
+
 function CommentsPanel({
   estimate,
   readOnly,
@@ -161,10 +190,16 @@ function CommentsPanel({
 }) {
   const { user } = useAuthContext();
   const list = useComments(estimate.id);
+  const orgUsers = useUsers();
   const create = useCreateComment(estimate.id);
   const resolve = useResolveComment(estimate.id);
   const remove = useDeleteComment(estimate.id);
-  const [draft, setDraft] = useState('');
+  const edit = useEditComment(estimate.id);
+
+  const members = useMemo(
+    () => (orgUsers.data ?? []).filter((u) => u.id !== user?.id && u.isActive),
+    [orgUsers.data, user?.id],
+  );
 
   const isAdmin = user?.role === 'OWNER' || user?.role === 'ADMIN';
   const isReviewer = estimate.reviewerId === user?.id;
@@ -187,124 +222,209 @@ function CommentsPanel({
     );
   }
   const comments = list.data?.comments ?? [];
+  const threads = buildThreads(comments);
 
-  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const body = draft.trim();
-    if (!body || create.isPending) return;
+  const submit = async (input: {
+    body: string;
+    mentions: string[];
+    parentCommentId?: string | null;
+  }) => {
     create.reset();
-    try {
-      await create.mutateAsync({ body });
-      setDraft('');
-    } catch {
-      // banner shown inline below the form
-    }
+    await create.mutateAsync({
+      body: input.body,
+      mentions: input.mentions,
+      parentCommentId: input.parentCommentId ?? null,
+    });
   };
 
   return (
     <div className="flex h-full flex-col">
       <ul className="flex-1 overflow-auto">
-        {comments.length === 0 ? (
+        {threads.length === 0 ? (
           <li className="p-4 font-mono text-[10px] uppercase tracking-label text-dim">
             No comments yet.
           </li>
         ) : (
-          comments.map((c) => (
+          threads.map((t) => (
             <li
-              key={c.id}
+              key={t.parent.id}
               className={`border-b border-rule-soft px-4 py-3 ${
-                c.isResolved ? 'opacity-60' : ''
+                t.parent.isResolved ? 'opacity-60' : ''
               }`}
               data-testid="comment-row"
-              data-resolved={c.isResolved ? 'true' : 'false'}
+              data-resolved={t.parent.isResolved ? 'true' : 'false'}
             >
               <CommentRow
-                comment={c}
-                canResolve={
-                  !readOnly &&
-                  (c.author.id === user?.id || isReviewer || isAdmin)
-                }
-                canDelete={!readOnly && (c.author.id === user?.id || isAdmin)}
+                comment={t.parent}
+                meId={user?.id ?? null}
+                isAdmin={isAdmin}
+                isReviewer={isReviewer}
+                readOnly={readOnly}
+                members={members}
                 onToggleResolved={() =>
-                  resolve.mutate({ commentId: c.id, isResolved: !c.isResolved })
+                  resolve.mutate({
+                    commentId: t.parent.id,
+                    isResolved: !t.parent.isResolved,
+                  })
                 }
-                onDelete={() => remove.mutate({ commentId: c.id })}
+                onDelete={() => remove.mutate({ commentId: t.parent.id })}
+                onSubmitReply={async (body, mentions) =>
+                  submit({ body, mentions, parentCommentId: t.parent.id })
+                }
+                onEdit={async (body, mentions) =>
+                  edit.mutateAsync({ commentId: t.parent.id, body, mentions })
+                }
+                editError={
+                  edit.error && edit.variables?.commentId === t.parent.id
+                    ? (edit.error as AxiosError)
+                    : null
+                }
               />
+              {t.replies.length > 0 ? (
+                <ul
+                  className="mt-2 ml-4 flex flex-col border-l border-rule-soft pl-3"
+                  data-testid={`comment-replies-${t.parent.id}`}
+                >
+                  {t.replies.map((r) => (
+                    <li key={r.id} className="py-2" data-testid="comment-reply">
+                      <CommentRow
+                        comment={r}
+                        meId={user?.id ?? null}
+                        isAdmin={isAdmin}
+                        isReviewer={isReviewer}
+                        readOnly={readOnly}
+                        members={members}
+                        onToggleResolved={null}
+                        onDelete={() => remove.mutate({ commentId: r.id })}
+                        onSubmitReply={null}
+                        onEdit={async (body, mentions) =>
+                          edit.mutateAsync({ commentId: r.id, body, mentions })
+                        }
+                        editError={
+                          edit.error && edit.variables?.commentId === r.id
+                            ? (edit.error as AxiosError)
+                            : null
+                        }
+                      />
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </li>
           ))
         )}
       </ul>
       {!readOnly ? (
-        <form
-          onSubmit={onSubmit}
-          className="border-t border-rule-soft bg-paper p-3 flex flex-col gap-2"
-        >
-          <textarea
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            disabled={create.isPending}
-            rows={2}
-            maxLength={4000}
-            placeholder="Add a comment…"
-            data-testid="comment-input"
-            className="w-full border border-rule bg-paper-elevated px-3 py-2 font-sans text-[13px] text-ink placeholder:text-dim focus:border-ink focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-          />
-          {create.error ? (
-            <p
-              role="alert"
-              className="font-mono text-[10px] uppercase tracking-label text-mark-red"
-            >
-              {backendErrorMessage(create.error as AxiosError, 'Could not post comment.')}
-            </p>
-          ) : null}
-          <div className="flex items-center justify-end">
-            <button
-              type="submit"
-              disabled={create.isPending || draft.trim().length === 0}
-              data-testid="comment-submit"
-              className="border border-ink bg-ink px-3 py-1 font-mono text-[10px] uppercase tracking-label text-ink-inverse hover:bg-ink/90 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {create.isPending ? 'Posting…' : 'Post'}
-            </button>
-          </div>
-        </form>
+        <CommentComposer
+          members={members}
+          isPending={create.isPending}
+          error={create.error as AxiosError | null}
+          onSubmit={async (body, mentions) =>
+            submit({ body, mentions, parentCommentId: null })
+          }
+          placeholder="Add a comment…"
+          submitLabel="Post"
+          testId="comment-input"
+          submitTestId="comment-submit"
+        />
       ) : null}
     </div>
   );
 }
 
+interface CommentRowProps {
+  comment: Comment;
+  meId: string | null;
+  isAdmin: boolean;
+  isReviewer: boolean;
+  readOnly: boolean;
+  members: SafeUser[];
+  onToggleResolved: (() => void) | null;
+  onDelete: () => void;
+  onSubmitReply: ((body: string, mentions: string[]) => Promise<void>) | null;
+  onEdit: (body: string, mentions: string[]) => Promise<unknown>;
+  editError: AxiosError | null;
+}
+
 function CommentRow({
   comment,
-  canResolve,
-  canDelete,
+  meId,
+  isAdmin,
+  isReviewer,
+  readOnly,
+  members,
   onToggleResolved,
   onDelete,
-}: {
-  comment: Comment;
-  canResolve: boolean;
-  canDelete: boolean;
-  onToggleResolved: () => void;
-  onDelete: () => void;
-}) {
+  onSubmitReply,
+  onEdit,
+  editError,
+}: CommentRowProps) {
+  const isMine = comment.author.id === meId;
+  const canResolve =
+    !readOnly &&
+    onToggleResolved !== null &&
+    (isMine || isReviewer || isAdmin);
+  const canDelete = !readOnly && (isMine || isAdmin);
+  const editable = !readOnly && isMine && withinEditWindow(comment.createdAt);
+  const [editing, setEditing] = useState(false);
+  const [replying, setReplying] = useState(false);
+
   return (
     <div className="flex flex-col gap-1">
       <p className="font-mono text-[10px] uppercase tracking-label text-dim">
         {comment.author.firstName} {comment.author.lastName} · {formatStamp(comment.createdAt)}
+        {comment.lastEditedAt ? ' · edited' : null}
         {comment.isResolved ? ' · Resolved' : null}
       </p>
-      <p className="font-sans text-[13px] leading-relaxed text-ink whitespace-pre-wrap">
-        {comment.body}
-      </p>
-      {canResolve || canDelete ? (
+      {editing ? (
+        <CommentComposer
+          initialBody={comment.body}
+          members={members}
+          isPending={false}
+          error={editError}
+          onSubmit={async (body, mentions) => {
+            await onEdit(body, mentions);
+            setEditing(false);
+          }}
+          onCancel={() => setEditing(false)}
+          submitLabel="Save"
+          testId="comment-edit-input"
+          submitTestId="comment-edit-submit"
+          autoFocus
+        />
+      ) : (
+        <CommentBody body={comment.body} />
+      )}
+      {!editing ? (
         <div className="flex items-center gap-3 pt-1">
           {canResolve ? (
             <button
               type="button"
-              onClick={onToggleResolved}
+              onClick={onToggleResolved ?? undefined}
               data-testid="comment-resolve"
               className="font-mono text-[10px] uppercase tracking-label text-dim hover:text-ink"
             >
               {comment.isResolved ? 'Reopen' : 'Resolve'}
+            </button>
+          ) : null}
+          {!readOnly && onSubmitReply ? (
+            <button
+              type="button"
+              onClick={() => setReplying((r) => !r)}
+              data-testid="comment-reply-toggle"
+              className="font-mono text-[10px] uppercase tracking-label text-dim hover:text-ink"
+            >
+              {replying ? 'Cancel' : 'Reply'}
+            </button>
+          ) : null}
+          {editable ? (
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              data-testid="comment-edit"
+              className="font-mono text-[10px] uppercase tracking-label text-dim hover:text-ink"
+            >
+              Edit
             </button>
           ) : null}
           {canDelete ? (
@@ -319,8 +439,210 @@ function CommentRow({
           ) : null}
         </div>
       ) : null}
+      {replying && onSubmitReply ? (
+        <div className="mt-2">
+          <CommentComposer
+            members={members}
+            isPending={false}
+            error={null}
+            onSubmit={async (body, mentions) => {
+              await onSubmitReply(body, mentions);
+              setReplying(false);
+            }}
+            onCancel={() => setReplying(false)}
+            placeholder="Reply…"
+            submitLabel="Reply"
+            testId="comment-reply-input"
+            submitTestId="comment-reply-submit"
+            autoFocus
+          />
+        </div>
+      ) : null}
     </div>
   );
+}
+
+interface CommentComposerProps {
+  initialBody?: string;
+  members: SafeUser[];
+  isPending: boolean;
+  error: AxiosError | null;
+  onSubmit: (body: string, mentions: string[]) => Promise<void>;
+  onCancel?: () => void;
+  placeholder?: string;
+  submitLabel: string;
+  testId: string;
+  submitTestId: string;
+  autoFocus?: boolean;
+}
+
+function CommentComposer({
+  initialBody = '',
+  members,
+  isPending,
+  error,
+  onSubmit,
+  onCancel,
+  placeholder = 'Add a comment…',
+  submitLabel,
+  testId,
+  submitTestId,
+  autoFocus,
+}: CommentComposerProps) {
+  const [body, setBody] = useState(initialBody);
+  const [mentions, setMentions] = useState<Set<string>>(new Set());
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (autoFocus) textareaRef.current?.focus();
+  }, [autoFocus]);
+
+  const onPickMention = (u: SafeUser) => {
+    const token = `@${u.firstName}`;
+    const ta = textareaRef.current;
+    const insertAt = ta?.selectionStart ?? body.length;
+    const before = body.slice(0, insertAt);
+    const after = body.slice(insertAt);
+    const sep = before.length > 0 && !before.endsWith(' ') ? ' ' : '';
+    const next = `${before}${sep}${token} ${after}`;
+    setBody(next);
+    setMentions((prev) => new Set(prev).add(u.id));
+    setPickerOpen(false);
+    queueMicrotask(() => textareaRef.current?.focus());
+  };
+
+  const trimmed = body.trim();
+  const canSubmit = trimmed.length > 0 && !isPending;
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!canSubmit) return;
+    try {
+      await onSubmit(trimmed, Array.from(mentions));
+      setBody('');
+      setMentions(new Set());
+    } catch {
+      // banner displays the error
+    }
+  };
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="border-t border-rule-soft bg-paper p-3 flex flex-col gap-2"
+    >
+      <textarea
+        ref={textareaRef}
+        value={body}
+        onChange={(e) => setBody(e.target.value)}
+        disabled={isPending}
+        rows={2}
+        maxLength={4000}
+        placeholder={placeholder}
+        data-testid={testId}
+        className="w-full border border-rule bg-paper-elevated px-3 py-2 font-sans text-[13px] text-ink placeholder:text-dim focus:border-ink focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+      />
+      {pickerOpen && members.length > 0 ? (
+        <ul
+          data-testid="mention-picker"
+          className="max-h-40 overflow-auto border border-rule bg-paper-elevated"
+        >
+          {members.map((u) => (
+            <li key={u.id}>
+              <button
+                type="button"
+                onClick={() => onPickMention(u)}
+                data-testid={`mention-pick-${u.id}`}
+                className="flex w-full items-baseline justify-between px-3 py-1 text-left font-sans text-[12px] text-ink hover:bg-paper"
+              >
+                <span>
+                  {u.firstName} {u.lastName}
+                </span>
+                <span className="font-mono text-[10px] uppercase tracking-label text-dim">
+                  {u.role}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {error ? (
+        <p
+          role="alert"
+          className="font-mono text-[10px] uppercase tracking-label text-mark-red"
+        >
+          {mapCommentEditError(error)}
+        </p>
+      ) : null}
+      <div className="flex items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={() => setPickerOpen((o) => !o)}
+          disabled={members.length === 0}
+          data-testid="mention-toggle"
+          className="border border-rule px-2 py-1 font-mono text-[10px] uppercase tracking-label text-dim hover:border-ink hover:text-ink disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {pickerOpen ? 'Close mentions' : 'Mention…'}
+        </button>
+        <div className="flex items-center gap-2">
+          {onCancel ? (
+            <button
+              type="button"
+              onClick={onCancel}
+              data-testid="composer-cancel"
+              className="font-mono text-[10px] uppercase tracking-label text-dim hover:text-ink"
+            >
+              Cancel
+            </button>
+          ) : null}
+          <button
+            type="submit"
+            disabled={!canSubmit}
+            data-testid={submitTestId}
+            className="border border-ink bg-ink px-3 py-1 font-mono text-[10px] uppercase tracking-label text-ink-inverse hover:bg-ink/90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isPending ? 'Posting…' : submitLabel}
+          </button>
+        </div>
+      </div>
+    </form>
+  );
+}
+
+const MENTION_TOKEN_RE = /(@\w[\w.\-]*)/g;
+
+function CommentBody({ body }: { body: string }) {
+  // Highlight any @token without trying to verify it resolves — the mention
+  // notifications already went through; this is purely visual.
+  const parts = body.split(MENTION_TOKEN_RE);
+  return (
+    <p className="font-sans text-[13px] leading-relaxed text-ink whitespace-pre-wrap">
+      {parts.map((part, i) =>
+        MENTION_TOKEN_RE.test(part) ? (
+          <span key={i} className="text-ink font-medium" data-testid="mention-token">
+            {part}
+          </span>
+        ) : (
+          <span key={i}>{part}</span>
+        ),
+      )}
+    </p>
+  );
+}
+
+function withinEditWindow(createdAtIso: string): boolean {
+  const t = Date.parse(createdAtIso);
+  if (!Number.isFinite(t)) return false;
+  return Date.now() - t < EDIT_WINDOW_MS;
+}
+
+function mapCommentEditError(err: AxiosError): string {
+  const code = backendErrorCode(err);
+  if (code === 'edit_window_expired') {
+    return 'The 15-minute edit window has passed.';
+  }
+  return backendErrorMessage(err, 'Could not post.');
 }
 
 // ─── Versions ─────────────────────────────────────────────────────────────

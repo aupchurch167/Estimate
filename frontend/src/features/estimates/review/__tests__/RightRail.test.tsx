@@ -131,12 +131,14 @@ function setupApi(opts: {
   comments?: unknown[];
   events?: unknown[];
   snapshots?: unknown[];
+  users?: unknown[];
   postReply?: () => Promise<{ data: unknown }> | { data: unknown };
   patchReply?: () => Promise<{ data: unknown }> | { data: unknown };
   deleteReply?: () => Promise<{ data: unknown }> | { data: unknown };
 } = {}) {
   mockedGet.mockImplementation((url: string) => {
     if (url === '/api/auth/me') return Promise.resolve({ data: meAs() });
+    if (url === '/api/users') return Promise.resolve({ data: { users: opts.users ?? [] } });
     if (url.endsWith('/comments')) return Promise.resolve({ data: { comments: opts.comments ?? [] } });
     if (url.endsWith('/activity')) return Promise.resolve({ data: { events: opts.events ?? [] } });
     if (url.endsWith('/snapshots')) return Promise.resolve({ data: { snapshots: opts.snapshots ?? [] } });
@@ -247,9 +249,10 @@ describe('RightRail — Comments tab', () => {
     await user.click(screen.getByTestId('comment-submit'));
 
     await waitFor(() => {
-      expect(mockedPost).toHaveBeenCalledWith('/api/estimates/e1/comments', {
-        body: 'Acknowledged.',
-      });
+      expect(mockedPost).toHaveBeenCalledWith(
+        '/api/estimates/e1/comments',
+        expect.objectContaining({ body: 'Acknowledged.' }),
+      );
     });
     expect((screen.getByTestId('comment-input') as HTMLTextAreaElement).value).toBe('');
   });
@@ -318,6 +321,231 @@ describe('RightRail — Comments tab', () => {
     expect(screen.queryByTestId('comment-input')).not.toBeInTheDocument();
     expect(screen.queryByTestId('comment-resolve')).not.toBeInTheDocument();
     expect(screen.queryByTestId('comment-delete')).not.toBeInTheDocument();
+  });
+});
+
+describe('RightRail — Comment threading + edits + mentions', () => {
+  const recentIso = new Date(Date.now() - 60 * 1000).toISOString();
+  const oldIso = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+
+  it('renders replies nested under their parent', async () => {
+    setupApi({
+      comments: [
+        {
+          id: 'p1',
+          estimateId: 'e1',
+          lineItemId: null,
+          parentCommentId: null,
+          body: 'Top-level',
+          isResolved: false,
+          resolvedById: null,
+          resolvedAt: null,
+          createdAt: oldIso,
+          lastEditedAt: null,
+          author: { id: 'u-other', firstName: 'Sam', lastName: 'P', email: 's@x' },
+        },
+        {
+          id: 'r1',
+          estimateId: 'e1',
+          lineItemId: null,
+          parentCommentId: 'p1',
+          body: 'A reply',
+          isResolved: false,
+          resolvedById: null,
+          resolvedAt: null,
+          createdAt: oldIso,
+          lastEditedAt: null,
+          author: { id: 'u1', firstName: 'Adam', lastName: 'Mark', email: 'a@b.c' },
+        },
+      ],
+    });
+    const user = userEvent.setup();
+    renderRail(buildEstimate());
+    await user.click(await screen.findByTestId('rail-tab-comments'));
+    await screen.findByText(/Top-level/);
+    expect(screen.getByText(/A reply/)).toBeInTheDocument();
+    expect(screen.getByTestId('comment-replies-p1')).toBeInTheDocument();
+  });
+
+  it('clicking Reply opens the reply form and submits with parentCommentId', async () => {
+    setupApi({
+      comments: [
+        {
+          id: 'p1',
+          estimateId: 'e1',
+          lineItemId: null,
+          parentCommentId: null,
+          body: 'Top',
+          isResolved: false,
+          resolvedById: null,
+          resolvedAt: null,
+          createdAt: oldIso,
+          lastEditedAt: null,
+          author: { id: 'u-other', firstName: 'Sam', lastName: 'P', email: 's@x' },
+        },
+      ],
+      postReply: async () => ({
+        data: {
+          comment: {
+            id: 'r1',
+            estimateId: 'e1',
+            lineItemId: null,
+            parentCommentId: 'p1',
+            body: 'On it',
+            isResolved: false,
+            resolvedById: null,
+            resolvedAt: null,
+            createdAt: recentIso,
+            lastEditedAt: null,
+            author: { id: 'u1', firstName: 'Adam', lastName: 'Mark', email: 'a@b.c' },
+          },
+        },
+      }),
+    });
+    const user = userEvent.setup();
+    renderRail(buildEstimate());
+    await user.click(await screen.findByTestId('rail-tab-comments'));
+    await user.click(await screen.findByTestId('comment-reply-toggle'));
+    await user.type(screen.getByTestId('comment-reply-input'), 'On it');
+    await user.click(screen.getByTestId('comment-reply-submit'));
+    await waitFor(() => {
+      expect(mockedPost).toHaveBeenCalledWith(
+        '/api/estimates/e1/comments',
+        expect.objectContaining({ body: 'On it', parentCommentId: 'p1' }),
+      );
+    });
+  });
+
+  it('shows Edit only on author comments within the 15-minute window; PATCH sends body', async () => {
+    setupApi({
+      comments: [
+        {
+          id: 'mine-recent',
+          estimateId: 'e1',
+          lineItemId: null,
+          parentCommentId: null,
+          body: 'My recent comment',
+          isResolved: false,
+          resolvedById: null,
+          resolvedAt: null,
+          createdAt: recentIso,
+          lastEditedAt: null,
+          author: { id: 'u1', firstName: 'Adam', lastName: 'Mark', email: 'a@b.c' },
+        },
+        {
+          id: 'mine-old',
+          estimateId: 'e1',
+          lineItemId: null,
+          parentCommentId: null,
+          body: 'My old comment',
+          isResolved: false,
+          resolvedById: null,
+          resolvedAt: null,
+          createdAt: oldIso,
+          lastEditedAt: null,
+          author: { id: 'u1', firstName: 'Adam', lastName: 'Mark', email: 'a@b.c' },
+        },
+        {
+          id: 'theirs',
+          estimateId: 'e1',
+          lineItemId: null,
+          parentCommentId: null,
+          body: 'Their comment',
+          isResolved: false,
+          resolvedById: null,
+          resolvedAt: null,
+          createdAt: recentIso,
+          lastEditedAt: null,
+          author: { id: 'u-other', firstName: 'Sam', lastName: 'P', email: 's@x' },
+        },
+      ],
+      patchReply: async () => ({
+        data: {
+          comment: {
+            id: 'mine-recent',
+            estimateId: 'e1',
+            lineItemId: null,
+            parentCommentId: null,
+            body: 'edited',
+            isResolved: false,
+            resolvedById: null,
+            resolvedAt: null,
+            createdAt: recentIso,
+            lastEditedAt: new Date().toISOString(),
+            author: { id: 'u1', firstName: 'Adam', lastName: 'Mark', email: 'a@b.c' },
+          },
+        },
+      }),
+    });
+    const user = userEvent.setup();
+    renderRail(buildEstimate());
+    await user.click(await screen.findByTestId('rail-tab-comments'));
+    // Only one Edit button should be visible (recent + mine).
+    await waitFor(() => {
+      expect(screen.getAllByTestId('comment-edit')).toHaveLength(1);
+    });
+    await user.click(screen.getByTestId('comment-edit'));
+    const ta = await screen.findByTestId('comment-edit-input');
+    await user.clear(ta);
+    await user.type(ta, 'edited');
+    await user.click(screen.getByTestId('comment-edit-submit'));
+    await waitFor(() => {
+      expect(mockedPatch).toHaveBeenCalledWith(
+        '/api/estimates/e1/comments/mine-recent',
+        expect.objectContaining({ body: 'edited' }),
+      );
+    });
+  });
+
+  it('mention picker injects @FirstName and submits mentions array', async () => {
+    setupApi({
+      users: [
+        {
+          id: 'u-other',
+          organizationId: 'o1',
+          email: 's@x',
+          firstName: 'Sam',
+          lastName: 'P',
+          role: 'ESTIMATOR',
+          isActive: true,
+        },
+      ],
+      postReply: async () => ({
+        data: {
+          comment: {
+            id: 'c-new',
+            estimateId: 'e1',
+            lineItemId: null,
+            parentCommentId: null,
+            body: '@Sam can you confirm?',
+            isResolved: false,
+            resolvedById: null,
+            resolvedAt: null,
+            createdAt: recentIso,
+            lastEditedAt: null,
+            author: { id: 'u1', firstName: 'Adam', lastName: 'Mark', email: 'a@b.c' },
+          },
+        },
+      }),
+    });
+    const user = userEvent.setup();
+    renderRail(buildEstimate());
+    await user.click(await screen.findByTestId('rail-tab-comments'));
+
+    // Open the picker, choose Sam.
+    await user.click(await screen.findByTestId('mention-toggle'));
+    await user.click(await screen.findByTestId('mention-pick-u-other'));
+    const ta = screen.getByTestId('comment-input') as HTMLTextAreaElement;
+    expect(ta.value).toMatch(/@Sam/);
+
+    await user.type(ta, 'can you confirm?');
+    await user.click(screen.getByTestId('comment-submit'));
+    await waitFor(() => {
+      expect(mockedPost).toHaveBeenCalledWith(
+        '/api/estimates/e1/comments',
+        expect.objectContaining({ mentions: ['u-other'] }),
+      );
+    });
   });
 });
 

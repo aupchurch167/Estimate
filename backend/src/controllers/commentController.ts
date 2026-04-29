@@ -27,10 +27,14 @@ function parse<T extends z.ZodTypeAny>(schema: T, value: unknown): z.infer<T> {
 const createBody = z.object({
   body: z.string().min(1).max(4000),
   lineItemId: z.string().min(1).nullable().optional(),
+  parentCommentId: z.string().min(1).nullable().optional(),
+  mentions: z.array(z.string().min(1)).max(50).optional(),
 });
 
 const patchBody = z.object({
-  isResolved: z.boolean(),
+  isResolved: z.boolean().optional(),
+  body: z.string().min(1).max(4000).optional(),
+  mentions: z.array(z.string().min(1)).max(50).optional(),
 });
 
 export async function listForEstimate(req: Request, res: Response): Promise<void> {
@@ -49,7 +53,12 @@ export async function createForEstimate(req: Request, res: Response): Promise<vo
     orgId,
     { id: user.id, role: user.role },
     String(req.params.id ?? ''),
-    { body: input.body, lineItemId: input.lineItemId ?? null },
+    {
+      body: input.body,
+      lineItemId: input.lineItemId ?? null,
+      parentCommentId: input.parentCommentId ?? null,
+      mentions: input.mentions,
+    },
   );
   res.status(201).json({ comment });
 }
@@ -57,12 +66,31 @@ export async function createForEstimate(req: Request, res: Response): Promise<vo
 export async function patchComment(req: Request, res: Response): Promise<void> {
   const { orgId, user } = actorFrom(req);
   const input = parse(patchBody, req.body ?? {});
-  const comment = await commentService.setResolved(
-    orgId,
-    { id: user.id, role: user.role },
-    String(req.params.commentId ?? ''),
-    input.isResolved,
-  );
+  const commentId = String(req.params.commentId ?? '');
+
+  // Body edits and resolve-toggle live on the same endpoint to keep the
+  // surface small. Body wins over isResolved if both are provided so a
+  // mistaken combo doesn't quietly drop the body.
+  let comment;
+  if (input.body !== undefined) {
+    comment = await commentService.updateBody(
+      orgId,
+      { id: user.id, role: user.role },
+      commentId,
+      { body: input.body, mentions: input.mentions },
+    );
+  } else if (input.isResolved !== undefined) {
+    comment = await commentService.setResolved(
+      orgId,
+      { id: user.id, role: user.role },
+      commentId,
+      input.isResolved,
+    );
+  } else {
+    throw new ValidationError('Provide either body or isResolved', {
+      issues: [{ path: '_root', message: 'Empty patch' }],
+    });
+  }
   ok(res, { comment });
 }
 

@@ -37,11 +37,13 @@ export interface Comment {
   id: string;
   estimateId: string;
   lineItemId: string | null;
+  parentCommentId: string | null;
   body: string;
   isResolved: boolean;
   resolvedById: string | null;
   resolvedAt: string | null;
   createdAt: string;
+  lastEditedAt: string | null;
   author: CommentAuthor;
 }
 

@@ -9,6 +9,7 @@
  */
 
 import { afterAll, describe, expect, it } from 'vitest';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma.js';
 import { signup as serviceSignup } from '../../services/authService.js';
 import { applyForRun } from '../conversationApplyService.js';
@@ -105,7 +106,7 @@ async function makeAskRun(opts: {
         assistantMessage: 'Sure thing',
         suggestedAction: 'none',
         proposedActions: opts.proposedActions,
-      },
+      } as Prisma.InputJsonValue,
       tokensInput: 50,
       tokensOutput: 30,
       costUsd: '0.001',

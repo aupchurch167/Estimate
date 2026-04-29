@@ -57,6 +57,8 @@ export function useActivity(estimateId: string | undefined) {
 interface CreateCommentInput {
   body: string;
   lineItemId?: string | null;
+  parentCommentId?: string | null;
+  mentions?: string[];
 }
 
 export function useCreateComment(estimateId: string) {
@@ -93,6 +95,26 @@ export function useResolveComment(estimateId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: commentsKey(estimateId) });
       qc.invalidateQueries({ queryKey: activityKey(estimateId) });
+    },
+  });
+}
+
+export function useEditComment(estimateId: string) {
+  const qc = useQueryClient();
+  return useMutation<
+    { comment: Comment },
+    AxiosError,
+    { commentId: string; body: string; mentions?: string[] }
+  >({
+    mutationFn: async ({ commentId, body, mentions }) => {
+      const res = await api.patch<{ comment: Comment }>(
+        `/api/estimates/${estimateId}/comments/${commentId}`,
+        { body, mentions },
+      );
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: commentsKey(estimateId) });
     },
   });
 }
