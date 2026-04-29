@@ -1,16 +1,26 @@
+import { Link } from 'react-router-dom';
 import { SignupForm } from '@/features/auth/SignupForm';
+import { Card } from '@/components/ui';
 
 export function SignupPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-paper p-6">
-      <div className="w-full max-w-[440px] border border-ink bg-paper-elevated p-8">
-        <header className="mb-6 border-b border-rule pb-4 text-center">
-          <h1 className="font-mono text-[14px] uppercase tracking-title text-ink">Quill</h1>
-          <p className="mt-2 font-mono text-[10px] uppercase tracking-label text-dim">
-            Create account
+    <div className="flex min-h-screen items-center justify-center bg-bg-secondary p-6">
+      <div className="w-full max-w-[480px]">
+        <div className="mb-6 text-center">
+          <h1 className="text-[28px] font-semibold tracking-tight text-text-primary">Quill</h1>
+          <p className="mt-2 text-[14px] text-text-secondary">
+            Create your organization to start drafting estimates.
           </p>
-        </header>
-        <SignupForm />
+        </div>
+        <Card spacious>
+          <SignupForm />
+        </Card>
+        <p className="mt-4 text-center text-[13px] text-text-secondary">
+          Already have an account?{' '}
+          <Link to="/login" className="font-medium text-primary hover:underline">
+            Sign in
+          </Link>
+        </p>
       </div>
     </div>
   );

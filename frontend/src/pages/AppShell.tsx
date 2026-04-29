@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuthContext } from '@/context/useAuthContext';
 import { useLogout } from '@/features/auth/useAuth';
 import { NotificationBell } from '@/features/notifications/NotificationBell';
@@ -7,6 +7,7 @@ import { RoleGate } from '@/components/RoleGate';
 import { ShortcutsModal } from '@/components/ShortcutsModal';
 import { useShortcut, useShortcutSequence } from '@/hooks/useShortcut';
 import { Dashboard } from '@/features/dashboard/Dashboard';
+import { Avatar, Button, TitleBlock } from '@/components/ui';
 
 export function AppShell() {
   const navigate = useNavigate();
@@ -25,82 +26,94 @@ export function AppShell() {
   };
 
   return (
-    <div className="min-h-screen bg-paper">
+    <div className="min-h-screen bg-bg-secondary">
       <a href="#main" className="skip-link">
         Skip to main content
       </a>
-      <header className="border-b-[1.5px] border-ink bg-paper">
-        <div className="mx-auto flex max-w-[1280px] items-stretch justify-between px-6">
-          <div className="flex items-center gap-6 py-4">
-            <span className="font-mono text-[16px] uppercase tracking-title text-ink">Quill</span>
+      <header className="sticky top-0 z-30 border-b border-border-primary bg-bg-primary">
+        <div className="mx-auto flex max-w-[1280px] items-center justify-between gap-6 px-6 py-3">
+          <div className="flex items-center gap-6">
+            <span className="text-[18px] font-semibold tracking-tight text-text-primary">
+              Quill
+            </span>
             {organization ? (
-              <span className="border-l border-rule-soft pl-6 font-mono text-[10px] uppercase tracking-label text-dim">
+              <span className="hidden border-l border-border-primary pl-6 text-[13px] text-text-secondary sm:block">
                 {organization.name}
               </span>
             ) : null}
           </div>
-          <div className="flex items-center gap-4 py-4">
-            <Link
-              to="/app/estimates"
-              className="font-mono text-[10px] uppercase tracking-label text-dim hover:text-ink"
-            >
-              Estimates
-            </Link>
+          <nav className="flex items-center gap-1">
+            <NavItem to="/app" end>
+              Dashboard
+            </NavItem>
+            <NavItem to="/app/estimates">Estimates</NavItem>
             <RoleGate allowedRoles={['OWNER', 'ADMIN']}>
-              <Link
-                to="/app/pricing"
-                className="font-mono text-[10px] uppercase tracking-label text-dim hover:text-ink"
-              >
-                Pricing
-              </Link>
-              <Link
-                to="/app/team"
-                className="font-mono text-[10px] uppercase tracking-label text-dim hover:text-ink"
-              >
-                Team
-              </Link>
-              <Link
-                to="/app/settings"
-                className="font-mono text-[10px] uppercase tracking-label text-dim hover:text-ink"
-              >
-                Settings
-              </Link>
+              <NavItem to="/app/pricing">Pricing</NavItem>
+              <NavItem to="/app/team">Team</NavItem>
+              <NavItem to="/app/settings">Settings</NavItem>
             </RoleGate>
+          </nav>
+          <div className="flex items-center gap-3">
             <NotificationBell />
             {user ? (
-              <Link
+              <NavLink
                 to="/app/account"
-                className="font-mono text-[10px] uppercase tracking-label text-dim hover:text-ink"
+                className="flex items-center gap-2 rounded-md px-2 py-1 text-[13px] text-text-secondary hover:bg-bg-tertiary hover:text-text-primary"
               >
-                {user.firstName} {user.lastName}
-                <span className="mx-2 text-rule-soft">·</span>
-                {user.role}
-              </Link>
+                <Avatar name={`${user.firstName} ${user.lastName}`} size="sm" src={user.avatarUrl} />
+                <span className="hidden sm:inline">
+                  {user.firstName} {user.lastName}
+                </span>
+              </NavLink>
             ) : null}
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={handleLogout}
-              disabled={logout.isPending}
-              className="border border-ink px-3 py-1 font-mono text-[10px] uppercase tracking-label text-ink transition hover:bg-ink hover:text-ink-inverse disabled:cursor-not-allowed disabled:opacity-60"
+              loading={logout.isPending}
             >
-              {logout.isPending ? 'Signing out…' : 'Sign out'}
-            </button>
+              Sign out
+            </Button>
           </div>
         </div>
       </header>
 
-      <main id="main" className="mx-auto max-w-[1280px] px-6 py-8" tabIndex={-1}>
-        <header className="mb-6">
-          <p className="font-mono text-[10px] uppercase tracking-label text-dim">
-            A · Dashboard
-          </p>
-          <h2 className="mt-1 font-sans text-[20px] text-ink">
-            {user ? `Welcome back, ${user.firstName}.` : 'Welcome to Quill.'}
-          </h2>
-        </header>
+      <main id="main" className="mx-auto max-w-[1280px] px-6 py-6" tabIndex={-1}>
+        <TitleBlock
+          title={user ? `Welcome back, ${user.firstName}.` : 'Welcome to Quill.'}
+          subtitle="Here's what's happening across your pipeline."
+          noBorder
+          className="mb-6 pb-0"
+        />
         <Dashboard />
       </main>
       <ShortcutsModal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
     </div>
+  );
+}
+
+function NavItem({
+  to,
+  end,
+  children,
+}: {
+  to: string;
+  end?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <NavLink
+      to={to}
+      end={end}
+      className={({ isActive }) =>
+        `rounded-md px-3 py-1.5 text-[14px] font-medium transition-colors duration-fast ${
+          isActive
+            ? 'bg-primary-light text-primary'
+            : 'text-text-secondary hover:bg-bg-tertiary hover:text-text-primary'
+        }`
+      }
+    >
+      {children}
+    </NavLink>
   );
 }

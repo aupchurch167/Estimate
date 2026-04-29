@@ -1,7 +1,15 @@
 import type { AxiosError } from 'axios';
 import { Link } from 'react-router-dom';
-import { ErrorState, SkeletonCard, SkeletonList } from '@/components/states';
-import { StatusStamp } from '@/features/estimates/StatusStamp';
+import {
+  Avatar,
+  Badge,
+  Card,
+  EmptyState,
+  Skeleton,
+  SkeletonCard,
+  SkeletonMetric,
+} from '@/components/ui';
+import { ErrorState } from '@/components/states';
 import type { EstimateStatus } from '@/features/estimates/types';
 import { useDashboard } from './useDashboard';
 import type {
@@ -14,8 +22,8 @@ import type {
 
 /**
  * Landing-page dashboard. Renders, top to bottom:
- *   1. Needs attention — consolidated list of items waiting on the viewer.
- *   2. Pipeline KPIs — 4 numeric tiles (active value, win rate, avg days, won this month).
+ *   1. Pipeline KPIs — 4 numeric tiles.
+ *   2. Needs Attention — consolidated list of items waiting on the viewer.
  *   3. Pipeline strip — counts per status with click-through.
  *   4. AI Usage — admin-only spend + cap + per-user breakdown.
  *   5. Recent activity — last 12 org-wide events.
@@ -26,14 +34,13 @@ export function Dashboard() {
   if (q.isLoading) {
     return (
       <div data-testid="dashboard-loading" className="flex flex-col gap-6">
-        <SkeletonCard rows={2} />
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <SkeletonCard rows={1} />
-          <SkeletonCard rows={1} />
-          <SkeletonCard rows={1} />
-          <SkeletonCard rows={1} />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <SkeletonMetric />
+          <SkeletonMetric />
+          <SkeletonMetric />
+          <SkeletonMetric />
         </div>
-        <SkeletonList rows={5} twoColumn />
+        <SkeletonCard rows={5} />
       </div>
     );
   }
@@ -51,95 +58,17 @@ export function Dashboard() {
 
   return (
     <div className="flex flex-col gap-6">
-      <NeedsAttentionPanel rows={needsAttention} />
       <PipelineKpiTiles pipeline={pipeline} />
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <div className="xl:col-span-2">
+          <NeedsAttentionPanel rows={needsAttention} />
+        </div>
+        <ActivityPanel rows={recentActivity} />
+      </div>
       <PipelineStrip pipeline={pipeline} />
       {aiUsage ? <AiUsageCard usage={aiUsage} /> : null}
-      <ActivityPanel rows={recentActivity} />
     </div>
   );
-}
-
-// ─── Needs attention ──────────────────────────────────────────────────────
-
-function NeedsAttentionPanel({ rows }: { rows: NeedsAttentionItem[] }) {
-  return (
-    <section
-      data-testid="dashboard-needs-attention"
-      className="border border-rule bg-paper-elevated"
-    >
-      <header className="border-b border-rule-soft px-4 py-3">
-        <p className="font-mono text-[10px] uppercase tracking-label text-dim">
-          Needs your attention
-        </p>
-      </header>
-      {rows.length === 0 ? (
-        <p className="p-4 font-mono text-[10px] uppercase tracking-label text-dim">
-          Nothing waiting on you.
-        </p>
-      ) : (
-        <ul className="flex flex-col">
-          {rows.map((r) => (
-            <li
-              key={r.id}
-              data-testid="needs-attention-row"
-              data-reason={r.reason}
-              className="border-b border-rule-soft last:border-b-0"
-            >
-              <Link
-                to={`/app/estimates/${r.id}`}
-                className="flex flex-col gap-1 px-4 py-3 hover:bg-paper sm:flex-row sm:items-baseline sm:justify-between sm:gap-4"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-baseline gap-3">
-                    <p className="font-mono text-[12px] tabular-nums text-ink">{r.number}</p>
-                    <StatusStamp status={r.status} />
-                    <p className="font-mono text-[10px] uppercase tracking-label text-dim">
-                      {ageLabel(r.ageDays)}
-                    </p>
-                  </div>
-                  <p className="mt-1 truncate font-sans text-[14px] text-ink">{r.title}</p>
-                  <p className="font-mono text-[10px] uppercase tracking-label text-dim">
-                    {r.clientCompanyName ?? 'No client'}
-                  </p>
-                </div>
-                <div className="flex items-baseline gap-3 sm:flex-col sm:items-end sm:gap-1">
-                  <span
-                    data-testid="needs-attention-cta"
-                    className="font-mono text-[10px] uppercase tracking-label text-ink"
-                  >
-                    {ctaLabel(r.reason)}
-                  </span>
-                  <span className="font-mono text-[12px] tabular-nums text-ink">
-                    {formatMoney(r.totalSellPrice)}
-                  </span>
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  );
-}
-
-function ctaLabel(reason: NeedsAttentionItem['reason']): string {
-  switch (reason) {
-    case 'my_revised':
-      return 'Revise & resubmit';
-    case 'awaiting_my_review':
-      return 'Review';
-    case 'my_draft':
-      return 'Continue drafting';
-    case 'stale_in_flight':
-      return 'Follow up';
-  }
-}
-
-function ageLabel(days: number): string {
-  if (days <= 0) return 'today';
-  if (days === 1) return '1d ago';
-  return `${days}d ago`;
 }
 
 // ─── Pipeline KPI tiles ───────────────────────────────────────────────────
@@ -176,23 +105,111 @@ function PipelineKpiTiles({ pipeline }: { pipeline: PipelineSummary }) {
   return (
     <section
       data-testid="dashboard-kpis"
-      className="grid grid-cols-1 gap-0 border border-rule bg-paper-elevated sm:grid-cols-2 lg:grid-cols-4"
+      className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
     >
-      {tiles.map((t, i) => (
-        <div
+      {tiles.map((t) => (
+        <Card
           key={t.label}
           data-testid={`dashboard-kpi-${t.label.toLowerCase().replace(/[^a-z]+/g, '-').replace(/^-|-$/g, '')}`}
-          className={`flex flex-col gap-2 border-b border-rule-soft px-4 py-3 last:border-b-0 ${
-            i < tiles.length - 1 ? 'lg:border-r' : ''
-          } sm:[&:nth-child(2n)]:border-r-0 sm:border-r sm:border-b lg:border-b-0`}
+          className="!border-border-primary"
         >
-          <p className="font-mono text-[10px] uppercase tracking-label text-dim">{t.label}</p>
-          <p className="font-mono text-[24px] tabular-nums text-ink">{t.value}</p>
-          <p className="font-mono text-[10px] uppercase tracking-label text-dim">{t.hint}</p>
-        </div>
+          <p className="text-[12px] font-medium uppercase tracking-[0.06em] text-text-secondary">
+            {t.label}
+          </p>
+          <p className="mt-2 text-[28px] font-semibold leading-9 tabular-nums text-text-primary">
+            {t.value}
+          </p>
+          <p className="mt-1 text-[12px] text-text-tertiary">{t.hint}</p>
+        </Card>
       ))}
     </section>
   );
+}
+
+// ─── Needs attention ──────────────────────────────────────────────────────
+
+function NeedsAttentionPanel({ rows }: { rows: NeedsAttentionItem[] }) {
+  if (rows.length === 0) {
+    return (
+      <Card title="Needs your attention">
+        <EmptyState
+          title="Nothing waiting on you"
+          description="When teammates submit work or your drafts go stale, they'll show up here."
+        />
+      </Card>
+    );
+  }
+  return (
+    <Card
+      title="Needs your attention"
+      data-testid="dashboard-needs-attention"
+      className="!p-0"
+    >
+      <ul className="-mx-5 -my-4">
+        {rows.map((r) => (
+          <li
+            key={r.id}
+            data-testid="needs-attention-row"
+            data-reason={r.reason}
+            className="border-b border-border-primary last:border-b-0"
+          >
+            <Link
+              to={`/app/estimates/${r.id}`}
+              className="flex items-center gap-4 px-5 py-3 transition-colors duration-fast hover:bg-bg-tertiary"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-3">
+                  <p className="font-mono text-[12px] tabular-nums text-text-secondary">
+                    {r.number}
+                  </p>
+                  <Badge status={r.status} size="sm">
+                    {r.status.replace('_', ' ')}
+                  </Badge>
+                  <p className="text-[12px] text-text-tertiary">{ageLabel(r.ageDays)}</p>
+                </div>
+                <p className="mt-1 truncate text-[14px] font-medium text-text-primary">
+                  {r.title}
+                </p>
+                <p className="text-[12px] text-text-tertiary">
+                  {r.clientCompanyName ?? 'No client'}
+                </p>
+              </div>
+              <div className="flex flex-col items-end gap-1">
+                <span
+                  data-testid="needs-attention-cta"
+                  className="text-[12px] font-medium text-primary"
+                >
+                  {ctaLabel(r.reason)} →
+                </span>
+                <span className="font-mono text-[13px] tabular-nums text-text-primary">
+                  {formatMoney(r.totalSellPrice)}
+                </span>
+              </div>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
+function ctaLabel(reason: NeedsAttentionItem['reason']): string {
+  switch (reason) {
+    case 'my_revised':
+      return 'Revise & resubmit';
+    case 'awaiting_my_review':
+      return 'Review';
+    case 'my_draft':
+      return 'Continue drafting';
+    case 'stale_in_flight':
+      return 'Follow up';
+  }
+}
+
+function ageLabel(days: number): string {
+  if (days <= 0) return 'today';
+  if (days === 1) return '1d ago';
+  return `${days}d ago`;
 }
 
 // ─── Pipeline strip ───────────────────────────────────────────────────────
@@ -208,37 +225,34 @@ function PipelineStrip({ pipeline }: { pipeline: PipelineSummary }) {
     { label: 'Lost', status: 'LOST', value: pipeline.counts.LOST },
   ];
   return (
-    <section
+    <Card
       data-testid="dashboard-pipeline"
-      className="border border-rule bg-paper-elevated"
-    >
-      <header className="border-b border-rule-soft px-4 py-3">
-        <p className="font-mono text-[10px] uppercase tracking-label text-dim">
-          Pipeline
-        </p>
-        <p className="mt-1 font-mono text-[12px] tabular-nums text-ink">
+      title="Pipeline"
+      actions={
+        <p className="text-[12px] tabular-nums text-text-secondary">
           {formatMoney(pipeline.totalApprovedSellPrice)} approved ·{' '}
           {formatMoney(pipeline.totalSentSellPrice)} sent ·{' '}
-          {formatMoney(pipeline.wonThisMonthSellPrice)} won this month (
-          {pipeline.wonThisMonthCount})
+          {formatMoney(pipeline.wonThisMonthSellPrice)} won this month
         </p>
-      </header>
-      <div className="grid grid-cols-2 gap-0 sm:grid-cols-4 lg:grid-cols-7">
+      }
+      className="!p-0"
+    >
+      <div className="grid grid-cols-2 gap-px bg-border-primary sm:grid-cols-4 lg:grid-cols-7">
         {cells.map((c) => (
           <Link
             key={c.label}
             to={c.status ? `/app/estimates?status=${c.status}` : '/app/estimates'}
             data-testid={`pipeline-cell-${c.status ?? 'all'}`}
-            className="flex flex-col items-start gap-2 border-b border-rule-soft px-4 py-3 last:border-b-0 hover:bg-paper sm:border-r sm:[&:nth-child(4)]:border-r-0 lg:[&:nth-child(4)]:border-r lg:[&:nth-child(7)]:border-r-0"
+            className="flex flex-col gap-1 bg-bg-primary px-4 py-4 transition-colors duration-fast hover:bg-bg-tertiary"
           >
-            <p className="font-mono text-[10px] uppercase tracking-label text-dim">
+            <p className="text-[12px] font-medium uppercase tracking-[0.06em] text-text-secondary">
               {c.label}
             </p>
-            <p className="font-mono text-[24px] tabular-nums text-ink">{c.value}</p>
+            <p className="text-[24px] font-semibold tabular-nums text-text-primary">{c.value}</p>
           </Link>
         ))}
       </div>
-    </section>
+    </Card>
   );
 }
 
@@ -249,106 +263,115 @@ function AiUsageCard({ usage }: { usage: AiUsagePayload }) {
   const mtd = Number(usage.monthToDateUsd);
   const pct = cap && cap > 0 ? Math.min(1, mtd / cap) : null;
   const top = [...usage.byUser].sort((a, b) => Number(b.costUsd) - Number(a.costUsd)).slice(0, 5);
+  const barColor =
+    pct === null ? '' : pct >= 0.9 ? 'bg-danger' : pct >= 0.7 ? 'bg-warning' : 'bg-primary';
+
   return (
-    <section
+    <Card
       data-testid="dashboard-ai-usage"
-      className="border border-rule bg-paper-elevated"
-    >
-      <header className="border-b border-rule-soft px-4 py-3">
-        <p className="font-mono text-[10px] uppercase tracking-label text-dim">
-          AI usage · this month
-        </p>
-        <p className="mt-1 font-mono text-[12px] tabular-nums text-ink">
+      title="AI usage · this month"
+      actions={
+        <p className="text-[12px] tabular-nums text-text-secondary">
           {formatMoney(usage.monthToDateUsd)} spent
           {cap !== null
-            ? ` of ${formatMoney(usage.capUsd ?? '0')} cap${pct !== null ? ` · ${Math.round(pct * 100)}%` : ''}`
+            ? ` of ${formatMoney(usage.capUsd ?? '0')} cap${
+                pct !== null ? ` · ${Math.round(pct * 100)}%` : ''
+              }`
             : ' · no cap set'}{' '}
           · {usage.monthToDateRunCount} runs
         </p>
-      </header>
+      }
+    >
       {pct !== null ? (
-        <div className="mx-4 mt-3 h-1 w-[calc(100%-2rem)] bg-rule-soft">
+        <div className="mb-4 h-1.5 w-full overflow-hidden rounded-full bg-bg-tertiary">
           <div
             data-testid="ai-usage-bar"
             data-pct={Math.round(pct * 100)}
             style={{ width: `${pct * 100}%` }}
-            className={`h-1 ${pct >= 0.9 ? 'bg-mark-red' : pct >= 0.7 ? 'bg-mark-amber' : 'bg-ink'}`}
+            className={`h-full transition-all duration-slow ${barColor}`}
           />
         </div>
       ) : null}
       {top.length === 0 ? (
-        <p className="p-4 font-mono text-[10px] uppercase tracking-label text-dim">
-          No AI runs this month.
-        </p>
+        <p className="text-[13px] text-text-tertiary">No AI runs this month.</p>
       ) : (
         <ul className="flex flex-col">
           {top.map((u) => (
             <li
               key={u.userId}
               data-testid="ai-usage-user-row"
-              className="flex items-baseline justify-between gap-2 border-b border-rule-soft px-4 py-2 last:border-b-0"
+              className="flex items-center justify-between gap-3 border-b border-border-primary py-2 last:border-b-0"
             >
-              <p className="truncate font-sans text-[13px] text-ink">
-                {`${u.firstName} ${u.lastName}`.trim() || u.email}
-              </p>
-              <p className="font-mono text-[12px] tabular-nums text-dim">
+              <div className="flex min-w-0 items-center gap-3">
+                <Avatar name={`${u.firstName} ${u.lastName}`} size="sm" />
+                <p className="truncate text-[13px] text-text-primary">
+                  {`${u.firstName} ${u.lastName}`.trim() || u.email}
+                </p>
+              </div>
+              <p className="text-[12px] tabular-nums text-text-secondary">
                 {u.runCount} {u.runCount === 1 ? 'run' : 'runs'} ·{' '}
-                <span className="text-ink">{formatMoney(u.costUsd)}</span>
+                <span className="text-text-primary font-medium">{formatMoney(u.costUsd)}</span>
               </p>
             </li>
           ))}
         </ul>
       )}
-    </section>
+    </Card>
   );
 }
 
 // ─── Activity panel ───────────────────────────────────────────────────────
 
 function ActivityPanel({ rows }: { rows: DashboardActivityRow[] }) {
+  if (rows.length === 0) {
+    return (
+      <Card title="Recent activity">
+        <p className="text-[13px] text-text-tertiary">No activity yet.</p>
+      </Card>
+    );
+  }
   return (
-    <section className="flex flex-col border border-rule bg-paper-elevated">
-      <header className="border-b border-rule-soft px-4 py-3">
-        <p className="font-mono text-[10px] uppercase tracking-label text-dim">
-          Recent activity
-        </p>
-      </header>
-      {rows.length === 0 ? (
-        <p className="p-4 font-mono text-[10px] uppercase tracking-label text-dim">
-          No activity yet.
-        </p>
-      ) : (
-        <ul className="flex flex-col">
-          {rows.map((a) => (
-            <li
-              key={a.id}
-              data-testid="dashboard-activity-row"
-              className="border-b border-rule-soft last:border-b-0 px-4 py-3"
-            >
-              <p className="font-mono text-[10px] uppercase tracking-label text-dim">
-                {a.actor
-                  ? `${a.actor.firstName} ${a.actor.lastName}`.trim()
-                  : 'System'}{' '}
-                · {formatStamp(a.createdAt)}
-                {a.estimate ? (
-                  <>
-                    {' '}
-                    ·{' '}
-                    <Link
-                      to={`/app/estimates/${a.estimate.id}`}
-                      className="text-ink hover:underline"
-                    >
-                      {a.estimate.number}
-                    </Link>
-                  </>
-                ) : null}
-              </p>
-              <p className="mt-1 font-sans text-[12px] text-ink">{a.summary}</p>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
+    <Card title="Recent activity" className="!p-0">
+      <ul className="-mx-5 -my-4">
+        {rows.map((a) => (
+          <li
+            key={a.id}
+            data-testid="dashboard-activity-row"
+            className="border-b border-border-primary px-5 py-3 last:border-b-0"
+          >
+            <div className="flex items-start gap-3">
+              <Avatar
+                name={a.actor ? `${a.actor.firstName} ${a.actor.lastName}` : 'System'}
+                size="sm"
+              />
+              <div className="min-w-0 flex-1">
+                <p className="text-[13px] text-text-primary">
+                  <span className="font-medium">
+                    {a.actor ? `${a.actor.firstName} ${a.actor.lastName}`.trim() : 'System'}
+                  </span>{' '}
+                  <span className="text-text-secondary">{a.summary}</span>
+                </p>
+                <p className="mt-1 text-[12px] text-text-tertiary">
+                  {formatStamp(a.createdAt)}
+                  {a.estimate ? (
+                    <>
+                      {' '}
+                      ·{' '}
+                      <Link
+                        to={`/app/estimates/${a.estimate.id}`}
+                        className="font-medium text-primary hover:underline"
+                      >
+                        {a.estimate.number}
+                      </Link>
+                    </>
+                  ) : null}
+                </p>
+              </div>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </Card>
   );
 }
 
@@ -371,6 +394,8 @@ function formatStamp(iso: string): string {
   const time = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
   return `${date} · ${time}`;
 }
+
+void Skeleton;
 
 // `DashboardEstimateRow` is exported via types.ts but not used in this file.
 // Suppress unused-import noise without removing the symbol from the module.

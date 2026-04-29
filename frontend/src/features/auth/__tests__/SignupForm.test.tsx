@@ -119,7 +119,9 @@ describe('SignupForm', () => {
     await user.click(screen.getByRole('button', { name: /create account/i }));
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /creating account/i })).toBeDisabled();
+      const submit = screen.getByRole('button', { name: /create account/i });
+      expect(submit).toBeDisabled();
+      expect(screen.getByTestId('button-spinner')).toBeInTheDocument();
     });
 
     resolve({ data: { user: { email: 'adam@example.com' }, organization: {}, settings: {} } });

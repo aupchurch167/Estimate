@@ -106,7 +106,11 @@ describe('LoginForm', () => {
     await user.click(screen.getByRole('button', { name: /sign in/i }));
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /signing in/i })).toBeDisabled();
+      // The Button primitive swaps the label for a spinner while loading;
+      // it stays disabled until the promise resolves.
+      const submit = screen.getByRole('button', { name: /sign in/i });
+      expect(submit).toBeDisabled();
+      expect(screen.getByTestId('button-spinner')).toBeInTheDocument();
     });
 
     resolve({ data: { user: { email: 'adam@example.com' } } });

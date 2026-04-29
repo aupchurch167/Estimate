@@ -1,10 +1,10 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import type { AxiosError } from 'axios';
 import { backendErrorCode, backendErrorMessage, useSignup } from './useAuth';
-import { Field, inputClass } from './Field';
+import { Button, Input } from '@/components/ui';
 
 const schema = z.object({
   companyName: z.string().min(1, 'Company name is required').max(120),
@@ -61,87 +61,64 @@ export function SignupForm() {
   const busy = isSubmitting || signup.isPending;
 
   return (
-    <form noValidate onSubmit={onSubmit} className="flex flex-col gap-6">
+    <form noValidate onSubmit={onSubmit} className="flex flex-col gap-4">
       {banner ? (
         <div
           role="alert"
-          className="border border-mark-red/60 bg-paper-elevated px-4 py-3 font-mono text-[11px] uppercase tracking-label text-mark-red"
+          className="rounded-md border border-danger/30 bg-danger-light px-3 py-2 text-[13px] text-danger"
         >
           {banner}
         </div>
       ) : null}
 
-      <Field label="Company Name" htmlFor="companyName" error={errors.companyName?.message}>
-        <input
-          id="companyName"
-          type="text"
-          autoComplete="organization"
-          autoFocus
-          aria-invalid={errors.companyName ? 'true' : 'false'}
-          className={inputClass}
-          {...register('companyName')}
-        />
-      </Field>
+      <Input
+        label="Company name"
+        autoComplete="organization"
+        autoFocus
+        error={errors.companyName?.message}
+        required
+        {...register('companyName')}
+      />
 
-      <div className="grid grid-cols-2 gap-4">
-        <Field label="First Name" htmlFor="firstName" error={errors.firstName?.message}>
-          <input
-            id="firstName"
-            type="text"
-            autoComplete="given-name"
-            aria-invalid={errors.firstName ? 'true' : 'false'}
-            className={inputClass}
-            {...register('firstName')}
-          />
-        </Field>
-        <Field label="Last Name" htmlFor="lastName" error={errors.lastName?.message}>
-          <input
-            id="lastName"
-            type="text"
-            autoComplete="family-name"
-            aria-invalid={errors.lastName ? 'true' : 'false'}
-            className={inputClass}
-            {...register('lastName')}
-          />
-        </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Input
+          label="First name"
+          autoComplete="given-name"
+          error={errors.firstName?.message}
+          required
+          {...register('firstName')}
+        />
+        <Input
+          label="Last name"
+          autoComplete="family-name"
+          error={errors.lastName?.message}
+          required
+          {...register('lastName')}
+        />
       </div>
 
-      <Field label="Email" htmlFor="email" error={errors.email?.message}>
-        <input
-          id="email"
-          type="email"
-          autoComplete="email"
-          aria-invalid={errors.email ? 'true' : 'false'}
-          className={inputClass}
-          {...register('email')}
-        />
-      </Field>
+      <Input
+        label="Email"
+        type="email"
+        autoComplete="email"
+        error={errors.email?.message}
+        required
+        {...register('email')}
+      />
 
-      <Field label="Password" htmlFor="password" error={errors.password?.message}>
-        <input
-          id="password"
-          type="password"
-          autoComplete="new-password"
-          aria-invalid={errors.password ? 'true' : 'false'}
-          className={inputClass}
-          {...register('password')}
-        />
-      </Field>
+      <Input
+        label="Password"
+        type="password"
+        autoComplete="new-password"
+        helpText="At least 8 characters."
+        error={errors.password?.message}
+        required
+        {...register('password')}
+      />
 
-      <button
-        type="submit"
-        disabled={busy}
-        className="mt-2 border border-ink bg-ink py-3 font-mono text-[11px] uppercase tracking-label text-ink-inverse transition hover:bg-ink/90 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {busy ? 'Creating account…' : 'Create account'}
-      </button>
-
-      <div className="border-t border-rule-soft pt-4 text-center font-mono text-[10px] uppercase tracking-label text-dim">
-        Already have an account?{' '}
-        <Link to="/login" className="text-ink underline-offset-2 hover:underline">
-          Sign in →
-        </Link>
-      </div>
+      <Button type="submit" loading={busy} fullWidth size="lg" className="mt-2">
+        Create account
+      </Button>
     </form>
   );
 }

@@ -1,10 +1,10 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import type { AxiosError } from 'axios';
 import { backendErrorCode, backendErrorMessage, useLogin } from './useAuth';
-import { Field, inputClass } from './Field';
+import { Button, Input } from '@/components/ui';
 
 const schema = z.object({
   email: z.string().email('Enter a valid email'),
@@ -52,53 +52,38 @@ export function LoginForm() {
   const busy = isSubmitting || login.isPending;
 
   return (
-    <form noValidate onSubmit={onSubmit} className="flex flex-col gap-6">
+    <form noValidate onSubmit={onSubmit} className="flex flex-col gap-4">
       {banner ? (
         <div
           role="alert"
-          className="border border-mark-red/60 bg-paper-elevated px-4 py-3 font-mono text-[11px] uppercase tracking-label text-mark-red"
+          className="rounded-md border border-danger/30 bg-danger-light px-3 py-2 text-[13px] text-danger"
         >
           {banner}
         </div>
       ) : null}
 
-      <Field label="Email" htmlFor="email" error={errors.email?.message}>
-        <input
-          id="email"
-          type="email"
-          autoComplete="email"
-          autoFocus
-          aria-invalid={errors.email ? 'true' : 'false'}
-          className={inputClass}
-          {...register('email')}
-        />
-      </Field>
+      <Input
+        label="Email"
+        type="email"
+        autoComplete="email"
+        autoFocus
+        error={errors.email?.message}
+        required
+        {...register('email')}
+      />
 
-      <Field label="Password" htmlFor="password" error={errors.password?.message}>
-        <input
-          id="password"
-          type="password"
-          autoComplete="current-password"
-          aria-invalid={errors.password ? 'true' : 'false'}
-          className={inputClass}
-          {...register('password')}
-        />
-      </Field>
+      <Input
+        label="Password"
+        type="password"
+        autoComplete="current-password"
+        error={errors.password?.message}
+        required
+        {...register('password')}
+      />
 
-      <button
-        type="submit"
-        disabled={busy}
-        className="mt-2 border border-ink bg-ink py-3 font-mono text-[11px] uppercase tracking-label text-ink-inverse transition hover:bg-ink/90 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {busy ? 'Signing in…' : 'Sign in'}
-      </button>
-
-      <div className="border-t border-rule-soft pt-4 text-center font-mono text-[10px] uppercase tracking-label text-dim">
-        New here?{' '}
-        <Link to="/signup" className="text-ink underline-offset-2 hover:underline">
-          Create an account →
-        </Link>
-      </div>
+      <Button type="submit" loading={busy} fullWidth size="lg">
+        Sign in
+      </Button>
     </form>
   );
 }
