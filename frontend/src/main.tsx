@@ -1,5 +1,7 @@
 import './lib/env';
 import { StrictMode } from 'react';
+import * as React from 'react';
+import * as ReactDOM from 'react-dom';
 import { createRoot } from 'react-dom/client';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
@@ -8,6 +10,16 @@ import App from './App';
 import { queryClient } from './lib/queryClient';
 import { AuthProvider } from './context/AuthContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
+
+// Accessibility audit (Phase 8.4) — load @axe-core/react in dev only.
+// It runs after every render and logs WCAG-A/AA violations to the
+// console with a stack trace pointing at the offending element. Zero
+// runtime cost in production builds (Vite dead-strips the import).
+if (import.meta.env.DEV) {
+  void import('@axe-core/react').then(({ default: axe }) => {
+    axe(React, ReactDOM, 1000);
+  });
+}
 
 const root = document.getElementById('root');
 if (!root) {

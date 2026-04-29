@@ -26,6 +26,9 @@ export function AppShell() {
 
   return (
     <div className="min-h-screen bg-paper">
+      <a href="#main" className="skip-link">
+        Skip to main content
+      </a>
       <header className="border-b-[1.5px] border-ink bg-paper">
         <div className="mx-auto flex max-w-[1280px] items-stretch justify-between px-6">
           <div className="flex items-center gap-6 py-4">
@@ -86,7 +89,7 @@ export function AppShell() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1280px] px-6 py-8">
+      <main id="main" className="mx-auto max-w-[1280px] px-6 py-8" tabIndex={-1}>
         <header className="mb-6">
           <p className="font-mono text-[10px] uppercase tracking-label text-dim">
             A · Dashboard

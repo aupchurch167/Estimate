@@ -18,3 +18,60 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/*
+ * Accessibility — global keyboard-only focus ring (Phase 8.4).
+ *
+ * Many components historically used `focus:outline-none` to remove the
+ * browser default. We restore an ink-dark ring that's only visible
+ * when navigating via keyboard (`:focus-visible`), so mouse interaction
+ * stays clean while keyboard users always see where they are.
+ *
+ * Skip applying to body/html themselves (they should never look
+ * focused) but cover every interactive element that received the
+ * Tailwind `focus:outline-none` utility.
+ */
+*:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+/*
+ * Skip link target for keyboard users — `#main` lives on the AppShell
+ * <main>, and the .skip-link helper renders only when focused.
+ */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+.skip-link:focus {
+  position: fixed;
+  left: 1rem;
+  top: 1rem;
+  width: auto;
+  height: auto;
+  z-index: 100;
+  padding: 0.5rem 0.75rem;
+  background-color: var(--color-ink);
+  color: var(--color-ink-inverse);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-decoration: none;
+  border: 2px solid var(--color-ink);
+}
