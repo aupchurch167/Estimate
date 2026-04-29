@@ -9,6 +9,7 @@ import { WorkflowSection } from '@/features/settings/WorkflowSection';
 import { AISection } from '@/features/settings/AISection';
 import { AiUsageSection } from '@/features/settings/AiUsageSection';
 import { DefaultsSection } from '@/features/settings/DefaultsSection';
+import { DangerZoneSection } from '@/features/settings/DangerZoneSection';
 import { useOrganization } from '@/features/settings/useOrganization';
 
 export function SettingsPage() {
@@ -131,6 +132,7 @@ export function SettingsPage() {
         <AISection settings={settings} />
         <AiUsageSection />
         <DefaultsSection settings={settings} />
+        <DangerZoneSection organization={org} />
       </main>
     </div>
   );

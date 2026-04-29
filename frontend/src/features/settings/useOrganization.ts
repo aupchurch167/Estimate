@@ -92,3 +92,19 @@ export function useSignLogoUpload() {
     },
   });
 }
+
+export interface DeleteOrgResult {
+  id: string;
+  deletedAt: string;
+}
+
+export function useDeleteOrganization() {
+  return useMutation<DeleteOrgResult, AxiosError, { confirmName: string }>({
+    mutationFn: async (input) => {
+      const res = await api.delete<DeleteOrgResult>('/api/organizations/current', {
+        data: input,
+      });
+      return res.data;
+    },
+  });
+}

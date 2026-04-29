@@ -266,16 +266,7 @@ describe('Admin user management routes (Phase 7.1)', () => {
     // for them to target so the failure isn't tied to self-rejection.
     const { owner: targetOwner } = await bootstrap();
     void targetOwner;
-
-    // Reset member's password via prisma so login works.
-    await prisma.user.update({
-      where: { id: member.id },
-      data: { passwordHash: (await import('../../services/authService.js')).hashPassword
-        ? await (await import('../../services/authService.js')).hashPassword(PASSWORD)
-        : '' },
-    });
-    // Easier path: log in as member with their original credentials.
-    // Their email was set above; password is PASSWORD.
+    // member was created via signup with PASSWORD, so we can log in directly.
     const agent = request.agent(app);
     await agent.post('/api/auth/login').send({ email: member.email, password: PASSWORD }).expect(200);
     const res = await agent.patch(`/api/users/${member.id}/role`).send({ role: 'PM' });

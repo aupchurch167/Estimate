@@ -28,6 +28,9 @@ async function attachAuth(req: Request, _res: Response, next: NextFunction): Pro
     throw new AuthError('Not authenticated', 'not_authenticated');
   }
   const { organization, ...user } = userWithOrg;
+  if (organization.deletedAt) {
+    throw new AuthError('Organization deleted', 'org_deleted');
+  }
   const { settings, ...org } = organization;
   if (!settings) {
     throw new AuthError('Org settings missing', 'org_settings_missing');

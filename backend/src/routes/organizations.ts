@@ -34,3 +34,10 @@ organizationsRouter.post(
   requireRole('OWNER', 'ADMIN'),
   asyncHandler(controller.signLogoUpload),
 );
+
+// Danger Zone (Phase 7.2). OWNER-only — the service double-checks.
+organizationsRouter.delete(
+  '/current',
+  requireRole('OWNER'),
+  asyncHandler(controller.deleteOrganization),
+);

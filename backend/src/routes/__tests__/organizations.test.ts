@@ -232,3 +232,62 @@ describe('POST /api/organizations/current/logo', () => {
     expect(res.status).toBe(403);
   });
 });
+
+describe('DELETE /api/organizations/current — Danger Zone', () => {
+  it('OWNER can delete with matching confirmName; org gets deletedAt; member sessions invalidated', async () => {
+    const { user, organization } = await makeOwner();
+    const agent = await loginAs(user.email);
+    const res = await agent
+      .delete('/api/organizations/current')
+      .send({ confirmName: organization.name });
+    expect(res.status).toBe(200);
+    expect(res.body.id).toBe(organization.id);
+
+    const fresh = await prisma.organization.findUniqueOrThrow({
+      where: { id: organization.id },
+    });
+    expect(fresh.deletedAt).toBeInstanceOf(Date);
+
+    // Subsequent request through requireAuth should now 401 because the
+    // org is soft-deleted.
+    const after = await agent.get('/api/organizations/current');
+    expect(after.status).toBe(401);
+  });
+
+  it('rejects with 409 + org_name_mismatch when confirmName is wrong', async () => {
+    const { user, organization } = await makeOwner();
+    const agent = await loginAs(user.email);
+    const res = await agent
+      .delete('/api/organizations/current')
+      .send({ confirmName: `${organization.name}-wrong` });
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('org_name_mismatch');
+
+    const fresh = await prisma.organization.findUniqueOrThrow({
+      where: { id: organization.id },
+    });
+    expect(fresh.deletedAt).toBeNull();
+  });
+
+  it('returns 403 for ADMIN (only OWNER can delete)', async () => {
+    const { organization } = await makeOwner();
+    counter += 1;
+    const adminSignup = await serviceSignup({
+      companyName: `Adm-Del-${counter}-${RUN_ID}`,
+      email: `adel-${counter}-${RUN_ID}@example.test`,
+      password: PASSWORD,
+      firstName: 'A',
+      lastName: 'D',
+    });
+    orgIds.add(adminSignup.organization.id);
+    const admin = await prisma.user.update({
+      where: { id: adminSignup.user.id },
+      data: { organizationId: organization.id, role: 'ADMIN' },
+    });
+    const agent = await loginAs(admin.email);
+    const res = await agent
+      .delete('/api/organizations/current')
+      .send({ confirmName: organization.name });
+    expect(res.status).toBe(403);
+  });
+});

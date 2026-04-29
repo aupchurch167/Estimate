@@ -162,3 +162,20 @@ export async function signLogoUpload(req: Request, res: Response): Promise<void>
   });
   ok(res, signed);
 }
+
+const deleteOrgBody = z.object({
+  confirmName: z.string().min(1).max(120),
+});
+
+export async function deleteOrganization(req: Request, res: Response): Promise<void> {
+  if (!req.user || !req.organization) {
+    throw new ForbiddenError('Not authenticated');
+  }
+  const input = parse(deleteOrgBody, req.body);
+  const result = await orgService.softDeleteOrg(
+    { id: req.user.id, role: req.user.role },
+    req.organization.id,
+    input.confirmName,
+  );
+  ok(res, result);
+}

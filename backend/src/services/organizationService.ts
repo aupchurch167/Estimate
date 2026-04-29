@@ -7,10 +7,15 @@
  */
 
 import { randomBytes } from 'node:crypto';
-import type { Organization, OrgSettings, Prisma } from '@prisma/client';
+import type { Organization, OrgSettings, Prisma, UserRole } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { generateSignedUploadUrl, type SignedUploadResult } from '../lib/spaces.js';
-import { NotFoundError, ValidationError } from '../lib/errors.js';
+import {
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+  ValidationError,
+} from '../lib/errors.js';
 
 const ALLOWED_LOGO_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml']);
 const MAX_LOGO_BYTES = 5 * 1024 * 1024; // 5 MB
@@ -122,4 +127,55 @@ function mimeToExt(mime: string): string {
     default:
       return 'bin';
   }
+}
+
+// ─── Danger Zone (Phase 7.2) ──────────────────────────────────────────────
+
+export interface DangerZoneActor {
+  id: string;
+  role: UserRole;
+}
+
+/**
+ * Soft-delete the organization. OWNER-only. Triple confirmation lives on
+ * the frontend; the backend takes a `confirmName` parameter that must
+ * match the organization's name exactly so an accidental fetch can't
+ * destroy state.
+ *
+ * Sets `deletedAt` on the org and bumps tokenVersion on every active
+ * user so existing sessions are invalidated and future logins are gated
+ * by middleware that checks the org's deletedAt.
+ */
+export async function softDeleteOrg(
+  actor: DangerZoneActor,
+  organizationId: string,
+  confirmName: string,
+): Promise<{ id: string; deletedAt: Date }> {
+  if (actor.role !== 'OWNER') {
+    throw new ForbiddenError('Only the OWNER can delete the organization');
+  }
+  const org = await prisma.organization.findFirst({
+    where: { id: organizationId, deletedAt: null },
+  });
+  if (!org) throw new NotFoundError('Organization', organizationId);
+  if (confirmName.trim() !== org.name) {
+    throw new ConflictError(
+      'Organization name confirmation does not match',
+      'org_name_mismatch',
+    );
+  }
+
+  const now = new Date();
+  await prisma.$transaction(async (tx) => {
+    await tx.organization.update({
+      where: { id: organizationId },
+      data: { deletedAt: now },
+    });
+    // Kick every member out of any current session.
+    await tx.user.updateMany({
+      where: { organizationId, deletedAt: null },
+      data: { tokenVersion: { increment: 1 } },
+    });
+  });
+  return { id: organizationId, deletedAt: now };
 }
