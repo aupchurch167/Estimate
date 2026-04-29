@@ -3,6 +3,7 @@ import { useAuthContext } from '@/context/useAuthContext';
 import { useLogout } from '@/features/auth/useAuth';
 import { NotificationBell } from '@/features/notifications/NotificationBell';
 import { RoleGate } from '@/components/RoleGate';
+import { Dashboard } from '@/features/dashboard/Dashboard';
 
 export function AppShell() {
   const navigate = useNavigate();
@@ -76,17 +77,16 @@ export function AppShell() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1280px] px-6 py-12">
-        <div className="border border-rule bg-paper-elevated p-8">
-          <p className="font-mono text-[10px] uppercase tracking-label text-dim">A · welcome</p>
-          <h2 className="mt-2 font-sans text-[20px] text-ink">
+      <main className="mx-auto max-w-[1280px] px-6 py-8">
+        <header className="mb-6">
+          <p className="font-mono text-[10px] uppercase tracking-label text-dim">
+            A · Dashboard
+          </p>
+          <h2 className="mt-1 font-sans text-[20px] text-ink">
             {user ? `Welcome back, ${user.firstName}.` : 'Welcome to Quill.'}
           </h2>
-          <p className="mt-2 max-w-[60ch] font-sans text-[13px] text-dim">
-            Estimates, pricing, and team management land here phase by phase. Phase 1 is auth — you
-            just used it. Phase 2 brings the price book and estimate workspace online.
-          </p>
-        </div>
+        </header>
+        <Dashboard />
       </main>
     </div>
   );
