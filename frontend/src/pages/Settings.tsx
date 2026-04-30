@@ -1,7 +1,5 @@
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuthContext } from '@/context/useAuthContext';
-import { useLogout } from '@/features/auth/useAuth';
-import { NotificationBell } from '@/features/notifications/NotificationBell';
+import { Link } from 'react-router-dom';
+import { AppHeader } from '@/components/AppHeader';
 import { usePermissions } from '@/hooks/usePermissions';
 import { IdentitySection } from '@/features/settings/IdentitySection';
 import { BrandingSection } from '@/features/settings/BrandingSection';
@@ -11,129 +9,78 @@ import { AiUsageSection } from '@/features/settings/AiUsageSection';
 import { DefaultsSection } from '@/features/settings/DefaultsSection';
 import { DangerZoneSection } from '@/features/settings/DangerZoneSection';
 import { useOrganization } from '@/features/settings/useOrganization';
+import { Button, Card, TitleBlock } from '@/components/ui';
 
 export function SettingsPage() {
-  const navigate = useNavigate();
-  const { user, organization } = useAuthContext();
-  const logout = useLogout();
   const { canManageOrg } = usePermissions();
   const orgQuery = useOrganization();
 
-  const handleLogout = async () => {
-    await logout.mutateAsync();
-    navigate('/login', { replace: true });
-  };
-
-  const Header = (
-    <header className="border-b-[1.5px] border-ink bg-paper">
-      <div className="mx-auto flex max-w-[1280px] items-stretch justify-between px-6">
-        <div className="flex items-center gap-6 py-4">
-          <Link to="/app" className="font-mono text-[16px] uppercase tracking-title text-ink">
-            Quill
-          </Link>
-          {organization ? (
-            <span className="border-l border-rule-soft pl-6 font-mono text-[10px] uppercase tracking-label text-dim">
-              {organization.name}
-            </span>
-          ) : null}
-        </div>
-        <div className="flex items-center gap-4 py-4">
-          <NotificationBell />
-          {user ? (
-            <Link
-              to="/app/account"
-              className="font-mono text-[10px] uppercase tracking-label text-dim hover:text-ink"
-            >
-              {user.firstName} {user.lastName}
-              <span className="mx-2 text-rule-soft">·</span>
-              {user.role}
-            </Link>
-          ) : null}
-          <button
-            type="button"
-            onClick={handleLogout}
-            disabled={logout.isPending}
-            className="border border-ink px-3 py-1 font-mono text-[10px] uppercase tracking-label text-ink transition hover:bg-ink hover:text-ink-inverse disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {logout.isPending ? 'Signing out…' : 'Sign out'}
-          </button>
-        </div>
-      </div>
-    </header>
-  );
-
   if (!canManageOrg) {
     return (
-      <div className="min-h-screen bg-paper">
-        {Header}
-        <main className="mx-auto max-w-[760px] px-6 py-12">
-          <div className="border border-rule bg-paper-elevated p-8">
-            <p className="font-mono text-[10px] uppercase tracking-label text-dim">
-              Access denied
-            </p>
-            <h1 className="mt-2 font-sans text-[20px] text-ink">
-              Settings are reserved for OWNER and ADMIN.
-            </h1>
-            <p className="mt-2 max-w-[60ch] font-sans text-[13px] text-dim">
-              Ask an organization admin to make changes here, or head back to the app.
-            </p>
-            <Link
-              to="/app"
-              className="mt-6 inline-block border border-ink px-3 py-1 font-mono text-[10px] uppercase tracking-label text-ink hover:bg-ink hover:text-ink-inverse"
-            >
-              Back to app
+      <Shell>
+        <Card>
+          <p className="text-[12px] font-medium uppercase tracking-[0.06em] text-text-secondary">
+            Access denied
+          </p>
+          <h1 className="mt-2 text-[20px] font-semibold text-text-primary">
+            Settings are reserved for OWNER and ADMIN.
+          </h1>
+          <p className="mt-2 max-w-[60ch] text-[13px] text-text-secondary">
+            Ask an organization admin to make changes here, or head back to the app.
+          </p>
+          <div className="mt-6">
+            <Link to="/app">
+              <Button variant="secondary" size="sm">
+                Back to app
+              </Button>
             </Link>
           </div>
-        </main>
-      </div>
+        </Card>
+      </Shell>
     );
   }
 
   if (orgQuery.isLoading) {
     return (
-      <div className="min-h-screen bg-paper">
-        {Header}
-        <main className="mx-auto max-w-[760px] px-6 py-12">
-          <p className="font-mono text-[10px] uppercase tracking-label text-dim">Loading…</p>
-        </main>
-      </div>
+      <Shell>
+        <p className="text-[13px] text-text-secondary">Loading…</p>
+      </Shell>
     );
   }
 
   if (orgQuery.isError || !orgQuery.data || !orgQuery.data.settings) {
     return (
-      <div className="min-h-screen bg-paper">
-        {Header}
-        <main className="mx-auto max-w-[760px] px-6 py-12">
-          <div
-            role="alert"
-            className="border border-mark-red/60 bg-paper-elevated p-6 font-mono text-[11px] uppercase tracking-label text-mark-red"
-          >
+      <Shell>
+        <Card>
+          <p role="alert" className="text-[13px] text-danger">
             Could not load org settings. Try again or contact support.
-          </div>
-        </main>
-      </div>
+          </p>
+        </Card>
+      </Shell>
     );
   }
 
   const { organization: org, settings } = orgQuery.data;
 
   return (
-    <div className="min-h-screen bg-paper">
-      {Header}
-      <main className="mx-auto flex max-w-[760px] flex-col gap-6 px-6 py-12">
-        <div className="border-b border-rule pb-3">
-          <p className="font-mono text-[10px] uppercase tracking-label text-dim">Settings</p>
-          <h1 className="mt-2 font-sans text-[20px] text-ink">Organization</h1>
-        </div>
-        <IdentitySection organization={org} settings={settings} />
-        <BrandingSection settings={settings} />
-        <WorkflowSection settings={settings} />
-        <AISection settings={settings} />
-        <AiUsageSection />
-        <DefaultsSection settings={settings} />
-        <DangerZoneSection organization={org} />
-      </main>
+    <Shell>
+      <TitleBlock title="Settings" subtitle="Organization." />
+      <IdentitySection organization={org} settings={settings} />
+      <BrandingSection settings={settings} />
+      <WorkflowSection settings={settings} />
+      <AISection settings={settings} />
+      <AiUsageSection />
+      <DefaultsSection settings={settings} />
+      <DangerZoneSection organization={org} />
+    </Shell>
+  );
+}
+
+function Shell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen bg-bg-secondary">
+      <AppHeader />
+      <main className="mx-auto flex max-w-[760px] flex-col gap-6 px-6 py-6">{children}</main>
     </div>
   );
 }

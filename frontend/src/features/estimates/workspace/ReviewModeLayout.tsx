@@ -64,11 +64,10 @@ export function ReviewModeLayout({ estimate, readOnly, modeSwitch }: ReviewModeL
                   : 'Edit inline — Tab walks the cells, Enter starts editing.'}
               </p>
             }
-            className="!p-0 flex h-full flex-col overflow-hidden"
+            className="flex h-full flex-col overflow-hidden"
+            bodyClassName="flex-1 min-h-0 overflow-hidden flex flex-col"
           >
-            <div className="flex-1 overflow-hidden p-4">
-              <LineItemGrid estimate={estimate} />
-            </div>
+            <LineItemGrid estimate={estimate} />
           </Card>
 
           <RightRail

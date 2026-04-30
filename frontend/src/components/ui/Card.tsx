@@ -11,6 +11,13 @@ export interface CardProps extends Omit<HTMLAttributes<HTMLDivElement>, 'title'>
   interactive?: boolean;
   /** Optional footer — bordered top, same horizontal padding as the body. */
   footer?: ReactNode;
+  /**
+   * Extra classes for the body wrapper. Useful when the Card root is
+   * acting as a flex column (e.g. a fixed-height schedule panel) and
+   * the body needs `flex-1 min-h-0 overflow-hidden` so a scroll
+   * container inside can actually scroll.
+   */
+  bodyClassName?: string;
 }
 
 export function Card({
@@ -21,6 +28,7 @@ export function Card({
   footer,
   children,
   className,
+  bodyClassName,
   ...rest
 }: CardProps) {
   const padX = spacious ? 'px-6' : 'px-5';
@@ -51,7 +59,9 @@ export function Card({
           {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
         </header>
       ) : null}
-      <div className={`${padX} ${padY}`}>{children}</div>
+      <div className={`${padX} ${padY}${bodyClassName ? ` ${bodyClassName}` : ''}`}>
+        {children}
+      </div>
       {footer ? (
         <footer className={`border-t border-border-primary ${padX} ${padY}`}>{footer}</footer>
       ) : null}
