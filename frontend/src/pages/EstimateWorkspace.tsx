@@ -3,8 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import type { AxiosError } from 'axios';
 import { useAuthContext } from '@/context/useAuthContext';
 import { useEstimateDetail } from '@/features/estimates/useEstimates';
-import { DraftModeLayout } from '@/features/estimates/workspace/DraftModeLayout';
-import { ReviewModeLayout } from '@/features/estimates/workspace/ReviewModeLayout';
+import { EstimateLayout } from '@/features/estimates/workspace/EstimateLayout';
 import type { EstimateStatus } from '@/features/estimates/types';
 import { AppHeader } from '@/components/AppHeader';
 import { Button, EmptyState, SkeletonCard } from '@/components/ui';
@@ -53,15 +52,8 @@ export function EstimateWorkspace() {
     <PeekToggle peeking={peeking} onToggle={() => setPeeking((p) => !p)} />
   ) : undefined;
 
-  if (effectiveMode === 'draft') {
-    return <DraftModeLayout estimate={estimate} modeSwitch={peekToggle} />;
-  }
   return (
-    <ReviewModeLayout
-      estimate={estimate}
-      readOnly={effectiveMode === 'review-readonly'}
-      modeSwitch={peekToggle}
-    />
+    <EstimateLayout estimate={estimate} mode={effectiveMode} modeSwitch={peekToggle} />
   );
 }
 
