@@ -1,8 +1,9 @@
 import { TitleBlock } from './TitleBlock';
 import { ProjectContextCard } from './ProjectContextCard';
 import { ConversationPanel } from './ConversationPanel';
-import { SchedulePanel } from './SchedulePanel';
+import { LineItemGrid } from '@/features/estimates/grid/LineItemGrid';
 import { SubmitForReviewButton } from '@/features/estimates/review/ReviewActions';
+import { Card } from '@/components/ui';
 import type { EstimateDetail } from '@/features/estimates/types';
 
 interface DraftModeLayoutProps {
@@ -24,8 +25,9 @@ interface DraftModeLayoutProps {
  *      Details / Sources / Assumptions. Reference info the drafter
  *      glances at; can be hidden to give the work area more room.
  *   2. Bottom — 1/3 width chat on the left, 2/3 width schedule on the
- *      right. Chat is for talking to Quill; schedule is the work
- *      output.
+ *      right. Chat is for talking to Quill; schedule is the same full
+ *      Schedule of Values the reviewer sees, so what the drafter
+ *      builds is exactly what the reviewer reviews.
  *
  * Stacks vertically below the lg breakpoint so the layout still works
  * on a narrow window or tablet.
@@ -51,7 +53,18 @@ export function DraftModeLayout({ estimate, modeSwitch }: DraftModeLayoutProps) 
             <ConversationPanel estimate={estimate} />
           </div>
           <div className="lg:col-span-2 lg:h-full">
-            <SchedulePanel estimate={estimate} />
+            <Card
+              title="Schedule of Values"
+              actions={
+                <p className="text-[12px] text-text-secondary">
+                  Edit inline — Tab walks the cells, Enter starts editing.
+                </p>
+              }
+              className="flex h-full flex-col overflow-hidden"
+              bodyClassName="flex-1 min-h-0 overflow-hidden flex flex-col"
+            >
+              <LineItemGrid estimate={estimate} />
+            </Card>
           </div>
         </section>
       </main>

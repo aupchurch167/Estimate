@@ -122,7 +122,7 @@ describe('EstimateWorkspace mode selection', () => {
     expect(screen.getByTestId('project-context-tab-btn-sources')).toBeInTheDocument();
     expect(screen.getByTestId('project-context-tab-btn-assumptions')).toBeInTheDocument();
     expect(screen.getByText(/draft session/i)).toBeInTheDocument();
-    expect(screen.getByText('Schedule')).toBeInTheDocument();
+    expect(screen.getByText(/Schedule of Values/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /submit for review/i })).toBeInTheDocument();
   });
 
