@@ -143,18 +143,31 @@ describe('LineItemGrid', () => {
     expect(screen.queryByText('HVAC sub-quote pending')).not.toBeInTheDocument();
   });
 
-  it('clicking the description cell opens the modal editor (long-text fields are NOT inline-editable)', async () => {
+  it('clicking the description cell starts inline edit and commits on blur', async () => {
+    mockedPatch.mockResolvedValueOnce({
+      data: { lineItem: { id: 'li-1', description: 'Demo gypsum walls' } },
+    });
     const user = userEvent.setup();
     renderGrid(buildEstimate());
-    const desc = screen.getByText('Demo gypsum');
-    await user.click(desc);
-    // The LineItemEditor modal is mounted instead of an inline input.
+    await user.click(screen.getByText('Demo gypsum'));
+    // The modal is NOT mounted — inline edit only.
+    expect(screen.queryByTestId('line-item-editor')).not.toBeInTheDocument();
+    const input = screen.getByDisplayValue('Demo gypsum');
+    await user.clear(input);
+    await user.type(input, 'Demo gypsum walls');
+    input.blur();
+    await waitFor(() => {
+      expect(mockedPatch).toHaveBeenCalledWith('/api/line-items/li-1', {
+        description: 'Demo gypsum walls',
+      });
+    });
+  });
+
+  it('the row expand button still opens the modal editor for long-text fields', async () => {
+    const user = userEvent.setup();
+    renderGrid(buildEstimate());
+    await user.click(screen.getByTestId('row-li-1-expand'));
     expect(screen.getByTestId('line-item-editor')).toBeInTheDocument();
-    expect(screen.getByTestId('editor-description')).toBeInTheDocument();
-    // No inline single-line input ever appeared.
-    expect(
-      screen.queryByDisplayValue('Demo gypsum') === screen.queryByTestId('editor-description'),
-    ).toBe(true);
   });
 
   it('numeric cells still inline-edit: typing a new quantity + blur calls PATCH', async () => {

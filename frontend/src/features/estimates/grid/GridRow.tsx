@@ -7,10 +7,11 @@ import {
   type PatchLineItemInput,
 } from './useLineItems';
 
-// Inline-editable fields. Long-text fields (description, aiAssumption,
-// internalNotes, clientNotes) are NOT inline-editable — they're edited
-// in LineItemEditor instead.
+// Inline-editable fields. Long-text notes (aiAssumption, internalNotes,
+// clientNotes) are still only editable in LineItemEditor — those are
+// multi-paragraph fields that don't fit a single-row input.
 type EditableField =
+  | 'description'
   | 'quantity'
   | 'unitOfMeasure'
   | 'unitCostMaterial'
@@ -37,7 +38,6 @@ interface GridRowProps {
   readOnly: boolean;
   onToggleSelect: () => void;
   onPatch: (patch: PatchLineItemInput) => void;
-  onDelete: () => void;
   onFocus: () => void;
   /** Open the modal editor (long-text fields, status, sub-quote, notes). */
   onOpenEditor: () => void;
@@ -50,7 +50,6 @@ export function GridRow({
   readOnly,
   onToggleSelect,
   onPatch,
-  onDelete,
   onFocus,
   onOpenEditor,
   focused,
@@ -95,6 +94,11 @@ export function GridRow({
     },
     onKeyDown: (e: React.KeyboardEvent) => {
       if (readOnly) return;
+      // Only trigger from the cell itself — once an inline editor is
+      // mounted inside the cell, its own key events bubble up here too,
+      // and we don't want Space inside the input to be eaten by the
+      // "Space activates" affordance.
+      if (e.currentTarget !== e.target) return;
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         startEdit(field);
@@ -128,16 +132,27 @@ export function GridRow({
         />
       </td>
       <td
-        className={tdClass('cursor-pointer w-[280px] max-w-[280px]')}
-        onClick={onOpenEditor}
+        className={tdClass('w-[280px] max-w-[280px]')}
+        onClick={() => editing === null && startEdit('description')}
         data-testid={`row-${item.id}-description`}
+        {...editableProps('description')}
       >
-        <p
-          className="truncate text-[14px] text-text-primary"
-          title={item.description}
-        >
-          {item.description}
-        </p>
+        {editing === 'description' ? (
+          <CellEditor
+            initialValue={item.description}
+            type="text"
+            align="left"
+            onCancel={finishEdit}
+            onCommit={(v) => commit({ description: v })}
+          />
+        ) : (
+          <p
+            className="truncate text-[14px] text-text-primary"
+            title={item.description}
+          >
+            {item.description}
+          </p>
+        )}
       </td>
       <td
         className={tdClass('w-20 text-right')}
@@ -243,44 +258,25 @@ export function GridRow({
           {fmtMoney(item.lineSellPrice)}
         </span>
       </td>
-      <td className="w-12 px-2 py-1.5 align-middle text-right">
-        <div className="flex items-center justify-end gap-1">
-          <button
-            type="button"
-            aria-label="Open editor"
-            onClick={onOpenEditor}
-            data-testid={`row-${item.id}-expand`}
-            className="rounded p-1 text-text-tertiary opacity-0 transition-opacity duration-fast hover:bg-bg-secondary hover:text-text-primary focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus group-hover:opacity-100"
-            title="Open full editor"
-          >
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-              <path
-                d="M11 2h3v3M14 2L9 7M5 14H2v-3M2 14l5-5"
-                stroke="currentColor"
-                strokeWidth="1.6"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
-          {!readOnly ? (
-            <button
-              type="button"
-              aria-label="Delete line"
-              onClick={onDelete}
-              className="rounded p-1 text-text-tertiary opacity-0 transition-opacity duration-fast hover:bg-danger-light hover:text-danger focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus group-hover:opacity-100"
-            >
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                <path
-                  d="M4 4l8 8M12 4l-8 8"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </button>
-          ) : null}
-        </div>
+      <td className="w-10 px-2 py-1.5 align-middle text-right">
+        <button
+          type="button"
+          aria-label="Open editor"
+          onClick={onOpenEditor}
+          data-testid={`row-${item.id}-expand`}
+          className="rounded p-1 text-text-tertiary opacity-0 transition-opacity duration-fast hover:bg-bg-secondary hover:text-text-primary focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus group-hover:opacity-100"
+          title="Open full editor"
+        >
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path
+              d="M11 2h3v3M14 2L9 7M5 14H2v-3M2 14l5-5"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
       </td>
     </tr>
   );

@@ -9,7 +9,6 @@ import {
   useBulkDeleteLineItems,
   useCreateLineItem,
   useCreateSection,
-  useDeleteLineItem,
   useDeleteSection,
   usePatchLineItem,
   usePatchSection,
@@ -45,7 +44,6 @@ export function LineItemGrid({ estimate }: LineItemGridProps) {
   const deleteSection = useDeleteSection(estimate.id);
   const createLineItem = useCreateLineItem(estimate.id);
   const patchLineItem = usePatchLineItem(estimate.id);
-  const deleteLineItem = useDeleteLineItem(estimate.id);
   const bulkDelete = useBulkDeleteLineItems(estimate.id);
 
   const filtered = useMemo(() => filterItems(estimate.lineItems, filter, search), [
@@ -150,7 +148,7 @@ export function LineItemGrid({ estimate }: LineItemGridProps) {
               <Th className="w-20 text-right">Markup</Th>
               <Th className="w-20 text-right">Cost</Th>
               <Th className="w-24 text-right">Sell</Th>
-              <Th className="w-12"> </Th>
+              <Th className="w-10"> </Th>
             </tr>
           </thead>
           <tbody>
@@ -201,7 +199,6 @@ export function LineItemGrid({ estimate }: LineItemGridProps) {
                     onFocus={() => setFocusedRowId(item.id)}
                     onToggleSelect={() => toggleSelect(item.id)}
                     onPatch={(patch) => patchLineItem.mutate({ id: item.id, patch })}
-                    onDelete={() => deleteLineItem.mutate(item.id)}
                     onOpenEditor={() => setEditingItemId(item.id)}
                   />
                 )),
