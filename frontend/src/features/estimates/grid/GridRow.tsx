@@ -138,14 +138,6 @@ export function GridRow({
         >
           {item.description}
         </p>
-        {item.aiAssumption ? (
-          <p
-            className="mt-0.5 text-[12px] text-warning"
-            title={item.aiAssumption}
-          >
-            <span className="font-medium">Assumes:</span> {item.aiAssumption}
-          </p>
-        ) : null}
       </td>
       <td
         className={tdClass('w-20 text-right')}
