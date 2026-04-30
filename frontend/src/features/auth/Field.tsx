@@ -9,16 +9,16 @@ interface FieldProps {
 
 export function Field({ label, htmlFor, error, children }: FieldProps) {
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-1.5">
       <label
         htmlFor={htmlFor}
-        className="font-mono text-[10px] uppercase tracking-label text-dim"
+        className="text-[13px] font-medium text-text-primary"
       >
         {label}
       </label>
       {children}
       {error ? (
-        <p role="alert" className="font-mono text-[10px] uppercase tracking-label text-mark-red">
+        <p role="alert" className="text-[12px] text-danger">
           {error}
         </p>
       ) : null}
@@ -27,4 +27,4 @@ export function Field({ label, htmlFor, error, children }: FieldProps) {
 }
 
 export const inputClass =
-  'w-full border-b border-rule bg-transparent py-2 font-sans text-[14px] text-ink outline-none transition focus:border-ink';
+  'w-full rounded-md border border-border-secondary bg-bg-primary px-3 py-2 text-[14px] text-text-primary placeholder:text-text-tertiary focus-visible:border-border-focus focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus disabled:cursor-not-allowed disabled:bg-bg-tertiary disabled:text-text-tertiary';

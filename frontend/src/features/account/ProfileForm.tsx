@@ -8,6 +8,7 @@ import { Field, inputClass } from '@/features/auth/Field';
 import { backendErrorMessage } from '@/features/auth/useAuth';
 import { useSignAvatarUpload, useUpdateProfile } from './useAccount';
 import type { SafeUser } from '@/features/auth/types';
+import { Avatar, Badge, Button, Card } from '@/components/ui';
 
 const schema = z.object({
   firstName: z.string().min(1, 'First name is required').max(80),
@@ -98,31 +99,17 @@ function ProfileFormInner({ user }: { user: SafeUser }) {
   const banner = update.error
     ? backendErrorMessage(update.error, 'Could not save profile.')
     : null;
-  const initials = `${user.firstName[0] ?? ''}${user.lastName[0] ?? ''}`.toUpperCase();
 
   return (
-    <section className="border border-rule bg-paper-elevated p-6">
-      <div className="mb-6 flex items-baseline justify-between border-b border-rule-soft pb-3">
-        <p className="font-mono text-[10px] uppercase tracking-label text-dim">A · profile</p>
-        <p className="font-mono text-[10px] uppercase tracking-label text-dim">{user.role}</p>
-      </div>
-
-      <div className="mb-6 flex items-center gap-6">
-        <div className="flex h-16 w-16 items-center justify-center border border-rule bg-paper">
-          {user.avatarUrl ? (
-            <img
-              src={user.avatarUrl}
-              alt={`${user.firstName} ${user.lastName}`}
-              className="h-16 w-16 object-cover"
-            />
-          ) : (
-            <span className="font-mono text-[14px] uppercase tracking-title text-dim">
-              {initials || '—'}
-            </span>
-          )}
-        </div>
-        <div>
-          <p className="font-mono text-[10px] uppercase tracking-label text-dim">Avatar</p>
+    <Card title="Profile" actions={<Badge variant="info">{user.role}</Badge>}>
+      <div className="flex items-center gap-6">
+        <Avatar
+          name={`${user.firstName} ${user.lastName}`}
+          src={user.avatarUrl}
+          size="lg"
+        />
+        <div className="flex flex-col gap-1.5">
+          <p className="text-[13px] font-medium text-text-primary">Avatar</p>
           <input
             ref={fileRef}
             id="avatar"
@@ -130,18 +117,16 @@ function ProfileFormInner({ user }: { user: SafeUser }) {
             accept={ALLOWED_MIMES.join(',')}
             onChange={onAvatarChange}
             disabled={uploading}
-            className="mt-2 font-mono text-[11px] text-ink file:mr-3 file:border file:border-ink file:bg-paper file:px-3 file:py-1 file:font-mono file:text-[10px] file:uppercase file:tracking-label file:text-ink hover:file:bg-ink hover:file:text-ink-inverse"
+            className="text-[13px] text-text-secondary file:mr-3 file:cursor-pointer file:rounded-md file:border file:border-border-primary file:bg-bg-primary file:px-3 file:py-1.5 file:text-[13px] file:font-medium file:text-text-primary hover:file:bg-bg-tertiary disabled:cursor-not-allowed disabled:opacity-60"
           />
           {uploading ? (
-            <p className="mt-2 font-mono text-[10px] uppercase tracking-label text-dim">
-              Uploading…
-            </p>
+            <p className="text-[12px] text-text-secondary">Uploading…</p>
           ) : null}
           {avatarMessage ? (
             <p
               role={avatarMessage.tone === 'error' ? 'alert' : undefined}
-              className={`mt-2 font-mono text-[10px] uppercase tracking-label ${
-                avatarMessage.tone === 'error' ? 'text-mark-red' : 'text-mark-green'
+              className={`text-[12px] ${
+                avatarMessage.tone === 'error' ? 'text-danger' : 'text-success'
               }`}
             >
               {avatarMessage.text}
@@ -150,17 +135,17 @@ function ProfileFormInner({ user }: { user: SafeUser }) {
         </div>
       </div>
 
-      <form noValidate onSubmit={onSubmit} className="flex flex-col gap-6">
+      <form noValidate onSubmit={onSubmit} className="mt-6 flex flex-col gap-5">
         {banner ? (
           <div
             role="alert"
-            className="border border-mark-red/60 px-4 py-3 font-mono text-[11px] uppercase tracking-label text-mark-red"
+            className="rounded-md border border-danger/40 bg-danger-light px-3 py-2 text-[13px] text-danger"
           >
             {banner}
           </div>
         ) : null}
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="First name" htmlFor="firstName" error={errors.firstName?.message}>
             <input
               id="firstName"
@@ -182,23 +167,18 @@ function ProfileFormInner({ user }: { user: SafeUser }) {
         </div>
 
         <Field label="Email" htmlFor="email">
-          <input
-            id="email"
-            type="email"
-            value={user.email}
-            disabled
-            className={`${inputClass} cursor-not-allowed text-dim`}
-          />
+          <input id="email" type="email" value={user.email} disabled className={inputClass} />
         </Field>
 
-        <button
+        <Button
           type="submit"
-          disabled={!isDirty || isSubmitting || update.isPending}
-          className="self-start border border-ink bg-ink px-4 py-2 font-mono text-[11px] uppercase tracking-label text-ink-inverse transition hover:bg-ink/90 disabled:cursor-not-allowed disabled:opacity-50"
+          loading={update.isPending || isSubmitting}
+          disabled={!isDirty}
+          className="self-start"
         >
-          {update.isPending || isSubmitting ? 'Saving…' : 'Save profile'}
-        </button>
+          Save profile
+        </Button>
       </form>
-    </section>
+    </Card>
   );
 }

@@ -8,6 +8,7 @@ import { Field, inputClass } from '@/features/auth/Field';
 import { backendErrorCode, backendErrorMessage } from '@/features/auth/useAuth';
 import { useChangePassword } from './useAccount';
 import type { SafeUser } from '@/features/auth/types';
+import { Button, Card } from '@/components/ui';
 
 const schema = z
   .object({
@@ -75,21 +76,17 @@ function PasswordFormInner({ user }: { user: SafeUser }) {
   const banner = change.error ? mapPasswordError(change.error) : null;
 
   return (
-    <section className="border border-rule bg-paper-elevated p-6">
-      <div className="mb-6 flex items-baseline justify-between border-b border-rule-soft pb-3">
-        <p className="font-mono text-[10px] uppercase tracking-label text-dim">B · security</p>
-      </div>
-
-      <form noValidate onSubmit={onSubmit} className="flex flex-col gap-6">
+    <Card title="Security">
+      <form noValidate onSubmit={onSubmit} className="flex flex-col gap-5">
         {success ? (
-          <div className="border border-mark-green/60 px-4 py-3 font-mono text-[11px] uppercase tracking-label text-mark-green">
+          <div className="rounded-md border border-success/40 bg-success-light px-3 py-2 text-[13px] text-success">
             Password updated.
           </div>
         ) : null}
         {banner ? (
           <div
             role="alert"
-            className="border border-mark-red/60 px-4 py-3 font-mono text-[11px] uppercase tracking-label text-mark-red"
+            className="rounded-md border border-danger/40 bg-danger-light px-3 py-2 text-[13px] text-danger"
           >
             {banner}
           </div>
@@ -133,14 +130,14 @@ function PasswordFormInner({ user }: { user: SafeUser }) {
           />
         </Field>
 
-        <button
+        <Button
           type="submit"
-          disabled={isSubmitting || change.isPending}
-          className="self-start border border-ink bg-ink px-4 py-2 font-mono text-[11px] uppercase tracking-label text-ink-inverse transition hover:bg-ink/90 disabled:cursor-not-allowed disabled:opacity-50"
+          loading={isSubmitting || change.isPending}
+          className="self-start"
         >
-          {change.isPending || isSubmitting ? 'Updating…' : 'Update password'}
-        </button>
+          Update password
+        </Button>
       </form>
-    </section>
+    </Card>
   );
 }
