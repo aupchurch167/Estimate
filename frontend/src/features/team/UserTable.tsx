@@ -35,9 +35,7 @@ export function UserTable({ users }: { users: SafeUser[] }) {
   const reactivate = useReactivateUser();
 
   if (users.length === 0) {
-    return (
-      <p className="font-mono text-[10px] uppercase tracking-label text-dim">No members yet.</p>
-    );
+    return <p className="px-5 py-4 text-[13px] text-text-secondary">No members yet.</p>;
   }
 
   const onRoleSelect = (target: SafeUser, nextRole: AdminAssignableRole) => {
@@ -86,19 +84,19 @@ export function UserTable({ users }: { users: SafeUser[] }) {
       {errorBanner ? (
         <p
           role="alert"
-          className="mb-3 border border-mark-red/60 bg-paper p-2 font-mono text-[10px] uppercase tracking-label text-mark-red"
+          className="mx-5 mt-4 rounded-md border border-danger/40 bg-danger-light px-3 py-2 text-[13px] text-danger"
         >
           {errorBanner}
         </p>
       ) : null}
-      <table className="w-full border-collapse font-sans text-[13px]">
+      <table className="w-full border-collapse text-[13px]">
         <thead>
-          <tr className="border-b border-rule text-left">
+          <tr className="border-b border-border-primary bg-bg-secondary text-left">
             <Th>Name</Th>
             <Th>Email</Th>
             <Th>Role</Th>
             <Th>Status</Th>
-            {isAdmin ? <Th>Actions</Th> : null}
+            {isAdmin ? <Th className="text-right">Actions</Th> : null}
           </tr>
         </thead>
         <tbody>
@@ -110,18 +108,18 @@ export function UserTable({ users }: { users: SafeUser[] }) {
               <tr
                 key={u.id}
                 data-testid={`user-row-${u.id}`}
-                className="border-b border-rule-soft last:border-b-0"
+                className="border-b border-border-primary last:border-b-0 hover:bg-bg-tertiary"
               >
-                <Td className="py-2">
-                  {u.firstName} {u.lastName}
+                <Td>
+                  <span className="font-medium text-text-primary">
+                    {u.firstName} {u.lastName}
+                  </span>
                   {isMe ? (
-                    <span className="ml-2 font-mono text-[10px] uppercase tracking-label text-dim">
-                      (you)
-                    </span>
+                    <span className="ml-2 text-[12px] text-text-tertiary">(you)</span>
                   ) : null}
                 </Td>
-                <Td className="py-2 font-mono text-[12px] text-dim">{u.email}</Td>
-                <Td className="py-2 font-mono text-[10px] uppercase tracking-label">
+                <Td className="text-text-secondary">{u.email}</Td>
+                <Td>
                   {editable ? (
                     <select
                       value={u.role}
@@ -130,7 +128,7 @@ export function UserTable({ users }: { users: SafeUser[] }) {
                       }
                       disabled={changeRole.isPending}
                       data-testid={`user-role-select-${u.id}`}
-                      className="border border-rule bg-paper px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-label text-ink focus:border-ink focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                      className="rounded-md border border-border-secondary bg-bg-primary px-2 py-1 text-[13px] text-text-primary focus-visible:border-border-focus focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {ASSIGNABLE_ROLES.map((r) => (
                         <option key={r} value={r}>
@@ -139,18 +137,26 @@ export function UserTable({ users }: { users: SafeUser[] }) {
                       ))}
                     </select>
                   ) : (
-                    u.role
+                    <span className="text-text-secondary">{u.role}</span>
                   )}
                 </Td>
-                <Td
-                  className={`py-2 font-mono text-[10px] uppercase tracking-label ${
-                    u.isActive ? 'text-mark-green' : 'text-mark-red'
-                  }`}
-                >
-                  {u.isActive ? 'Active' : 'Inactive'}
+                <Td>
+                  <span
+                    className={`inline-flex items-center gap-1.5 text-[12px] font-medium ${
+                      u.isActive ? 'text-success' : 'text-text-tertiary'
+                    }`}
+                  >
+                    <span
+                      aria-hidden
+                      className={`h-1.5 w-1.5 rounded-full ${
+                        u.isActive ? 'bg-success' : 'bg-text-tertiary'
+                      }`}
+                    />
+                    {u.isActive ? 'Active' : 'Inactive'}
+                  </span>
                 </Td>
                 {isAdmin ? (
-                  <Td className="py-2">
+                  <Td className="text-right">
                     {editable ? (
                       u.isActive ? (
                         <button
@@ -158,7 +164,7 @@ export function UserTable({ users }: { users: SafeUser[] }) {
                           onClick={() => onDeactivate(u)}
                           disabled={deactivate.isPending}
                           data-testid={`user-deactivate-${u.id}`}
-                          className="font-mono text-[10px] uppercase tracking-label text-dim hover:text-mark-red disabled:cursor-not-allowed disabled:opacity-50"
+                          className="text-[13px] font-medium text-text-secondary hover:text-danger disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           Deactivate
                         </button>
@@ -168,7 +174,7 @@ export function UserTable({ users }: { users: SafeUser[] }) {
                           onClick={() => onReactivate(u)}
                           disabled={reactivate.isPending}
                           data-testid={`user-reactivate-${u.id}`}
-                          className="font-mono text-[10px] uppercase tracking-label text-dim hover:text-mark-green disabled:cursor-not-allowed disabled:opacity-50"
+                          className="text-[13px] font-medium text-text-secondary hover:text-success disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           Reactivate
                         </button>
@@ -232,25 +238,22 @@ function ConfirmModal({
     <div
       role="dialog"
       aria-label={title}
-      className="fixed inset-0 z-40 flex items-center justify-center bg-ink/40 px-4"
+      className="fixed inset-0 z-40 flex items-center justify-center bg-text-primary/40 px-4"
       data-testid="user-confirm-modal"
     >
-      <div className="w-full max-w-[480px] border border-ink bg-paper-elevated">
-        <header className="border-b border-rule-soft px-5 py-3">
-          <p className="font-mono text-[10px] uppercase tracking-label text-dim">
-            Confirm
-          </p>
-          <p className="mt-1 font-sans text-[14px] text-ink">{title}</p>
+      <div className="w-full max-w-[480px] rounded-lg border border-border-primary bg-bg-primary shadow-md">
+        <header className="border-b border-border-primary px-5 py-4">
+          <h2 className="text-[16px] font-medium text-text-primary">{title}</h2>
         </header>
-        <div className="p-5">
-          <p className="font-sans text-[13px] leading-relaxed text-ink">{body}</p>
+        <div className="px-5 py-4">
+          <p className="text-[14px] leading-relaxed text-text-primary">{body}</p>
         </div>
-        <footer className="flex items-center justify-end gap-3 border-t border-rule-soft bg-paper px-5 py-3">
+        <footer className="flex items-center justify-end gap-2 border-t border-border-primary px-5 py-3">
           <button
             type="button"
             onClick={onCancel}
             data-testid="user-confirm-cancel"
-            className="font-mono text-[10px] uppercase tracking-label text-dim hover:text-ink"
+            className="rounded-md px-3 py-1.5 text-[13px] font-medium text-text-secondary hover:bg-bg-tertiary hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
           >
             Cancel
           </button>
@@ -259,10 +262,10 @@ function ConfirmModal({
             onClick={onConfirm}
             disabled={pending}
             data-testid="user-confirm-submit"
-            className={`border px-4 py-2 font-mono text-[11px] uppercase tracking-label disabled:cursor-not-allowed disabled:opacity-50 ${
+            className={`rounded-md px-3 py-1.5 text-[13px] font-medium text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus disabled:cursor-not-allowed disabled:opacity-60 ${
               confirmTone === 'danger'
-                ? 'border-mark-red bg-mark-red text-ink-inverse hover:bg-mark-red/90'
-                : 'border-ink bg-ink text-ink-inverse hover:bg-ink/90'
+                ? 'bg-danger hover:bg-danger/90'
+                : 'bg-primary hover:bg-primary-hover'
             }`}
           >
             {pending ? 'Working…' : confirmLabel}
@@ -287,9 +290,17 @@ function mapAdminError(err: AxiosError): string {
   return backendErrorMessage(err, 'Could not update teammate.');
 }
 
-function Th({ children }: { children: React.ReactNode }) {
+function Th({
+  children,
+  className = '',
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <th className="font-mono text-[10px] uppercase tracking-label text-dim font-normal pb-2 pr-4">
+    <th
+      className={`px-4 py-2 text-[12px] font-medium uppercase tracking-[0.06em] text-text-secondary ${className}`}
+    >
       {children}
     </th>
   );
@@ -302,5 +313,5 @@ function Td({
   children: React.ReactNode;
   className?: string;
 }) {
-  return <td className={`pr-4 ${className}`}>{children}</td>;
+  return <td className={`px-4 py-2.5 align-middle ${className}`}>{children}</td>;
 }
