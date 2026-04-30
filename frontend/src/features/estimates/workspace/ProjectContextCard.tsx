@@ -4,23 +4,35 @@ import { Badge } from '@/components/ui';
 import { ProjectDetailsPanel } from './ProjectDetailsPanel';
 import { SourcesPanel } from './SourcesPanel';
 import { AssumptionsPanel } from './AssumptionsPanel';
+import {
+  ActivityPanel,
+  CommentsPanel,
+  VersionsPanel,
+} from '@/features/estimates/review/ContextPanels';
 
-type TabId = 'details' | 'sources' | 'assumptions';
+type TabId =
+  | 'details'
+  | 'sources'
+  | 'assumptions'
+  | 'comments'
+  | 'versions'
+  | 'activity';
 
 interface ProjectContextCardProps {
   estimate: EstimateDetail;
+  /** True when the estimate is locked (SENT/WON/LOST/APPROVED). Hides write
+   *  affordances inside the Comments panel. */
+  readOnly?: boolean;
 }
 
 /**
- * A single collapsible card combining Project Details, Sources, and
- * Assumptions into a tabbed interface (Phase 8.1, layout iteration 2).
- *
- * Default: expanded with the Details tab active. The header has a
- * Hide / Show toggle on the right; collapsed state shows just the
- * header strip with a flagged-count summary so the drafter sees what
- * needs attention at a glance.
+ * Single context card spanning the top of the workspace. Holds every
+ * panel that used to live in the right rail (Comments, Versions,
+ * Activity) plus the project-side panels (Details, Sources,
+ * Assumptions). Body height is capped so the card stays out of the
+ * way of the schedule below.
  */
-export function ProjectContextCard({ estimate }: ProjectContextCardProps) {
+export function ProjectContextCard({ estimate, readOnly = false }: ProjectContextCardProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [tab, setTab] = useState<TabId>('details');
 
@@ -55,7 +67,7 @@ export function ProjectContextCard({ estimate }: ProjectContextCardProps) {
               ) : null}
             </p>
           ) : (
-            <nav className="flex items-center gap-1">
+            <nav className="flex items-center gap-1 overflow-x-auto">
               <TabButton id="details" active={tab} onClick={setTab}>
                 Details
               </TabButton>
@@ -71,6 +83,15 @@ export function ProjectContextCard({ estimate }: ProjectContextCardProps) {
               >
                 Assumptions
               </TabButton>
+              <TabButton id="comments" active={tab} onClick={setTab}>
+                Comments
+              </TabButton>
+              <TabButton id="versions" active={tab} onClick={setTab}>
+                Versions
+              </TabButton>
+              <TabButton id="activity" active={tab} onClick={setTab}>
+                Activity
+              </TabButton>
             </nav>
           )}
         </div>
@@ -85,10 +106,18 @@ export function ProjectContextCard({ estimate }: ProjectContextCardProps) {
         </button>
       </header>
       {collapsed ? null : (
-        <div data-testid={`project-context-tab-${tab}`}>
+        <div
+          data-testid={`project-context-tab-${tab}`}
+          className="flex h-[280px] flex-col overflow-hidden"
+        >
           {tab === 'details' ? <DetailsTab estimate={estimate} /> : null}
           {tab === 'sources' ? <SourcesTab estimate={estimate} /> : null}
           {tab === 'assumptions' ? <AssumptionsTab estimate={estimate} /> : null}
+          {tab === 'comments' ? (
+            <CommentsPanel estimate={estimate} readOnly={readOnly} />
+          ) : null}
+          {tab === 'versions' ? <VersionsPanel estimate={estimate} /> : null}
+          {tab === 'activity' ? <ActivityPanel estimate={estimate} /> : null}
         </div>
       )}
     </section>
@@ -117,7 +146,7 @@ function TabButton({
       onClick={() => onClick(id)}
       data-testid={`project-context-tab-btn-${id}`}
       data-active={isActive ? 'true' : undefined}
-      className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[13px] font-medium transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus ${
+      className={`inline-flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1 text-[13px] font-medium transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus ${
         isActive
           ? 'bg-primary-light text-primary'
           : 'text-text-secondary hover:bg-bg-tertiary hover:text-text-primary'
@@ -139,21 +168,29 @@ function TabButton({
   );
 }
 
-// ─── Tab bodies — re-use the existing panels but render them
+// ─── Project-side tabs — re-use the existing panels but render them
 // without their own card chrome since we now share a single card.
 
 function DetailsTab({ estimate }: { estimate: EstimateDetail }) {
   return (
-    <div className="p-4">
+    <div className="overflow-auto p-4">
       <ProjectDetailsPanel estimate={estimate} bare />
     </div>
   );
 }
 
 function SourcesTab({ estimate }: { estimate: EstimateDetail }) {
-  return <SourcesPanel estimate={estimate} bare />;
+  return (
+    <div className="overflow-auto">
+      <SourcesPanel estimate={estimate} bare />
+    </div>
+  );
 }
 
 function AssumptionsTab({ estimate }: { estimate: EstimateDetail }) {
-  return <AssumptionsPanel estimate={estimate} bare />;
+  return (
+    <div className="overflow-auto">
+      <AssumptionsPanel estimate={estimate} bare />
+    </div>
+  );
 }

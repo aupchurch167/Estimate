@@ -3,7 +3,6 @@ import { TitleBlock } from './TitleBlock';
 import { ProjectContextCard } from './ProjectContextCard';
 import { ConversationPanel } from './ConversationPanel';
 import { LineItemGrid } from '@/features/estimates/grid/LineItemGrid';
-import { RightRail } from '@/features/estimates/review/RightRail';
 import { SubmitForReviewButton } from '@/features/estimates/review/ReviewActions';
 import {
   ReviewerActions,
@@ -26,41 +25,33 @@ interface EstimateLayoutProps {
 
 /**
  * Unified workspace layout for every estimate mode (draft, review,
- * read-only). Chrome stays the same so the drafter and reviewer
- * always see the same shape; only the title-block actions and the
- * read-only flag on the schedule change between modes.
+ * read-only). Shape:
  *
- * Layout:
  *   1. TitleBlock        — header with mode-specific actions.
- *   2. ProjectContext    — collapsible card with Details / Sources /
- *                          Assumptions tabs.
- *   3. Three-column band:
- *      a. Chat (left)    — Quill conversation, collapsible.
+ *   2. ProjectContext    — single card holding Details / Sources /
+ *                          Assumptions / Comments / Versions / Activity.
+ *                          Body height is capped so it doesn't crowd
+ *                          the schedule.
+ *   3. Two-column band:
+ *      a. Chat (left)    — Quill conversation, collapsible to a
+ *                          44px strip.
  *      b. Schedule       — full Schedule of Values grid.
- *      c. Rail (right)   — Comments / Assumptions / Versions /
- *                          Activity, collapsible.
  *
- * Each side rail collapses to a 44px strip independently so the
- * schedule can flex into the freed space when the user wants room
- * to work.
+ * Mode-specific actions still fork in the title block: drafts get
+ * Submit for review, in-review gets the reviewer actions, read-only
+ * gets Unlock / Export / Send / close-out.
  */
 export function EstimateLayout({ estimate, mode, modeSwitch }: EstimateLayoutProps) {
   const [chatCollapsed, setChatCollapsed] = useState(false);
-  const [railCollapsed, setRailCollapsed] = useState(false);
 
   const readOnly = mode === 'review-readonly';
   const modeLabel = labelForMode(mode, estimate.status);
 
-  // Tailwind's JIT only emits utilities it can see literally in source,
-  // so the four collapse combinations are spelled out below.
-  const colsClass =
-    chatCollapsed && railCollapsed
-      ? 'lg:[grid-template-columns:44px_1fr_44px]'
-      : chatCollapsed
-        ? 'lg:[grid-template-columns:44px_1fr_360px]'
-        : railCollapsed
-          ? 'lg:[grid-template-columns:320px_1fr_44px]'
-          : 'lg:[grid-template-columns:320px_1fr_360px]';
+  // Tailwind JIT only emits utilities it can see literally in source —
+  // the two collapse states are spelled out below.
+  const colsClass = chatCollapsed
+    ? 'lg:[grid-template-columns:44px_1fr]'
+    : 'lg:[grid-template-columns:320px_1fr]';
 
   return (
     <div className="min-h-screen bg-bg-secondary">
@@ -75,7 +66,7 @@ export function EstimateLayout({ estimate, mode, modeSwitch }: EstimateLayoutPro
         }
       />
       <main className="mx-auto flex max-w-[1280px] flex-col gap-4 px-6 py-6">
-        <ProjectContextCard estimate={estimate} />
+        <ProjectContextCard estimate={estimate} readOnly={readOnly} />
 
         <section
           className={`grid grid-cols-1 gap-4 ${colsClass} lg:[grid-template-rows:minmax(560px,calc(100vh-340px))]`}
@@ -85,7 +76,6 @@ export function EstimateLayout({ estimate, mode, modeSwitch }: EstimateLayoutPro
               <CollapsedStrip
                 label="Conversation"
                 onExpand={() => setChatCollapsed(false)}
-                side="left"
               />
             ) : (
               <ConversationShell onCollapse={() => setChatCollapsed(true)}>
@@ -109,15 +99,6 @@ export function EstimateLayout({ estimate, mode, modeSwitch }: EstimateLayoutPro
             >
               <LineItemGrid estimate={estimate} />
             </Card>
-          </div>
-
-          <div className="lg:h-full">
-            <RightRail
-              estimate={estimate}
-              readOnly={readOnly}
-              collapsed={railCollapsed}
-              onToggleCollapsed={() => setRailCollapsed((c) => !c)}
-            />
           </div>
         </section>
       </main>
@@ -187,14 +168,10 @@ function ConversationShell({
 function CollapsedStrip({
   label,
   onExpand,
-  side,
 }: {
   label: string;
   onExpand: () => void;
-  side: 'left' | 'right';
 }) {
-  // Chevron points the way the panel will expand.
-  const path = side === 'left' ? 'M7 4l5 5-5 5' : 'M11 4L6 9l5 5';
   return (
     <aside
       data-testid={`${label.toLowerCase()}-collapsed`}
@@ -209,7 +186,7 @@ function CollapsedStrip({
       >
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
           <path
-            d={path}
+            d="M7 4l5 5-5 5"
             stroke="currentColor"
             strokeWidth="1.6"
             strokeLinecap="round"

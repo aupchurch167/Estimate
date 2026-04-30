@@ -27,187 +27,6 @@ import type {
 
 const EDIT_WINDOW_MS = 15 * 60 * 1000;
 
-type Tab = 'assumptions' | 'comments' | 'versions' | 'activity';
-
-interface RightRailProps {
-  estimate: EstimateDetail;
-  /** When true, hide write affordances (post comment, resolve, delete). */
-  readOnly?: boolean;
-  /** Controlled collapse state — parent owns it so the schedule grid
-   *  can flex into the freed space. */
-  collapsed?: boolean;
-  onToggleCollapsed?: () => void;
-}
-
-export function RightRail({
-  estimate,
-  readOnly = false,
-  collapsed = false,
-  onToggleCollapsed,
-}: RightRailProps) {
-  const [tab, setTab] = useState<Tab>('assumptions');
-
-  if (collapsed) {
-    return (
-      <aside
-        data-testid="right-rail-collapsed"
-        className="flex h-full flex-col items-center gap-3 rounded-lg border border-border-primary bg-bg-primary px-2 py-3 shadow-sm"
-      >
-        <button
-          type="button"
-          onClick={onToggleCollapsed}
-          aria-label="Show panel"
-          data-testid="right-rail-toggle"
-          className="rounded-md p-1.5 text-text-secondary hover:bg-bg-tertiary hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
-        >
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-            <path d="M11 4L6 9l5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </button>
-        <div className="flex flex-1 flex-col items-center gap-2 [writing-mode:vertical-rl] rotate-180">
-          <span className="text-[12px] font-medium uppercase tracking-[0.06em] text-text-secondary">
-            Comments · Activity · Versions
-          </span>
-        </div>
-      </aside>
-    );
-  }
-
-  return (
-    <aside className="flex h-full flex-col rounded-lg border border-border-primary bg-bg-primary shadow-sm">
-      <header className="flex items-center justify-between gap-2 border-b border-border-primary px-2 py-1.5">
-        <nav className="flex items-center gap-1 overflow-x-auto">
-          <TabButton active={tab === 'comments'} onClick={() => setTab('comments')}>
-            Comments
-          </TabButton>
-          <TabButton active={tab === 'assumptions'} onClick={() => setTab('assumptions')}>
-            Assumptions
-          </TabButton>
-          <TabButton active={tab === 'versions'} onClick={() => setTab('versions')}>
-            Versions
-          </TabButton>
-          <TabButton active={tab === 'activity'} onClick={() => setTab('activity')}>
-            Activity
-          </TabButton>
-        </nav>
-        {onToggleCollapsed ? (
-          <button
-            type="button"
-            onClick={onToggleCollapsed}
-            aria-label="Hide panel"
-            data-testid="right-rail-toggle"
-            className="rounded-md p-1.5 text-text-secondary hover:bg-bg-tertiary hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
-          >
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-              <path d="M7 4l5 5-5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
-        ) : null}
-      </header>
-      <div className="flex flex-1 flex-col overflow-hidden">
-        {tab === 'assumptions' ? <AssumptionsPanel estimate={estimate} /> : null}
-        {tab === 'comments' ? (
-          <CommentsPanel estimate={estimate} readOnly={readOnly} />
-        ) : null}
-        {tab === 'versions' ? <VersionsPanel estimate={estimate} /> : null}
-        {tab === 'activity' ? <ActivityPanel estimate={estimate} /> : null}
-      </div>
-    </aside>
-  );
-}
-
-function TabButton({
-  active,
-  children,
-  onClick,
-}: {
-  active: boolean;
-  children: React.ReactNode;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      data-testid={`rail-tab-${String(children).toLowerCase()}`}
-      data-active={active ? 'true' : 'false'}
-      className={`rounded-md px-2.5 py-1 text-[12px] font-medium transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus ${
-        active
-          ? 'bg-primary-light text-primary'
-          : 'text-text-secondary hover:bg-bg-tertiary hover:text-text-primary'
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-
-// ─── Assumptions ──────────────────────────────────────────────────────────
-
-function AssumptionsPanel({ estimate }: { estimate: EstimateDetail }) {
-  const lineAssumptions = useMemo(
-    () =>
-      estimate.lineItems
-        .filter((li) => li.aiAssumption && li.aiAssumption.trim().length > 0)
-        .map((li) => ({
-          lineItemId: li.id,
-          description: li.description,
-          assumption: li.aiAssumption ?? '',
-          sectionId: li.scopeSectionId,
-          confidence: li.aiConfidence ? Number(li.aiConfidence) : null,
-        })),
-    [estimate.lineItems],
-  );
-
-  const sectionsById = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const s of estimate.scopeSections) map.set(s.id, s.name);
-    return map;
-  }, [estimate.scopeSections]);
-
-  if (lineAssumptions.length === 0) {
-    return (
-      <p className="p-4 font-mono text-[10px] uppercase tracking-label text-dim">
-        No assumptions yet — generate a draft or flag lines that need review.
-      </p>
-    );
-  }
-
-  return (
-    <ul className="flex flex-col">
-      {lineAssumptions.map((a) => (
-        <li
-          key={a.lineItemId}
-          className="border-b border-rule-soft px-4 py-3"
-          data-testid="assumption-row"
-        >
-          <p className="font-mono text-[10px] uppercase tracking-label text-dim">
-            {sectionsById.get(a.sectionId) ?? 'Section'}
-            {a.confidence !== null ? (
-              <>
-                {' · '}
-                <span className={confidenceClass(a.confidence)}>
-                  {Math.round(a.confidence * 100)}% confidence
-                </span>
-              </>
-            ) : null}
-          </p>
-          <p className="mt-1 font-sans text-[13px] text-ink">{a.description}</p>
-          <p className="mt-1 border-l-2 border-mark-amber/70 pl-3 font-sans text-[12px] text-ink/80">
-            {a.assumption}
-          </p>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function confidenceClass(confidence: number): string {
-  if (confidence >= 0.85) return 'text-mark-green';
-  if (confidence >= 0.6) return 'text-mark-amber';
-  return 'text-mark-red';
-}
-
 // ─── Comments ─────────────────────────────────────────────────────────────
 
 interface ThreadedComment {
@@ -234,7 +53,7 @@ function buildThreads(flat: Comment[]): ThreadedComment[] {
   }));
 }
 
-function CommentsPanel({
+export function CommentsPanel({
   estimate,
   readOnly,
 }: {
@@ -700,7 +519,7 @@ function mapCommentEditError(err: AxiosError): string {
 
 // ─── Versions ─────────────────────────────────────────────────────────────
 
-function VersionsPanel({ estimate }: { estimate: EstimateDetail }) {
+export function VersionsPanel({ estimate }: { estimate: EstimateDetail }) {
   const list = useSnapshots(estimate.id);
   const create = useCreateExport(estimate.id);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -830,7 +649,7 @@ function mapVersionExportError(err: AxiosError): string {
 
 // ─── Activity ─────────────────────────────────────────────────────────────
 
-function ActivityPanel({ estimate }: { estimate: EstimateDetail }) {
+export function ActivityPanel({ estimate }: { estimate: EstimateDetail }) {
   const list = useActivity(estimate.id);
   if (list.isLoading) {
     return (

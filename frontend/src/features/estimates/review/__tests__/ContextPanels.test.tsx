@@ -2,7 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { RightRail } from '@/features/estimates/review/RightRail';
+import {
+  ActivityPanel,
+  CommentsPanel,
+  VersionsPanel,
+} from '@/features/estimates/review/ContextPanels';
 import { AuthProvider } from '@/context/AuthContext';
 import { api } from '@/lib/api';
 import type { EstimateDetail } from '@/features/estimates/types';
@@ -83,44 +87,7 @@ function buildEstimate(overrides: Partial<EstimateDetail> = {}): EstimateDetail 
         markupPercent: null,
       },
     ],
-    lineItems: [
-      {
-        id: 'li-1',
-        estimateId: 'e1',
-        scopeSectionId: 'sec-1',
-        description: 'Demo back wall',
-        quantity: '1',
-        unitOfMeasure: 'LS',
-        unitCostMaterial: '0',
-        unitCostLabor: '0',
-        markupPercent: '0',
-        lineCost: '0',
-        lineSellPrice: '0',
-        status: 'NEEDS_REVIEW',
-        source: 'AI_GENERATED',
-        aiConfidence: '0.55',
-        aiAssumption: 'Wall is non-structural — confirm with PM.',
-        order: 0,
-      },
-      {
-        id: 'li-2',
-        estimateId: 'e1',
-        scopeSectionId: 'sec-1',
-        description: 'Custom soffit',
-        quantity: '1',
-        unitOfMeasure: 'LS',
-        unitCostMaterial: '0',
-        unitCostLabor: '0',
-        markupPercent: '0',
-        lineCost: '0',
-        lineSellPrice: '0',
-        status: 'NO_PRICE',
-        source: 'AI_GENERATED',
-        aiConfidence: '0.5',
-        aiAssumption: null,
-        order: 1,
-      },
-    ],
+    lineItems: [],
     sourceInputs: [],
     conversation: null,
     ...overrides,
@@ -149,7 +116,7 @@ function setupApi(opts: {
   if (opts.deleteReply) mockedDelete.mockImplementation(async () => opts.deleteReply!() as never);
 }
 
-function renderRail(estimate: EstimateDetail, readOnly = false) {
+function mount(node: React.ReactNode) {
   const qc = new QueryClient({
     defaultOptions: {
       queries: { retry: false, gcTime: 0, staleTime: 0 },
@@ -158,55 +125,12 @@ function renderRail(estimate: EstimateDetail, readOnly = false) {
   });
   return render(
     <QueryClientProvider client={qc}>
-      <AuthProvider>
-        <RightRail estimate={estimate} readOnly={readOnly} />
-      </AuthProvider>
+      <AuthProvider>{node}</AuthProvider>
     </QueryClientProvider>,
   );
 }
 
-describe('RightRail — Assumptions tab', () => {
-  it('aggregates only line items with an aiAssumption and shows the section + confidence', async () => {
-    setupApi();
-    renderRail(buildEstimate());
-    await waitFor(() => screen.getByTestId('rail-tab-assumptions'));
-    const rows = await screen.findAllByTestId('assumption-row');
-    expect(rows).toHaveLength(1);
-    expect(rows[0]?.textContent).toMatch(/non-structural/i);
-    expect(rows[0]?.textContent).toMatch(/Demolition/);
-    expect(rows[0]?.textContent).toMatch(/55% confidence/);
-  });
-
-  it('shows an empty state when no line has an assumption', async () => {
-    setupApi();
-    const e = buildEstimate({
-      lineItems: [
-        {
-          id: 'li-x',
-          estimateId: 'e1',
-          scopeSectionId: 'sec-1',
-          description: 'Clean lines',
-          quantity: '1',
-          unitOfMeasure: 'LS',
-          unitCostMaterial: '0',
-          unitCostLabor: '0',
-          markupPercent: '0',
-          lineCost: '0',
-          lineSellPrice: '0',
-          status: 'DRAFT',
-          source: 'MANUAL',
-          aiConfidence: null,
-          aiAssumption: null,
-          order: 0,
-        },
-      ],
-    });
-    renderRail(e);
-    expect(await screen.findByText(/no assumptions yet/i)).toBeInTheDocument();
-  });
-});
-
-describe('RightRail — Comments tab', () => {
+describe('CommentsPanel', () => {
   it('lists comments and lets the user post a new one', async () => {
     setupApi({
       comments: [
@@ -239,9 +163,8 @@ describe('RightRail — Comments tab', () => {
       }),
     });
     const user = userEvent.setup();
-    renderRail(buildEstimate());
+    mount(<CommentsPanel estimate={buildEstimate()} readOnly={false} />);
 
-    await user.click(await screen.findByTestId('rail-tab-comments'));
     await waitFor(() => screen.getByText(/looks tight on demo/i));
 
     const input = screen.getByTestId('comment-input');
@@ -289,8 +212,7 @@ describe('RightRail — Comments tab', () => {
       }),
     });
     const user = userEvent.setup();
-    renderRail(buildEstimate());
-    await user.click(await screen.findByTestId('rail-tab-comments'));
+    mount(<CommentsPanel estimate={buildEstimate()} readOnly={false} />);
     await user.click(await screen.findByTestId('comment-resolve'));
     await waitFor(() => {
       expect(mockedPatch).toHaveBeenCalledWith('/api/estimates/e1/comments/c-1', {
@@ -315,16 +237,17 @@ describe('RightRail — Comments tab', () => {
         },
       ],
     });
-    const user = userEvent.setup();
-    renderRail(buildEstimate({ status: 'APPROVED' }), true);
-    await user.click(await screen.findByTestId('rail-tab-comments'));
+    mount(
+      <CommentsPanel estimate={buildEstimate({ status: 'APPROVED' })} readOnly={true} />,
+    );
+    await waitFor(() => screen.getByText(/something/));
     expect(screen.queryByTestId('comment-input')).not.toBeInTheDocument();
     expect(screen.queryByTestId('comment-resolve')).not.toBeInTheDocument();
     expect(screen.queryByTestId('comment-delete')).not.toBeInTheDocument();
   });
 });
 
-describe('RightRail — Comment threading + edits + mentions', () => {
+describe('CommentsPanel — threading + edits + mentions', () => {
   const recentIso = new Date(Date.now() - 60 * 1000).toISOString();
   const oldIso = new Date(Date.now() - 30 * 60 * 1000).toISOString();
 
@@ -359,9 +282,7 @@ describe('RightRail — Comment threading + edits + mentions', () => {
         },
       ],
     });
-    const user = userEvent.setup();
-    renderRail(buildEstimate());
-    await user.click(await screen.findByTestId('rail-tab-comments'));
+    mount(<CommentsPanel estimate={buildEstimate()} readOnly={false} />);
     await screen.findByText(/Top-level/);
     expect(screen.getByText(/A reply/)).toBeInTheDocument();
     expect(screen.getByTestId('comment-replies-p1')).toBeInTheDocument();
@@ -403,8 +324,7 @@ describe('RightRail — Comment threading + edits + mentions', () => {
       }),
     });
     const user = userEvent.setup();
-    renderRail(buildEstimate());
-    await user.click(await screen.findByTestId('rail-tab-comments'));
+    mount(<CommentsPanel estimate={buildEstimate()} readOnly={false} />);
     await user.click(await screen.findByTestId('comment-reply-toggle'));
     await user.type(screen.getByTestId('comment-reply-input'), 'On it');
     await user.click(screen.getByTestId('comment-reply-submit'));
@@ -478,8 +398,7 @@ describe('RightRail — Comment threading + edits + mentions', () => {
       }),
     });
     const user = userEvent.setup();
-    renderRail(buildEstimate());
-    await user.click(await screen.findByTestId('rail-tab-comments'));
+    mount(<CommentsPanel estimate={buildEstimate()} readOnly={false} />);
     // Only one Edit button should be visible (recent + mine).
     await waitFor(() => {
       expect(screen.getAllByTestId('comment-edit')).toHaveLength(1);
@@ -529,8 +448,7 @@ describe('RightRail — Comment threading + edits + mentions', () => {
       }),
     });
     const user = userEvent.setup();
-    renderRail(buildEstimate());
-    await user.click(await screen.findByTestId('rail-tab-comments'));
+    mount(<CommentsPanel estimate={buildEstimate()} readOnly={false} />);
 
     // Open the picker, choose Sam.
     await user.click(await screen.findByTestId('mention-toggle'));
@@ -549,7 +467,7 @@ describe('RightRail — Comment threading + edits + mentions', () => {
   });
 });
 
-describe('RightRail — Activity tab', () => {
+describe('ActivityPanel', () => {
   it('renders newest-first events with actor + summary', async () => {
     setupApi({
       events: [
@@ -577,9 +495,7 @@ describe('RightRail — Activity tab', () => {
         },
       ],
     });
-    const user = userEvent.setup();
-    renderRail(buildEstimate());
-    await user.click(await screen.findByTestId('rail-tab-activity'));
+    mount(<ActivityPanel estimate={buildEstimate()} />);
     const rows = await screen.findAllByTestId('activity-row');
     expect(rows.length).toBe(2);
     expect(rows[0]?.textContent).toMatch(/Approved/);
@@ -588,19 +504,15 @@ describe('RightRail — Activity tab', () => {
 
   it('renders an empty state when no events exist', async () => {
     setupApi({ events: [] });
-    const user = userEvent.setup();
-    renderRail(buildEstimate());
-    await user.click(await screen.findByTestId('rail-tab-activity'));
+    mount(<ActivityPanel estimate={buildEstimate()} />);
     expect(await screen.findByText(/no activity yet/i)).toBeInTheDocument();
   });
 });
 
-describe('RightRail — Versions tab', () => {
+describe('VersionsPanel', () => {
   it('shows an empty state when no snapshots exist', async () => {
     setupApi({ snapshots: [] });
-    const user = userEvent.setup();
-    renderRail(buildEstimate());
-    await user.click(await screen.findByTestId('rail-tab-versions'));
+    mount(<VersionsPanel estimate={buildEstimate()} />);
     expect(await screen.findByText(/approve or send/i)).toBeInTheDocument();
   });
 
@@ -631,9 +543,7 @@ describe('RightRail — Versions tab', () => {
         },
       ],
     });
-    const user = userEvent.setup();
-    renderRail(buildEstimate());
-    await user.click(await screen.findByTestId('rail-tab-versions'));
+    mount(<VersionsPanel estimate={buildEstimate()} />);
     const rows = await screen.findAllByTestId('version-row');
     expect(rows).toHaveLength(2);
     expect(rows[0]?.textContent).toMatch(/v2/);
@@ -676,8 +586,7 @@ describe('RightRail — Versions tab', () => {
     });
     const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
     const user = userEvent.setup();
-    renderRail(buildEstimate());
-    await user.click(await screen.findByTestId('rail-tab-versions'));
+    mount(<VersionsPanel estimate={buildEstimate()} />);
     await user.click(await screen.findByTestId('version-download-snap-1'));
     await waitFor(() => {
       expect(mockedPost).toHaveBeenCalledWith(
