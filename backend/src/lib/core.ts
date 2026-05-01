@@ -1,4 +1,5 @@
-import { CoreClient } from '@helm/sdk';
+import { createCoreClient } from '@helm/sdk';
+import type { CoreClient } from '@helm/sdk';
 import { env } from './env.js';
 import { logger } from './logger.js';
 
@@ -22,7 +23,7 @@ export function getCoreClient(orgSlug: string, userId: string): CoreClient | nul
       ? { userId: env.CORE_DEV_USER_ID, orgSlug }
       : undefined;
 
-  return new CoreClient({
+  return createCoreClient({
     baseUrl: env.CORE_API_URL,
     orgSlug,
     userId,
