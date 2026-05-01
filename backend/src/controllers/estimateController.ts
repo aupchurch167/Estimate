@@ -118,12 +118,16 @@ export async function getEstimate(req: Request, res: Response): Promise<void> {
 
 export async function patchEstimate(req: Request, res: Response): Promise<void> {
   const { orgId, user } = assertOrg(req);
-  const input = parse(patchBody, req.body);
+  const { coreAccountId, coreDealId, ...rest } = parse(patchBody, req.body);
   const estimate = await estimateService.update(
     orgId,
     { id: user.id, role: user.role },
     String(req.params.id ?? ''),
-    input,
+    {
+      ...rest,
+      ...(coreAccountId !== undefined ? { coachCompanyId: coreAccountId } : {}),
+      ...(coreDealId !== undefined ? { coachDealId: coreDealId } : {}),
+    },
   );
   ok(res, { estimate });
 }
