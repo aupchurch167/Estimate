@@ -65,6 +65,9 @@ export interface CreateEstimateInput {
   projectCity?: string | null;
   projectState?: string | null;
   projectPostalCode?: string | null;
+  // Core entity links — only sent when VITE_HELM_CORE_INTEGRATION is on
+  coreAccountId?: string | null;
+  coreDealId?: string | null;
 }
 
 export function useCreateEstimate() {
