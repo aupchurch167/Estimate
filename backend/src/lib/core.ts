@@ -23,10 +23,17 @@ export function getCoreClient(orgSlug: string, userId: string): CoreClient | nul
       ? { userId: env.CORE_DEV_USER_ID, orgSlug }
       : undefined;
 
-  return createCoreClient({
-    baseUrl: env.CORE_API_URL,
+  return createCoreClient(
+    {
+      baseUrl: env.CORE_API_URL,
+      auth: async () => {
+        // Dev bypass uses x-helm-test-* headers — no token needed.
+        if (devBypass) return null;
+        // Production service-to-service auth is Phase 6.
+        throw new Error('Core production auth is not yet configured');
+      },
+      devBypass,
+    },
     orgSlug,
-    userId,
-    devBypass,
-  });
+  );
 }
