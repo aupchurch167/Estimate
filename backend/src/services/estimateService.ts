@@ -148,6 +148,9 @@ export interface CreateEstimateInput {
   projectPostalCode?: string | null;
   validUntil?: string | null;
   reviewerId?: string | null;
+  // Core entity IDs (stored in coachCompanyId / coachDealId columns)
+  coreAccountId?: string | null;
+  coreDealId?: string | null;
 }
 
 export async function create(
@@ -183,6 +186,8 @@ export async function create(
     projectState: input.projectState ?? null,
     projectPostalCode: input.projectPostalCode ?? null,
     validUntil: input.validUntil ? new Date(input.validUntil) : null,
+    coachCompanyId: input.coreAccountId ?? null,
+    coachDealId: input.coreDealId ?? null,
   };
 
   for (let attempt = 0; attempt < NUMBER_RETRY_LIMIT; attempt++) {
@@ -299,6 +304,9 @@ export interface UpdateEstimateInput {
   projectState?: string | null;
   projectPostalCode?: string | null;
   validUntil?: string | null;
+  // Core entity IDs (stored in coachCompanyId / coachDealId columns)
+  coachCompanyId?: string | null;
+  coachDealId?: string | null;
 }
 
 export async function update(

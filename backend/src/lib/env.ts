@@ -97,6 +97,22 @@ const schema = z.object({
     .transform((v) => (typeof v === 'boolean' ? v : v === 'true'))
     .default(true)
     .describe('Whether self-serve signup is enabled'),
+
+  // Helm Core integration
+  HELM_CORE_INTEGRATION: z
+    .union([z.boolean(), z.string()])
+    .transform((v) => (typeof v === 'boolean' ? v : v === 'true'))
+    .default(false)
+    .describe('Enable Core API integration (accounts, deals, properties, vendors)'),
+  CORE_API_URL: z
+    .string()
+    .url()
+    .optional()
+    .describe('Core API base URL (required when HELM_CORE_INTEGRATION=true)'),
+  CORE_DEV_USER_ID: z
+    .string()
+    .optional()
+    .describe('Real Core user UUID for dev auth bypass'),
 });
 
 type EnvSchema = typeof schema;

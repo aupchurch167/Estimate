@@ -35,6 +35,7 @@ import {
 import { aiRunsRouter, estimateAiRouter } from './routes/aiRuns.js';
 import { notificationsRouter } from './routes/notifications.js';
 import { dashboardRouter } from './routes/dashboard.js';
+import { coreRouter } from './routes/core.js';
 
 export function createApp(): Express {
   const app = express();
@@ -76,6 +77,7 @@ export function createApp(): Express {
   app.use('/api/ai-runs', aiRunsRouter);
   app.use('/api/notifications', notificationsRouter);
   app.use('/api/dashboard', dashboardRouter);
+  app.use('/api/core', coreRouter);
 
   app.get('/', (_req, res) => {
     res.json({ app: 'Quill', status: 'ok' });
