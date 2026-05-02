@@ -51,7 +51,8 @@ export async function searchAccounts(req: Request, res: Response): Promise<void>
     const result = await core.accounts.list({ search: q.search, limit: q.limit, cursor: q.cursor });
     res.json({ enabled: true, ...result });
   } catch (err) {
-    logger.error('Core accounts fetch failed', { err });
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.error('Core accounts fetch failed', { message: msg });
     res.json({ enabled: true, data: [] });
   }
 }
@@ -92,7 +93,8 @@ export async function getAccountDeals(req: Request, res: Response): Promise<void
     });
     res.json({ enabled: true, ...result });
   } catch (err) {
-    logger.error('Core deals fetch failed', { err });
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.error('Core deals fetch failed', { message: msg });
     res.json({ enabled: true, data: [] });
   }
 }
