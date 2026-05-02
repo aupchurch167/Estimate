@@ -105,6 +105,25 @@ export async function getAccountProperties(req: Request, res: Response): Promise
   res.json({ enabled: core.enabled(), data: [] });
 }
 
+// ─── Deals ───────────────────────────────────────────────────────────────────
+
+export async function searchDeals(req: Request, res: Response): Promise<void> {
+  assertAuth(req);
+  const q = parse(searchQuery, req.query);
+  if (!core.enabled()) {
+    res.json({ enabled: false, data: [] });
+    return;
+  }
+  try {
+    const result = await core.deals.list({ search: q.search, limit: q.limit, cursor: q.cursor });
+    res.json({ enabled: true, ...result });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.error('Core deals search failed', { message: msg });
+    res.json({ enabled: true, data: [] });
+  }
+}
+
 // ─── Vendors ─────────────────────────────────────────────────────────────────
 
 export async function searchVendors(req: Request, res: Response): Promise<void> {

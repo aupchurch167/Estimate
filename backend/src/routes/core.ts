@@ -14,5 +14,8 @@ coreRouter.get('/accounts/:id/contacts', asyncHandler(controller.getAccountConta
 coreRouter.get('/accounts/:id/deals', asyncHandler(controller.getAccountDeals));
 coreRouter.get('/accounts/:id/properties', asyncHandler(controller.getAccountProperties));
 
+// Deals
+coreRouter.get('/deals', asyncHandler(controller.searchDeals));
+
 // Vendors
 coreRouter.get('/vendors', asyncHandler(controller.searchVendors));

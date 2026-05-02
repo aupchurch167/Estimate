@@ -16,6 +16,8 @@ export interface CoreDeal {
   name: string;
   stage: string;
   value?: number | null;
+  accountId: string;
+  accountName?: string | null;
 }
 
 interface CoreListResponse<T> {
@@ -48,16 +50,18 @@ export function useCoreAccounts(search: string) {
   });
 }
 
-export function useCoreDeals(accountId: string | null) {
+export function useCoreDeals(search: string) {
+  const debouncedSearch = useDebouncedValue(search, search ? 300 : 0);
   return useQuery<CoreListResponse<CoreDeal>, AxiosError>({
-    queryKey: ['core', 'accounts', accountId, 'deals'],
+    queryKey: ['core', 'deals', debouncedSearch],
     queryFn: async () => {
+      const params = new URLSearchParams({ limit: '20' });
+      if (debouncedSearch) params.set('search', debouncedSearch);
       const res = await api.get<CoreListResponse<CoreDeal>>(
-        `/api/core/accounts/${accountId}/deals?limit=20`,
+        `/api/core/deals?${params.toString()}`,
       );
       return res.data;
     },
-    enabled: Boolean(accountId),
     staleTime: 30_000,
   });
 }
