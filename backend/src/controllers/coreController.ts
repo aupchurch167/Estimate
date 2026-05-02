@@ -9,7 +9,7 @@
 
 import type { Request, Response } from 'express';
 import { z } from 'zod';
-import { core, CoreApiError } from '../lib/core.js';
+import { core } from '../lib/core.js';
 import { ForbiddenError, ValidationError } from '../lib/errors.js';
 import { logger } from '../lib/logger.js';
 
@@ -31,22 +31,6 @@ function parse<T extends z.ZodTypeAny>(schema: T, value: unknown): z.infer<T> {
   return result.data;
 }
 
-function handleCoreError(err: unknown, res: Response): boolean {
-  if (err instanceof CoreApiError) {
-    if (err.status === 404) {
-      res.status(404).json({ error: { code: 'not_found', message: 'Not found in Core' } });
-      return true;
-    }
-    if (err.status === 401) {
-      res.status(401).json({ error: { code: 'not_authenticated', message: 'Core auth failed' } });
-      return true;
-    }
-    logger.error('Core API error', { status: err.status, message: err.message });
-    res.status(502).json({ error: { code: 'upstream_error', message: 'Core service error' } });
-    return true;
-  }
-  return false;
-}
 
 const searchQuery = z.object({
   search: z.string().max(200).optional(),
@@ -67,7 +51,8 @@ export async function searchAccounts(req: Request, res: Response): Promise<void>
     const result = await core.accounts.list({ search: q.search, limit: q.limit, cursor: q.cursor });
     res.json({ enabled: true, ...result });
   } catch (err) {
-    if (!handleCoreError(err, res)) throw err;
+    logger.error('Core accounts fetch failed', { err });
+    res.json({ enabled: true, data: [] });
   }
 }
 
@@ -81,7 +66,8 @@ export async function getAccount(req: Request, res: Response): Promise<void> {
     const result = await core.accounts.get(String(req.params.id ?? ''));
     res.json({ enabled: true, ...result });
   } catch (err) {
-    if (!handleCoreError(err, res)) throw err;
+    logger.error('Core account fetch failed', { err });
+    res.status(502).json({ error: { code: 'upstream_error', message: 'Core service error' } });
   }
 }
 
@@ -106,7 +92,8 @@ export async function getAccountDeals(req: Request, res: Response): Promise<void
     });
     res.json({ enabled: true, ...result });
   } catch (err) {
-    if (!handleCoreError(err, res)) throw err;
+    logger.error('Core deals fetch failed', { err });
+    res.json({ enabled: true, data: [] });
   }
 }
 
