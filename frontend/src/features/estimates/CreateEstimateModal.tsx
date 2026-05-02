@@ -13,10 +13,6 @@ import type { CoreDeal } from './useCoreEntities';
 const schema = z.object({
   title: z.string().min(1, 'Title is required').max(200),
   clientCompanyName: z.string().max(200).optional(),
-  projectAddressLine1: z.string().max(200).optional(),
-  projectCity: z.string().max(80).optional(),
-  projectState: z.string().max(40).optional(),
-  projectPostalCode: z.string().max(20).optional(),
 });
 type FormValues = z.infer<typeof schema>;
 
@@ -40,17 +36,11 @@ export function CreateEstimateModal({ open, onClose }: CreateEstimateModalProps)
     register,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: {
-      title: '',
-      clientCompanyName: '',
-      projectAddressLine1: '',
-      projectCity: '',
-      projectState: '',
-      projectPostalCode: '',
-    },
+    defaultValues: { title: '', clientCompanyName: '' },
   });
 
   useEffect(() => {
@@ -70,10 +60,6 @@ export function CreateEstimateModal({ open, onClose }: CreateEstimateModalProps)
       const created = await create.mutateAsync({
         title: values.title.trim(),
         clientCompanyName: values.clientCompanyName?.trim() || null,
-        projectAddressLine1: values.projectAddressLine1?.trim() || null,
-        projectCity: values.projectCity?.trim() || null,
-        projectState: values.projectState?.trim() || null,
-        projectPostalCode: values.projectPostalCode?.trim() || null,
         ...(coreEnabled
           ? {
               coreAccountId: selectedDeal?.accountId ?? null,
@@ -137,16 +123,6 @@ export function CreateEstimateModal({ open, onClose }: CreateEstimateModalProps)
             </div>
           ) : null}
 
-          <Field label="Title" htmlFor="est-title" error={errors.title?.message}>
-            <input
-              id="est-title"
-              autoFocus
-              className={inputClass}
-              placeholder="e.g. Acme Corp Suite 400 TI"
-              {...register('title')}
-            />
-          </Field>
-
           {coreEnabled ? (
             <Field label="Deal" htmlFor="est-deal">
               <Combobox
@@ -160,8 +136,12 @@ export function CreateEstimateModal({ open, onClose }: CreateEstimateModalProps)
                 onSelect={(opt) => {
                   const deal = (dealsQuery.data?.data ?? []).find((d) => d.id === opt.id);
                   setSelectedDeal(deal ?? null);
+                  if (deal) setValue('title', deal.name, { shouldValidate: true });
                 }}
-                onClear={() => setSelectedDeal(null)}
+                onClear={() => {
+                  setSelectedDeal(null);
+                  setValue('title', '');
+                }}
               />
             </Field>
           ) : (
@@ -174,34 +154,15 @@ export function CreateEstimateModal({ open, onClose }: CreateEstimateModalProps)
             </Field>
           )}
 
-          <Field
-            label="Project address"
-            htmlFor="est-address"
-            error={errors.projectAddressLine1?.message}
-          >
+          <Field label="Title" htmlFor="est-title" error={errors.title?.message}>
             <input
-              id="est-address"
+              id="est-title"
+              autoFocus={!coreEnabled}
               className={inputClass}
-              placeholder="123 Main St"
-              {...register('projectAddressLine1')}
+              placeholder="e.g. Acme Corp Suite 400 TI"
+              {...register('title')}
             />
           </Field>
-
-          <div className="grid grid-cols-3 gap-4">
-            <Field label="City" htmlFor="est-city" error={errors.projectCity?.message}>
-              <input id="est-city" className={inputClass} {...register('projectCity')} />
-            </Field>
-            <Field label="State" htmlFor="est-state" error={errors.projectState?.message}>
-              <input id="est-state" className={inputClass} {...register('projectState')} />
-            </Field>
-            <Field label="ZIP" htmlFor="est-zip" error={errors.projectPostalCode?.message}>
-              <input
-                id="est-zip"
-                className={`${inputClass} font-mono`}
-                {...register('projectPostalCode')}
-              />
-            </Field>
-          </div>
 
           <div className="mt-2 flex justify-end gap-3">
             <button
