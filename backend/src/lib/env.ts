@@ -109,10 +109,14 @@ const schema = z.object({
     .url()
     .optional()
     .describe('Core API base URL (required when HELM_CORE_INTEGRATION=true)'),
-  CORE_DEV_USER_ID: z
+  CORE_ORG_SLUG: z
     .string()
     .optional()
-    .describe('Real Core user UUID for dev auth bypass'),
+    .describe('Org slug to scope Core API calls'),
+  CORE_API_KEY: z
+    .string()
+    .optional()
+    .describe('Bearer token for Core API auth'),
 });
 
 type EnvSchema = typeof schema;

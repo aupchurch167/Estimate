@@ -12,7 +12,7 @@ import * as sendService from '../services/sendService.js';
 import { canCreateEstimate } from '../lib/permissions.js';
 import { ConflictError, ForbiddenError, ValidationError } from '../lib/errors.js';
 import { ok } from '../lib/response.js';
-import { getCoreClient } from '../lib/core.js';
+import { core } from '../lib/core.js';
 import { logger } from '../lib/logger.js';
 
 const STATUSES = ['DRAFT', 'IN_REVIEW', 'APPROVED', 'SENT', 'WON', 'LOST', 'REVISED'] as const;
@@ -213,7 +213,6 @@ const lostBody = z.object({
 
 export async function markWon(req: Request, res: Response): Promise<void> {
   const { orgId, user } = assertOrg(req);
-  if (!req.organization) throw new ForbiddenError('Not authenticated');
   const input = parse(optionalNoteBody, req.body ?? {});
   const result = await reviewWorkflowService.markWon(
     orgId,
@@ -224,8 +223,7 @@ export async function markWon(req: Request, res: Response): Promise<void> {
 
   // Fire-and-forget: update Core deal stage and create a project.
   const { coachDealId, coachCompanyId } = result.estimate;
-  const core = getCoreClient(req.organization.slug, user.id);
-  if (core && coachDealId) {
+  if (core.enabled() && coachDealId) {
     void (async () => {
       try {
         await core.deals.update(coachDealId, {
@@ -256,7 +254,6 @@ export async function markWon(req: Request, res: Response): Promise<void> {
 
 export async function markLost(req: Request, res: Response): Promise<void> {
   const { orgId, user } = assertOrg(req);
-  if (!req.organization) throw new ForbiddenError('Not authenticated');
   const input = parse(lostBody, req.body ?? {});
   const result = await reviewWorkflowService.markLost(
     orgId,
@@ -267,8 +264,7 @@ export async function markLost(req: Request, res: Response): Promise<void> {
 
   // Fire-and-forget: update Core deal outcome.
   const { coachDealId } = result.estimate;
-  const core = getCoreClient(req.organization.slug, user.id);
-  if (core && coachDealId) {
+  if (core.enabled() && coachDealId) {
     void (async () => {
       try {
         await core.deals.update(coachDealId, {
