@@ -7,8 +7,8 @@ import { Field, inputClass } from '@/features/auth/Field';
 import { backendErrorMessage } from '@/features/auth/useAuth';
 import { Combobox } from '@/components/ui';
 import { useCreateEstimate } from './useEstimates';
-import { useCoreAccounts, useCoreDeals } from './useCoreEntities';
-import type { CoreAccount, CoreDeal } from './useCoreEntities';
+import { useCoreDeals } from './useCoreEntities';
+import type { CoreDeal } from './useCoreEntities';
 
 const schema = z.object({
   title: z.string().min(1, 'Title is required').max(200),
@@ -29,14 +29,12 @@ export function CreateEstimateModal({ open, onClose }: CreateEstimateModalProps)
   const navigate = useNavigate();
   const create = useCreateEstimate();
 
-  const [accountSearch, setAccountSearch] = useState('');
-  const [selectedAccount, setSelectedAccount] = useState<CoreAccount | null>(null);
+  const [dealSearch, setDealSearch] = useState('');
   const [selectedDeal, setSelectedDeal] = useState<CoreDeal | null>(null);
 
-  const accountsQuery = useCoreAccounts(accountSearch);
-  const dealsQuery = useCoreDeals(selectedAccount?.id ?? null);
+  const dealsQuery = useCoreDeals(dealSearch);
 
-  const coreEnabled = accountsQuery.data?.enabled ?? false;
+  const coreEnabled = dealsQuery.data?.enabled ?? false;
 
   const {
     register,
@@ -59,8 +57,7 @@ export function CreateEstimateModal({ open, onClose }: CreateEstimateModalProps)
     if (!open) {
       reset();
       create.reset();
-      setAccountSearch('');
-      setSelectedAccount(null);
+      setDealSearch('');
       setSelectedDeal(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -72,14 +69,14 @@ export function CreateEstimateModal({ open, onClose }: CreateEstimateModalProps)
     try {
       const created = await create.mutateAsync({
         title: values.title.trim(),
-        clientCompanyName: selectedAccount?.name ?? values.clientCompanyName?.trim() ?? null,
+        clientCompanyName: values.clientCompanyName?.trim() || null,
         projectAddressLine1: values.projectAddressLine1?.trim() || null,
         projectCity: values.projectCity?.trim() || null,
         projectState: values.projectState?.trim() || null,
         projectPostalCode: values.projectPostalCode?.trim() || null,
         ...(coreEnabled
           ? {
-              coreAccountId: selectedAccount?.id ?? null,
+              coreAccountId: selectedDeal?.accountId ?? null,
               coreDealId: selectedDeal?.id ?? null,
             }
           : {}),
@@ -95,14 +92,6 @@ export function CreateEstimateModal({ open, onClose }: CreateEstimateModalProps)
     ? backendErrorMessage(create.error, 'Could not create estimate.')
     : null;
   const busy = isSubmitting || create.isPending;
-
-  const accountOptions = (accountsQuery.data?.data ?? []).map((a) => ({
-    id: a.id,
-    label: a.name,
-    sublabel: [a.industry, a.city && a.state ? `${a.city}, ${a.state}` : a.city ?? a.state]
-      .filter(Boolean)
-      .join(' · ') || undefined,
-  }));
 
   const dealOptions = (dealsQuery.data?.data ?? []).map((d) => ({
     id: d.id,
@@ -159,50 +148,22 @@ export function CreateEstimateModal({ open, onClose }: CreateEstimateModalProps)
           </Field>
 
           {coreEnabled ? (
-            <>
-              <Field label="Client company" htmlFor="est-client">
-                <Combobox
-                  id="est-client"
-                  placeholder="Search accounts…"
-                  options={accountOptions}
-                  selectedId={selectedAccount?.id ?? null}
-                  selectedLabel={selectedAccount?.name ?? ''}
-                  loading={accountsQuery.isFetching}
-                  onQueryChange={setAccountSearch}
-                  onSelect={(opt) => {
-                    const account = (accountsQuery.data?.data ?? []).find((a) => a.id === opt.id);
-                    setSelectedAccount(account ?? null);
-                    setSelectedDeal(null);
-                  }}
-                  onClear={() => {
-                    setSelectedAccount(null);
-                    setSelectedDeal(null);
-                  }}
-                />
-              </Field>
-
-              {selectedAccount ? (
-                <Field label="Deal" htmlFor="est-deal">
-                  <p className="mb-1 font-mono text-[10px] tracking-label text-dim">
-                    {selectedAccount.name}
-                  </p>
-                  <Combobox
-                    id="est-deal"
-                    placeholder="Select a deal (optional)…"
-                    options={dealOptions}
-                    selectedId={selectedDeal?.id ?? null}
-                    selectedLabel={selectedDeal?.name ?? ''}
-                    loading={dealsQuery.isFetching}
-                    onQueryChange={() => {}}
-                    onSelect={(opt) => {
-                      const deal = (dealsQuery.data?.data ?? []).find((d) => d.id === opt.id);
-                      setSelectedDeal(deal ?? null);
-                    }}
-                    onClear={() => setSelectedDeal(null)}
-                  />
-                </Field>
-              ) : null}
-            </>
+            <Field label="Deal" htmlFor="est-deal">
+              <Combobox
+                id="est-deal"
+                placeholder="Search open deals…"
+                options={dealOptions}
+                selectedId={selectedDeal?.id ?? null}
+                selectedLabel={selectedDeal?.name ?? ''}
+                loading={dealsQuery.isFetching}
+                onQueryChange={setDealSearch}
+                onSelect={(opt) => {
+                  const deal = (dealsQuery.data?.data ?? []).find((d) => d.id === opt.id);
+                  setSelectedDeal(deal ?? null);
+                }}
+                onClear={() => setSelectedDeal(null)}
+              />
+            </Field>
           ) : (
             <Field
               label="Client company"
