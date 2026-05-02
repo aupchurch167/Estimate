@@ -90,6 +90,7 @@ export async function getAccountDeals(req: Request, res: Response): Promise<void
       accountId: String(req.params.id ?? ''),
       limit: q.limit,
       cursor: q.cursor,
+      outcome: '',
     });
     res.json({ enabled: true, ...result });
   } catch (err) {

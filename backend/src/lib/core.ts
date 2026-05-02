@@ -113,12 +113,13 @@ export const core = {
   },
 
   deals: {
-    list: (params?: { search?: string; cursor?: string; limit?: number; accountId?: string }) =>
+    list: (params?: { search?: string; cursor?: string; limit?: number; accountId?: string; outcome?: string }) =>
       coreGet<PaginatedResult<CoreDeal>>('/deals', {
         search: params?.search,
         cursor: params?.cursor,
         limit: params?.limit?.toString(),
         accountId: params?.accountId,
+        outcome: params?.outcome,
       }),
     get: (id: string) => coreGet<{ data: CoreDeal }>(`/deals/${id}`),
     update: (id: string, body: Record<string, unknown>) =>

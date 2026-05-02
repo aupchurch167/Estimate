@@ -54,7 +54,7 @@ export function useCoreDeals(accountId: string | null) {
     queryKey: ['core', 'accounts', accountId, 'deals'],
     queryFn: async () => {
       const res = await api.get<CoreListResponse<CoreDeal>>(
-        `/api/core/accounts/${accountId}/deals?limit=20`,
+        `/api/core/accounts/${accountId}/deals?limit=20&outcome=`,
       );
       return res.data;
     },
