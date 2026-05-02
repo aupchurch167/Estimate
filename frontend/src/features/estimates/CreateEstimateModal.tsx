@@ -6,12 +6,9 @@ import { useNavigate } from 'react-router-dom';
 import { Field, inputClass } from '@/features/auth/Field';
 import { backendErrorMessage } from '@/features/auth/useAuth';
 import { Combobox } from '@/components/ui';
-import { env } from '@/lib/env';
 import { useCreateEstimate } from './useEstimates';
 import { useCoreAccounts, useCoreDeals } from './useCoreEntities';
 import type { CoreAccount, CoreDeal } from './useCoreEntities';
-
-const CORE_ENABLED = env.VITE_HELM_CORE_INTEGRATION;
 
 const schema = z.object({
   title: z.string().min(1, 'Title is required').max(200),
@@ -32,13 +29,15 @@ export function CreateEstimateModal({ open, onClose }: CreateEstimateModalProps)
   const navigate = useNavigate();
   const create = useCreateEstimate();
 
-  // Core selection state — only used when CORE_ENABLED
+  // Core selection state — only used when coreEnabled
   const [accountSearch, setAccountSearch] = useState('');
   const [selectedAccount, setSelectedAccount] = useState<CoreAccount | null>(null);
   const [selectedDeal, setSelectedDeal] = useState<CoreDeal | null>(null);
 
   const accountsQuery = useCoreAccounts(accountSearch);
   const dealsQuery = useCoreDeals(selectedAccount?.id ?? null);
+
+  const coreEnabled = accountsQuery.data?.enabled ?? false;
 
   const {
     register,
@@ -79,7 +78,7 @@ export function CreateEstimateModal({ open, onClose }: CreateEstimateModalProps)
         projectCity: values.projectCity?.trim() || null,
         projectState: values.projectState?.trim() || null,
         projectPostalCode: values.projectPostalCode?.trim() || null,
-        ...(CORE_ENABLED
+        ...(coreEnabled
           ? {
               coreAccountId: selectedAccount?.id ?? null,
               coreDealId: selectedDeal?.id ?? null,
@@ -160,7 +159,7 @@ export function CreateEstimateModal({ open, onClose }: CreateEstimateModalProps)
             />
           </Field>
 
-          {CORE_ENABLED ? (
+          {coreEnabled ? (
             <>
               <Field label="Client company" htmlFor="est-client">
                 <Combobox

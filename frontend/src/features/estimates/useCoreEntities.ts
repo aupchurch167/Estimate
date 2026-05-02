@@ -33,7 +33,7 @@ function useDebouncedValue<T>(value: T, ms = 300): T {
 }
 
 export function useCoreAccounts(search: string) {
-  const debouncedSearch = useDebouncedValue(search, 300);
+  const debouncedSearch = useDebouncedValue(search, search ? 300 : 0);
   return useQuery<CoreListResponse<CoreAccount>, AxiosError>({
     queryKey: ['core', 'accounts', debouncedSearch],
     queryFn: async () => {
