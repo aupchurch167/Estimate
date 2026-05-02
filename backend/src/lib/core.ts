@@ -35,7 +35,7 @@ export class CoreApiError extends Error {
 }
 
 async function coreGet<T>(path: string, params?: Record<string, string | undefined>): Promise<T> {
-  if (!env.CORE_API_URL || !env.CORE_ORG_SLUG || !env.CORE_API_KEY) {
+  if (!env.CORE_API_URL || !env.CORE_ORG_SLUG || !env.CORE_DEV_USER_ID) {
     throw new Error('Core API not configured');
   }
   const url = new URL(`/api/v1/orgs/${env.CORE_ORG_SLUG}${path}`, env.CORE_API_URL);
@@ -45,7 +45,10 @@ async function coreGet<T>(path: string, params?: Record<string, string | undefin
     }
   }
   const res = await fetch(url.toString(), {
-    headers: { Authorization: `Bearer ${env.CORE_API_KEY}` },
+    headers: {
+      'x-helm-test-user-id': env.CORE_DEV_USER_ID,
+      'x-helm-test-org-slug': env.CORE_ORG_SLUG,
+    },
   });
   if (!res.ok) {
     const body = await res.text().catch(() => '');
@@ -55,13 +58,17 @@ async function coreGet<T>(path: string, params?: Record<string, string | undefin
 }
 
 async function corePost<T>(path: string, body: unknown): Promise<T> {
-  if (!env.CORE_API_URL || !env.CORE_ORG_SLUG || !env.CORE_API_KEY) {
+  if (!env.CORE_API_URL || !env.CORE_ORG_SLUG || !env.CORE_DEV_USER_ID) {
     throw new Error('Core API not configured');
   }
   const url = new URL(`/api/v1/orgs/${env.CORE_ORG_SLUG}${path}`, env.CORE_API_URL);
   const res = await fetch(url.toString(), {
     method: 'POST',
-    headers: { Authorization: `Bearer ${env.CORE_API_KEY}`, 'Content-Type': 'application/json' },
+    headers: {
+      'x-helm-test-user-id': env.CORE_DEV_USER_ID,
+      'x-helm-test-org-slug': env.CORE_ORG_SLUG,
+      'Content-Type': 'application/json',
+    },
     body: JSON.stringify(body),
   });
   if (!res.ok) {
@@ -72,13 +79,17 @@ async function corePost<T>(path: string, body: unknown): Promise<T> {
 }
 
 async function corePatch<T>(path: string, body: unknown): Promise<T> {
-  if (!env.CORE_API_URL || !env.CORE_ORG_SLUG || !env.CORE_API_KEY) {
+  if (!env.CORE_API_URL || !env.CORE_ORG_SLUG || !env.CORE_DEV_USER_ID) {
     throw new Error('Core API not configured');
   }
   const url = new URL(`/api/v1/orgs/${env.CORE_ORG_SLUG}${path}`, env.CORE_API_URL);
   const res = await fetch(url.toString(), {
     method: 'PATCH',
-    headers: { Authorization: `Bearer ${env.CORE_API_KEY}`, 'Content-Type': 'application/json' },
+    headers: {
+      'x-helm-test-user-id': env.CORE_DEV_USER_ID,
+      'x-helm-test-org-slug': env.CORE_ORG_SLUG,
+      'Content-Type': 'application/json',
+    },
     body: JSON.stringify(body),
   });
   if (!res.ok) {

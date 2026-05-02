@@ -113,10 +113,10 @@ const schema = z.object({
     .string()
     .optional()
     .describe('Org slug to scope Core API calls'),
-  CORE_API_KEY: z
+  CORE_DEV_USER_ID: z
     .string()
     .optional()
-    .describe('Bearer token for Core API auth'),
+    .describe('UUID of a user in Core DB — dev bypass auth (x-helm-test-user-id)'),
 });
 
 type EnvSchema = typeof schema;
