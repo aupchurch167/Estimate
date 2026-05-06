@@ -45,7 +45,7 @@ export function createApp(): Express {
   // is willing to attach them on cross-origin requests.
   app.use(
     cors({
-      origin: env.APP_URL,
+      origin: env.APP_URL.replace(/\/$/, ''),
       credentials: true,
     }),
   );
