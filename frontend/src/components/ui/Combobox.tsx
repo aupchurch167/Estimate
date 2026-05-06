@@ -74,7 +74,7 @@ export function Combobox({
     inputRef.current?.focus();
   }
 
-  const showDropdown = open && !selectedId && (options.length > 0 || loading);
+  const showDropdown = open && !selectedId && query.length > 0;
 
   const inputBase =
     'h-9 w-full rounded-md border bg-bg-tertiary px-3 text-[14px] text-text-primary placeholder:text-text-tertiary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50';
@@ -119,6 +119,8 @@ export function Combobox({
         >
           {loading ? (
             <li className="px-3 py-2 text-[13px] text-text-tertiary">Searching…</li>
+          ) : options.length === 0 ? (
+            <li className="px-3 py-2 text-[13px] text-text-tertiary">No results</li>
           ) : (
             options.map((option) => (
               <li
