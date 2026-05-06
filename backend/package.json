@@ -30,6 +30,7 @@
     "@aws-sdk/s3-request-presigner": "^3.1038.0",
     "@prisma/client": "^5.20.0",
     "@react-email/render": "^2.0.7",
+    "@types/react": "^18.3.0",
     "@sendgrid/mail": "^8.1.6",
     "@sentry/node": "^10.51.0",
     "@types/pdfkit": "^0.17.6",

@@ -52,7 +52,7 @@ export async function searchAccounts(req: Request, res: Response): Promise<void>
     res.json({ enabled: true, ...result });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    logger.error('Core accounts fetch failed', { message: msg });
+    logger.error({ message: msg }, 'Core accounts fetch failed');
     res.json({ enabled: true, data: [] });
   }
 }
@@ -67,7 +67,7 @@ export async function getAccount(req: Request, res: Response): Promise<void> {
     const result = await core.accounts.get(String(req.params.id ?? ''));
     res.json({ enabled: true, ...result });
   } catch (err) {
-    logger.error('Core account fetch failed', { err });
+    logger.error({ err }, 'Core account fetch failed');
     res.status(502).json({ error: { code: 'upstream_error', message: 'Core service error' } });
   }
 }
@@ -95,7 +95,7 @@ export async function getAccountDeals(req: Request, res: Response): Promise<void
     res.json({ enabled: true, ...result });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    logger.error('Core deals fetch failed', { message: msg });
+    logger.error({ message: msg }, 'Core deals fetch failed');
     res.json({ enabled: true, data: [] });
   }
 }
@@ -120,7 +120,7 @@ export async function searchDeals(req: Request, res: Response): Promise<void> {
     res.json({ enabled: true, ...result });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    logger.error('Core deals search failed', { message: msg });
+    logger.error({ message: msg }, 'Core deals search failed');
     res.json({ enabled: true, data: [] });
   }
 }

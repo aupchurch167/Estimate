@@ -240,11 +240,10 @@ export async function markWon(req: Request, res: Response): Promise<void> {
           });
         }
       } catch (err) {
-        logger.error('Failed to sync won status to Core', {
-          estimateId: result.estimate.id,
-          coachDealId,
-          err,
-        });
+        logger.error(
+          { estimateId: result.estimate.id, coachDealId, err },
+          'Failed to sync won status to Core',
+        );
       }
     })();
   }
@@ -273,11 +272,10 @@ export async function markLost(req: Request, res: Response): Promise<void> {
           stage: 'closed_lost',
         });
       } catch (err) {
-        logger.error('Failed to sync lost status to Core', {
-          estimateId: result.estimate.id,
-          coachDealId,
-          err,
-        });
+        logger.error(
+          { estimateId: result.estimate.id, coachDealId, err },
+          'Failed to sync lost status to Core',
+        );
       }
     })();
   }
