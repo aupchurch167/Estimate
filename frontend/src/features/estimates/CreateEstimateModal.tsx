@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -30,7 +30,13 @@ export function CreateEstimateModal({ open, onClose }: CreateEstimateModalProps)
 
   const dealsQuery = useCoreDeals(dealSearch);
 
-  const coreEnabled = dealsQuery.data?.enabled ?? false;
+  // Latch: once Core confirms it's enabled, never flip back to false while the
+  // modal is open. Without this, coreEnabled drops to false on every new search
+  // (TanStack Query clears data when the query key changes), which unmounts the
+  // Combobox and resets the typed text.
+  const coreEnabledRef = useRef(false);
+  if (dealsQuery.data?.enabled) coreEnabledRef.current = true;
+  const coreEnabled = coreEnabledRef.current;
 
   const {
     register,
@@ -49,6 +55,7 @@ export function CreateEstimateModal({ open, onClose }: CreateEstimateModalProps)
       create.reset();
       setDealSearch('');
       setSelectedDeal(null);
+      coreEnabledRef.current = false;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
