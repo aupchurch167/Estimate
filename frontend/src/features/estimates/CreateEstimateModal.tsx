@@ -1,19 +1,18 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { Field, inputClass } from '@/features/auth/Field';
 import { backendErrorMessage } from '@/features/auth/useAuth';
+import { Combobox } from '@/components/ui';
 import { useCreateEstimate } from './useEstimates';
+import { useCoreDeals } from './useCoreEntities';
+import type { CoreDeal } from './useCoreEntities';
 
 const schema = z.object({
   title: z.string().min(1, 'Title is required').max(200),
   clientCompanyName: z.string().max(200).optional(),
-  projectAddressLine1: z.string().max(200).optional(),
-  projectCity: z.string().max(80).optional(),
-  projectState: z.string().max(40).optional(),
-  projectPostalCode: z.string().max(20).optional(),
 });
 type FormValues = z.infer<typeof schema>;
 
@@ -26,27 +25,37 @@ export function CreateEstimateModal({ open, onClose }: CreateEstimateModalProps)
   const navigate = useNavigate();
   const create = useCreateEstimate();
 
+  const [dealSearch, setDealSearch] = useState('');
+  const [selectedDeal, setSelectedDeal] = useState<CoreDeal | null>(null);
+
+  const dealsQuery = useCoreDeals(dealSearch);
+
+  // Latch: once Core confirms it's enabled, never flip back to false while the
+  // modal is open. Without this, coreEnabled drops to false on every new search
+  // (TanStack Query clears data when the query key changes), which unmounts the
+  // Combobox and resets the typed text.
+  const coreEnabledRef = useRef(false);
+  if (dealsQuery.data?.enabled) coreEnabledRef.current = true;
+  const coreEnabled = coreEnabledRef.current;
+
   const {
     register,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: {
-      title: '',
-      clientCompanyName: '',
-      projectAddressLine1: '',
-      projectCity: '',
-      projectState: '',
-      projectPostalCode: '',
-    },
+    defaultValues: { title: '', clientCompanyName: '' },
   });
 
   useEffect(() => {
     if (!open) {
       reset();
       create.reset();
+      setDealSearch('');
+      setSelectedDeal(null);
+      coreEnabledRef.current = false;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -58,10 +67,12 @@ export function CreateEstimateModal({ open, onClose }: CreateEstimateModalProps)
       const created = await create.mutateAsync({
         title: values.title.trim(),
         clientCompanyName: values.clientCompanyName?.trim() || null,
-        projectAddressLine1: values.projectAddressLine1?.trim() || null,
-        projectCity: values.projectCity?.trim() || null,
-        projectState: values.projectState?.trim() || null,
-        projectPostalCode: values.projectPostalCode?.trim() || null,
+        ...(coreEnabled
+          ? {
+              coreAccountId: selectedDeal?.accountId ?? null,
+              coreDealId: selectedDeal?.id ?? null,
+            }
+          : {}),
       });
       onClose();
       navigate(`/app/estimates/${created.id}`);
@@ -74,6 +85,12 @@ export function CreateEstimateModal({ open, onClose }: CreateEstimateModalProps)
     ? backendErrorMessage(create.error, 'Could not create estimate.')
     : null;
   const busy = isSubmitting || create.isPending;
+
+  const dealOptions = (dealsQuery.data?.data ?? []).map((d) => ({
+    id: d.id,
+    label: d.name,
+    sublabel: d.stage,
+  }));
 
   return (
     <div
@@ -113,52 +130,46 @@ export function CreateEstimateModal({ open, onClose }: CreateEstimateModalProps)
             </div>
           ) : null}
 
+          {coreEnabled ? (
+            <Field label="Deal" htmlFor="est-deal">
+              <Combobox
+                id="est-deal"
+                placeholder="Search open deals…"
+                options={dealOptions}
+                selectedId={selectedDeal?.id ?? null}
+                selectedLabel={selectedDeal?.name ?? ''}
+                loading={dealsQuery.isFetching}
+                onQueryChange={setDealSearch}
+                onSelect={(opt) => {
+                  const deal = (dealsQuery.data?.data ?? []).find((d) => d.id === opt.id);
+                  setSelectedDeal(deal ?? null);
+                  if (deal) setValue('title', deal.name, { shouldValidate: true });
+                }}
+                onClear={() => {
+                  setSelectedDeal(null);
+                  setValue('title', '');
+                }}
+              />
+            </Field>
+          ) : (
+            <Field
+              label="Client company"
+              htmlFor="est-client"
+              error={errors.clientCompanyName?.message}
+            >
+              <input id="est-client" className={inputClass} {...register('clientCompanyName')} />
+            </Field>
+          )}
+
           <Field label="Title" htmlFor="est-title" error={errors.title?.message}>
             <input
               id="est-title"
-              autoFocus
+              autoFocus={!coreEnabled}
               className={inputClass}
               placeholder="e.g. Acme Corp Suite 400 TI"
               {...register('title')}
             />
           </Field>
-
-          <Field
-            label="Client company"
-            htmlFor="est-client"
-            error={errors.clientCompanyName?.message}
-          >
-            <input id="est-client" className={inputClass} {...register('clientCompanyName')} />
-          </Field>
-
-          <Field
-            label="Project address"
-            htmlFor="est-address"
-            error={errors.projectAddressLine1?.message}
-          >
-            <input
-              id="est-address"
-              className={inputClass}
-              placeholder="123 Main St"
-              {...register('projectAddressLine1')}
-            />
-          </Field>
-
-          <div className="grid grid-cols-3 gap-4">
-            <Field label="City" htmlFor="est-city" error={errors.projectCity?.message}>
-              <input id="est-city" className={inputClass} {...register('projectCity')} />
-            </Field>
-            <Field label="State" htmlFor="est-state" error={errors.projectState?.message}>
-              <input id="est-state" className={inputClass} {...register('projectState')} />
-            </Field>
-            <Field label="ZIP" htmlFor="est-zip" error={errors.projectPostalCode?.message}>
-              <input
-                id="est-zip"
-                className={`${inputClass} font-mono`}
-                {...register('projectPostalCode')}
-              />
-            </Field>
-          </div>
 
           <div className="mt-2 flex justify-end gap-3">
             <button

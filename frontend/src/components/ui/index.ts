@@ -25,3 +25,4 @@ export {
 } from './LoadingSkeleton';
 export { Avatar, type AvatarProps, type AvatarSize } from './Avatar';
 export { ToastProvider, useToast, type ToastVariant } from './Toast';
+export { Combobox, type ComboboxOption, type ComboboxProps } from './Combobox';

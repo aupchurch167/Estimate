@@ -24,6 +24,11 @@ const schema = z.object({
     .optional()
     .or(z.literal(''))
     .describe('Sentry DSN for the browser SDK (prod only)'),
+  VITE_HELM_CORE_INTEGRATION: z
+    .union([z.literal('true'), z.literal('false'), z.literal('')])
+    .optional()
+    .transform((v) => v === 'true')
+    .describe('Enable Core API integration (account/deal pickers on estimate form)'),
 });
 
 type Env = z.infer<typeof schema>;
@@ -49,6 +54,7 @@ const TEST_DEFAULTS = {
   VITE_API_URL: 'http://localhost:4000',
   VITE_APP_URL: 'http://localhost:5173',
   VITE_SENTRY_DSN: '',
+  VITE_HELM_CORE_INTEGRATION: 'false',
 };
 
 function loadEnv(): Env {

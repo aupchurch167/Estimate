@@ -12,6 +12,8 @@ import * as sendService from '../services/sendService.js';
 import { canCreateEstimate } from '../lib/permissions.js';
 import { ConflictError, ForbiddenError, ValidationError } from '../lib/errors.js';
 import { ok } from '../lib/response.js';
+import { core } from '../lib/core.js';
+import { logger } from '../lib/logger.js';
 
 const STATUSES = ['DRAFT', 'IN_REVIEW', 'APPROVED', 'SENT', 'WON', 'LOST', 'REVISED'] as const;
 
@@ -32,6 +34,9 @@ const createBody = z.object({
   projectPostalCode: z.string().max(20).nullable().optional(),
   validUntil: z.string().datetime().nullable().optional(),
   reviewerId: z.string().min(1).nullable().optional(),
+  // Core entity IDs — link the estimate to a Core account and/or deal.
+  coreAccountId: z.string().min(1).nullable().optional(),
+  coreDealId: z.string().min(1).nullable().optional(),
 });
 
 const patchBody = createBody.partial();
@@ -113,12 +118,16 @@ export async function getEstimate(req: Request, res: Response): Promise<void> {
 
 export async function patchEstimate(req: Request, res: Response): Promise<void> {
   const { orgId, user } = assertOrg(req);
-  const input = parse(patchBody, req.body);
+  const { coreAccountId, coreDealId, ...rest } = parse(patchBody, req.body);
   const estimate = await estimateService.update(
     orgId,
     { id: user.id, role: user.role },
     String(req.params.id ?? ''),
-    input,
+    {
+      ...rest,
+      ...(coreAccountId !== undefined ? { coachCompanyId: coreAccountId } : {}),
+      ...(coreDealId !== undefined ? { coachDealId: coreDealId } : {}),
+    },
   );
   ok(res, { estimate });
 }
@@ -211,6 +220,34 @@ export async function markWon(req: Request, res: Response): Promise<void> {
     String(req.params.id ?? ''),
     { note: input.note },
   );
+
+  // Fire-and-forget: update Core deal stage and create a project.
+  const { coachDealId, coachCompanyId } = result.estimate;
+  if (core.enabled() && coachDealId) {
+    void (async () => {
+      try {
+        await core.deals.update(coachDealId, {
+          outcome: 'won',
+          actualCloseDate: new Date(),
+          stage: 'closed_won',
+        });
+        if (coachCompanyId) {
+          await core.projects.create({
+            accountId: coachCompanyId,
+            sourceDealId: coachDealId,
+            name: result.estimate.title,
+            status: 'lead',
+          });
+        }
+      } catch (err) {
+        logger.error(
+          { estimateId: result.estimate.id, coachDealId, err },
+          'Failed to sync won status to Core',
+        );
+      }
+    })();
+  }
+
   res.status(200).json(result);
 }
 
@@ -223,6 +260,26 @@ export async function markLost(req: Request, res: Response): Promise<void> {
     String(req.params.id ?? ''),
     { lostReason: input.lostReason, note: input.note },
   );
+
+  // Fire-and-forget: update Core deal outcome.
+  const { coachDealId } = result.estimate;
+  if (core.enabled() && coachDealId) {
+    void (async () => {
+      try {
+        await core.deals.update(coachDealId, {
+          outcome: 'lost',
+          actualCloseDate: new Date(),
+          stage: 'closed_lost',
+        });
+      } catch (err) {
+        logger.error(
+          { estimateId: result.estimate.id, coachDealId, err },
+          'Failed to sync lost status to Core',
+        );
+      }
+    })();
+  }
+
   res.status(200).json(result);
 }
 
