@@ -35,6 +35,12 @@ const InvitationAcceptPage = lazy(() =>
     default: m.InvitationAcceptPage,
   })),
 );
+const BidPackagesPage = lazy(() =>
+  import('@/pages/BidPackages').then((m) => ({ default: m.BidPackagesPage })),
+);
+const BidPackageDetailPage = lazy(() =>
+  import('@/pages/BidPackageDetail').then((m) => ({ default: m.BidPackageDetailPage })),
+);
 
 function RouteFallback() {
   return (
@@ -119,6 +125,22 @@ export default function App() {
           element={
             <ProtectedRoute>
               <EstimateWorkspace />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/app/bid-packages"
+          element={
+            <ProtectedRoute>
+              <BidPackagesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/app/bid-packages/:id"
+          element={
+            <ProtectedRoute>
+              <BidPackageDetailPage />
             </ProtectedRoute>
           }
         />

@@ -43,6 +43,7 @@ export function AppHeader() {
             Dashboard
           </NavItem>
           <NavItem to="/app/estimates">Estimates</NavItem>
+          <NavItem to="/app/bid-packages">Bids</NavItem>
           <RoleGate allowedRoles={['OWNER', 'ADMIN']}>
             <NavItem to="/app/pricing">Pricing</NavItem>
             <NavItem to="/app/team">Team</NavItem>
