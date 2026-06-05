@@ -39,6 +39,7 @@ import { coreRouter } from './routes/core.js';
 import { tradesRouter } from './routes/trades.js';
 import { bidPackagesRouter } from './routes/bidPackages.js';
 import { bidResponsesRouter, bidPortalRouter } from './routes/bidResponses.js';
+import { bidRemindersRouter } from './routes/bidReminders.js';
 
 export function createApp(): Express {
   const app = express();
@@ -85,6 +86,7 @@ export function createApp(): Express {
   app.use('/api/bid-packages', bidPackagesRouter);
   app.use('/api/bids', bidResponsesRouter);
   app.use('/api/portal/bid', bidPortalRouter);
+  app.use('/api/bid-reminders', bidRemindersRouter);
 
   app.get('/', (_req, res) => {
     res.json({ app: 'Quill', status: 'ok' });

@@ -60,6 +60,7 @@ async function wipeOrgScopedData(orgId: string) {
   await prisma.priceBookCategory.deleteMany({ where: { organizationId: orgId } });
   await prisma.markupRule.deleteMany({ where: { organizationId: orgId } });
   await prisma.priceBook.deleteMany({ where: { organizationId: orgId } });
+  await prisma.bidReminder.deleteMany({ where: { organizationId: orgId } });
   await prisma.bidDocument.deleteMany({ where: { organizationId: orgId } });
   await prisma.bidResponseAttachment.deleteMany({
     where: { bidResponse: { organizationId: orgId } },

@@ -56,6 +56,13 @@ enum BidSubmissionSource {
   MANUAL
 }
 
+enum BidReminderStatus {
+  SCHEDULED
+  SENT
+  SKIPPED
+  FAILED
+}
+
 enum SourceInputType {
   TRANSCRIPT
   EMAIL
@@ -332,6 +339,7 @@ model BidRequest {
   updatedAt       DateTime         @updatedAt
 
   bidResponse BidResponse?
+  bidReminders BidReminder[]
 
   @@unique([bidPackageId, vendorEmail])
   @@index([organizationId])
@@ -407,6 +415,24 @@ model BidDocument {
   @@index([organizationId])
 }
 
+model BidReminder {
+  id             String            @id @default(cuid())
+  organizationId String
+  organization   Organization      @relation(fields: [organizationId], references: [id])
+  bidRequestId   String
+  bidRequest     BidRequest        @relation(fields: [bidRequestId], references: [id])
+  scheduledFor   DateTime
+  status         BidReminderStatus @default(SCHEDULED)
+  sentAt         DateTime?
+  failReason     String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([status, scheduledFor])
+  @@index([bidRequestId])
+  @@index([organizationId])
+}
+
 model Organization {
   id        String    @id @default(cuid())
   name      String
@@ -442,6 +468,7 @@ model Organization {
   bidRequests         BidRequest[]
   bidResponses        BidResponse[]
   bidDocuments        BidDocument[]
+  bidReminders        BidReminder[]
 
   @@index([deletedAt])
 }
