@@ -1,6 +1,8 @@
 import { prisma } from '../lib/prisma.js';
 import type { BidPackageStatus } from '@prisma/client';
 import { NotFoundError, ValidationError } from '../lib/errors.js';
+import { logger } from '../lib/logger.js';
+import * as bidEmailService from './bidEmailService.js';
 import crypto from 'crypto';
 
 const INCLUDE_REQUESTS = {
@@ -98,11 +100,34 @@ export async function publish(id: string, orgId: string) {
     throw new ValidationError('Add at least one vendor before publishing');
   }
 
-  return prisma.bidPackage.update({
+  const updated = await prisma.bidPackage.update({
     where: { id },
     data: { status: 'PUBLISHED', publishedAt: new Date() },
-    include: INCLUDE_REQUESTS,
+    include: { ...INCLUDE_REQUESTS, organization: { select: { name: true } } },
   });
+
+  for (const req of updated.bidRequests) {
+    if (req.status === 'PENDING') {
+      await prisma.bidRequest.update({
+        where: { id: req.id },
+        data: { status: 'SENT', sentAt: new Date() },
+      });
+      bidEmailService
+        .sendBidInvitation({
+          vendorName: req.vendorName,
+          vendorEmail: req.vendorEmail,
+          orgName: updated.organization.name,
+          packageTitle: updated.title,
+          tradeName: updated.tradeCanonical?.name,
+          dueDate: updated.dueDate?.toLocaleDateString(),
+          description: updated.description ?? undefined,
+          accessToken: req.accessToken,
+        })
+        .catch((err) => logger.error({ err }, 'Bid invitation email failed'));
+    }
+  }
+
+  return updated;
 }
 
 export async function close(id: string, orgId: string) {
