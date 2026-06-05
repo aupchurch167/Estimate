@@ -12,6 +12,7 @@ import { z } from 'zod';
 import { core } from '../lib/core.js';
 import { ForbiddenError, ValidationError } from '../lib/errors.js';
 import { logger } from '../lib/logger.js';
+import * as cacheService from '../services/coreCacheService.js';
 
 function assertAuth(req: Request) {
   if (!req.user || !req.organization) throw new ForbiddenError('Not authenticated');
@@ -129,6 +130,82 @@ export async function searchDeals(req: Request, res: Response): Promise<void> {
 
 export async function searchVendors(req: Request, res: Response): Promise<void> {
   assertAuth(req);
-  // Vendors resource not yet in the standalone Core client.
-  res.json({ enabled: core.enabled(), data: [] });
+  const q = parse(searchQuery, req.query);
+  const result = await cacheService.searchVendors(
+    req.user!.organizationId,
+    q.search,
+    q.limit,
+  );
+  res.json({ enabled: core.enabled(), ...result });
+}
+
+export async function getVendor(req: Request, res: Response): Promise<void> {
+  assertAuth(req);
+  const vendor = await cacheService.getVendor(
+    req.user!.organizationId,
+    String(req.params.id),
+  );
+  if (!vendor) {
+    res.status(404).json({ error: { code: 'not_found', message: 'Vendor not found' } });
+    return;
+  }
+  res.json({ enabled: core.enabled(), data: vendor });
+}
+
+export async function syncVendors(req: Request, res: Response): Promise<void> {
+  assertAuth(req);
+  if (!core.enabled()) {
+    res.json({ enabled: false, synced: 0 });
+    return;
+  }
+  try {
+    const synced = await cacheService.syncVendors(req.user!.organizationId);
+    res.json({ enabled: true, synced });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.error({ message: msg }, 'Vendor sync failed');
+    res.status(502).json({ error: { code: 'upstream_error', message: 'Core service error' } });
+  }
+}
+
+// ─── Projects ───────────────────────────────────────────────────────────────
+
+export async function searchProjects(req: Request, res: Response): Promise<void> {
+  assertAuth(req);
+  const q = parse(searchQuery, req.query);
+  const result = await cacheService.searchProjects(
+    req.user!.organizationId,
+    q.search,
+    q.limit,
+  );
+  res.json({ enabled: core.enabled(), ...result });
+}
+
+export async function getProject(req: Request, res: Response): Promise<void> {
+  assertAuth(req);
+  const project = await cacheService.getProject(
+    req.user!.organizationId,
+    String(req.params.id),
+  );
+  if (!project) {
+    res.status(404).json({ error: { code: 'not_found', message: 'Project not found' } });
+    return;
+  }
+  res.json({ enabled: core.enabled(), data: project });
+}
+
+export async function syncProjects(req: Request, res: Response): Promise<void> {
+  assertAuth(req);
+  if (!core.enabled()) {
+    res.json({ enabled: false, synced: 0 });
+    return;
+  }
+  try {
+    const synced = await cacheService.syncProjects(req.user!.organizationId);
+    res.json({ enabled: true, synced });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.error({ message: msg }, 'Project sync failed');
+    res.status(502).json({ error: { code: 'upstream_error', message: 'Core service error' } });
+  }
 }

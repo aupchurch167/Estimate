@@ -214,6 +214,42 @@ model TradeMapping {
   @@index([tradeCanonicalId])
 }
 
+model CoreVendorCache {
+  id               String       @id @default(cuid())
+  organizationId   String
+  organization     Organization @relation(fields: [organizationId], references: [id])
+  coreVendorId     String
+  name             String
+  trade            String?
+  complianceStatus String?
+  email            String?
+  phone            String?
+  syncedAt         DateTime     @default(now())
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@unique([organizationId, coreVendorId])
+  @@index([organizationId])
+  @@index([organizationId, name])
+}
+
+model CoreProjectCache {
+  id              String       @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  coreProjectId   String
+  name            String
+  status          String?
+  coreAccountId   String?
+  syncedAt        DateTime     @default(now())
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@unique([organizationId, coreProjectId])
+  @@index([organizationId])
+  @@index([organizationId, name])
+}
+
 model Organization {
   id        String    @id @default(cuid())
   name      String
@@ -243,6 +279,8 @@ model Organization {
   activityEvents      ActivityEvent[]
   notifications       Notification[]
   tradeMappings       TradeMapping[]
+  coreVendorCaches    CoreVendorCache[]
+  coreProjectCaches   CoreProjectCache[]
 
   @@index([deletedAt])
 }

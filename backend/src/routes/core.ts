@@ -19,3 +19,10 @@ coreRouter.get('/deals', asyncHandler(controller.searchDeals));
 
 // Vendors
 coreRouter.get('/vendors', asyncHandler(controller.searchVendors));
+coreRouter.get('/vendors/:id', asyncHandler(controller.getVendor));
+coreRouter.post('/vendors/sync', asyncHandler(controller.syncVendors));
+
+// Projects
+coreRouter.get('/projects', asyncHandler(controller.searchProjects));
+coreRouter.get('/projects/:id', asyncHandler(controller.getProject));
+coreRouter.post('/projects/sync', asyncHandler(controller.syncProjects));
