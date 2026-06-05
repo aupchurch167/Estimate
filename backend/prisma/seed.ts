@@ -13,6 +13,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../src/lib/prisma.js';
 import { env } from '../src/lib/env.js';
 import { seedTrades } from './seedTrades.js';
+import { seedBids } from './seedBids.js';
 
 const SEED_PASSWORD = 'password123';
 const ORG_SLUG = 'mark-allan-contracting';
@@ -770,7 +771,10 @@ async function main() {
   // 5. Trades
   await seedTrades(prisma, org.id);
 
-  // 6. Summary
+  // 6. Bids
+  await seedBids(prisma, org.id, inReview.id, adam.id);
+
+  // 7. Summary
   const counts = {
     organizations: await prisma.organization.count(),
     users: await prisma.user.count(),
