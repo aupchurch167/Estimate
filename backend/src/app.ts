@@ -46,6 +46,10 @@ import { bidInboundEmailRouter } from './routes/bidInboundEmail.js';
 export function createApp(): Express {
   const app = express();
 
+  // Railway (and most PaaS hosts) sit behind a reverse proxy.
+  // Express must trust it so req.ip and rate-limiters work correctly.
+  app.set('trust proxy', 1);
+
   // CORS — the frontend is served from APP_URL on a different port. Cookies
   // are httpOnly + sameSite, so we need credentials:true here so the browser
   // is willing to attach them on cross-origin requests.
