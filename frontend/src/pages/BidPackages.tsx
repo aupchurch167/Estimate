@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { AppHeader } from '@/components/AppHeader';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useBidPackages } from '@/features/bids/useBids';
+import { CreateBidPackageModal } from '@/features/bids/CreateBidPackageModal';
 import { BID_STATUS_LABELS, type BidPackageStatus } from '@/features/bids/types';
 import {
   Badge,
@@ -29,7 +30,7 @@ export function BidPackagesPage() {
   const statusFilter = (params.get('status') as BidPackageStatus) ?? undefined;
 
   const query = useBidPackages({ estimateId, status: statusFilter });
-  const [_createOpen, setCreateOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-bg-secondary">
@@ -125,6 +126,14 @@ export function BidPackagesPage() {
             </Table>
           )}
         </Card>
+
+        {estimateId && (
+          <CreateBidPackageModal
+            open={createOpen}
+            onClose={() => setCreateOpen(false)}
+            estimateId={estimateId}
+          />
+        )}
       </main>
     </div>
   );

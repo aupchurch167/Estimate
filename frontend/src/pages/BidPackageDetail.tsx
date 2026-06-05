@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { AppHeader } from '@/components/AppHeader';
-import { useBidPackage, useBidResponses, usePublishBidPackage, useCloseBidPackage } from '@/features/bids/useBids';
+import { useBidPackage, useBidResponses, usePublishBidPackage, useCloseBidPackage, useRemoveBidRequest } from '@/features/bids/useBids';
+import { AddVendorModal } from '@/features/bids/AddVendorModal';
 import { BID_STATUS_LABELS, BID_REQUEST_STATUS_LABELS, type BidPackageStatus, type BidRequestStatus } from '@/features/bids/types';
 import { Badge, Button, Card, Table, TitleBlock } from '@/components/ui';
 import { ErrorState, SkeletonCard } from '@/components/states';
@@ -29,6 +31,8 @@ export function BidPackageDetailPage() {
   const responsesQuery = useBidResponses(id!);
   const publishMut = usePublishBidPackage();
   const closeMut = useCloseBidPackage();
+  const removeReqMut = useRemoveBidRequest();
+  const [addVendorOpen, setAddVendorOpen] = useState(false);
 
   if (query.isLoading) return (
     <div className="min-h-screen bg-bg-secondary">
@@ -102,6 +106,13 @@ export function BidPackageDetailPage() {
         )}
 
         <Card className="mt-6" title="Vendors">
+          {canEdit && (pkg.status === 'DRAFT' || pkg.status === 'PUBLISHED') && (
+            <div className="flex justify-end p-4 pb-0">
+              <Button variant="secondary" onClick={() => setAddVendorOpen(true)}>
+                Add Vendor
+              </Button>
+            </div>
+          )}
           {pkg.bidRequests.length === 0 ? (
             <p className="p-4 text-sm text-dim">No vendors added yet.</p>
           ) : (
@@ -113,6 +124,7 @@ export function BidPackageDetailPage() {
                   <Table.Header>Status</Table.Header>
                   <Table.Header>Sent</Table.Header>
                   <Table.Header>Responded</Table.Header>
+                  {canEdit && <Table.Header />}
                 </tr>
               </Table.Head>
               <Table.Body>
@@ -131,6 +143,21 @@ export function BidPackageDetailPage() {
                     <Table.Cell>
                       {req.respondedAt ? new Date(req.respondedAt).toLocaleDateString() : '—'}
                     </Table.Cell>
+                    {canEdit && (
+                      <Table.Cell>
+                        {req.status === 'PENDING' && (
+                          <button
+                            type="button"
+                            className="font-mono text-[10px] uppercase tracking-label text-mark-red hover:underline"
+                            onClick={() =>
+                              removeReqMut.mutate({ bidPackageId: pkg.id, requestId: req.id })
+                            }
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </Table.Cell>
+                    )}
                   </Table.Row>
                 ))}
               </Table.Body>
@@ -184,6 +211,11 @@ export function BidPackageDetailPage() {
             {new Date(pkg.createdAt).toLocaleDateString()}
           </span>
         </div>
+        <AddVendorModal
+          open={addVendorOpen}
+          onClose={() => setAddVendorOpen(false)}
+          bidPackageId={pkg.id}
+        />
       </main>
     </div>
   );
