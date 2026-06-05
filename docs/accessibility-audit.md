@@ -26,10 +26,14 @@ This pass focused on the four levers that move the needle furthest with the leas
 
 ## What's not done (P1 / P2)
 
-- **Form-error association via `aria-describedby`.** Most forms render a single banner with `role="alert"`, which is announced, but per-field errors don't link explicitly to their inputs. P1 polish for the Account / Signup forms.
-- **Live region for toasts.** No persistent toast system exists yet — banners replace it. When the toast system lands (P2 polish), wrap the container in `aria-live="polite"`.
+- ~~**Form-error association via `aria-describedby`.**~~ Done. The `Field` component now injects `aria-invalid` and `aria-describedby` on child inputs, linking them to their error messages. The `Input` primitive already had this; Account/Signup forms using `Field` now have parity.
+- **Live region for toasts.** Toast provider has `aria-live="polite"` on its viewport container.
 - **VoiceOver / NVDA smoke pass.** Recommended but not run in this pass — schedule before launch.
 - **Lighthouse contrast check on charts / colored labels.** Status stamps use mark-red / mark-amber / mark-green; spot-check the contrast against paper-elevated for any sub-12px usage.
+
+## Automated axe-core tests (CI)
+
+Added `frontend/src/components/ui/__tests__/a11y.test.tsx` — 12 test cases that run axe-core against every UI primitive (Button, Badge, Input, Select, Textarea, Modal, Card, TitleBlock, Table, EmptyState, Skeleton, Avatar). These run in the standard `vitest run` pipeline and will catch WCAG-A/AA regressions on every PR.
 
 ---
 

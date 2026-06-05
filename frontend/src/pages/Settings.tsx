@@ -10,6 +10,7 @@ import { DefaultsSection } from '@/features/settings/DefaultsSection';
 import { DangerZoneSection } from '@/features/settings/DangerZoneSection';
 import { useOrganization } from '@/features/settings/useOrganization';
 import { Button, Card, TitleBlock } from '@/components/ui';
+import { ErrorState, SkeletonCard } from '@/components/states';
 
 export function SettingsPage() {
   const { canManageOrg } = usePermissions();
@@ -43,7 +44,8 @@ export function SettingsPage() {
   if (orgQuery.isLoading) {
     return (
       <Shell>
-        <p className="text-[13px] text-text-secondary">Loading…</p>
+        <SkeletonCard rows={5} />
+        <SkeletonCard rows={3} />
       </Shell>
     );
   }
@@ -51,11 +53,7 @@ export function SettingsPage() {
   if (orgQuery.isError || !orgQuery.data || !orgQuery.data.settings) {
     return (
       <Shell>
-        <Card>
-          <p role="alert" className="text-[13px] text-danger">
-            Could not load org settings. Try again or contact support.
-          </p>
-        </Card>
+        <ErrorState message="Could not load org settings. Try again or contact support." onRetry={() => orgQuery.refetch()} />
       </Shell>
     );
   }

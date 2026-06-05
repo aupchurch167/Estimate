@@ -10,6 +10,7 @@ import {
   useCreateLineItem,
   useCreateSection,
   useDeleteSection,
+  useDuplicateLineItem,
   usePatchLineItem,
   usePatchSection,
   type LineItemStatus,
@@ -44,6 +45,7 @@ export function LineItemGrid({ estimate }: LineItemGridProps) {
   const deleteSection = useDeleteSection(estimate.id);
   const createLineItem = useCreateLineItem(estimate.id);
   const patchLineItem = usePatchLineItem(estimate.id);
+  const duplicateLineItem = useDuplicateLineItem(estimate.id);
   const bulkDelete = useBulkDeleteLineItems(estimate.id);
 
   const filtered = useMemo(() => filterItems(estimate.lineItems, filter, search), [
@@ -64,20 +66,51 @@ export function LineItemGrid({ estimate }: LineItemGridProps) {
     });
   };
 
-  const onArrow = (e: React.KeyboardEvent<HTMLTableElement>) => {
-    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+  const isMod = (e: React.KeyboardEvent) =>
+    navigator.platform?.startsWith('Mac') ? e.metaKey : e.ctrlKey;
+
+  const onGridKeyDown = (e: React.KeyboardEvent<HTMLTableElement>) => {
     if (visibleIds.length === 0) return;
     const idx = focusedRowId ? visibleIds.indexOf(focusedRowId) : -1;
-    const nextIdx =
-      e.key === 'ArrowDown'
-        ? Math.min(visibleIds.length - 1, idx + 1)
-        : Math.max(0, idx - 1);
-    const nextId = visibleIds[nextIdx];
-    if (nextId) {
+
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      const nextIdx =
+        e.key === 'ArrowDown'
+          ? Math.min(visibleIds.length - 1, idx + 1)
+          : Math.max(0, idx - 1);
+      const nextId = visibleIds[nextIdx];
+      if (!nextId) return;
+
+      if (e.shiftKey) {
+        setSelected((prev) => {
+          const next = new Set(prev);
+          next.add(nextId);
+          if (focusedRowId) next.add(focusedRowId);
+          return next;
+        });
+      }
+
       setFocusedRowId(nextId);
-      const row = document.querySelector<HTMLTableRowElement>(`[data-testid="row-${nextId}"]`);
-      row?.focus();
+      document.querySelector<HTMLTableRowElement>(`[data-testid="row-${nextId}"]`)?.focus();
       e.preventDefault();
+      return;
+    }
+
+    if (isMod(e) && e.key.toLowerCase() === 'd' && !readOnly) {
+      e.preventDefault();
+      if (!focusedRowId) return;
+      const item = estimate.lineItems.find((li) => li.id === focusedRowId);
+      if (item) duplicateLineItem.mutate(item);
+      return;
+    }
+
+    if (isMod(e) && e.key === 'Backspace' && !readOnly) {
+      e.preventDefault();
+      const toDelete = selected.size > 0 ? selected : focusedRowId ? new Set([focusedRowId]) : null;
+      if (toDelete && toDelete.size > 0) {
+        setPendingBulkDelete(true);
+      }
+      return;
     }
   };
 
@@ -133,7 +166,7 @@ export function LineItemGrid({ estimate }: LineItemGridProps) {
 
       <div className="flex-1 overflow-auto">
         <table
-          onKeyDown={onArrow}
+          onKeyDown={onGridKeyDown}
           className="w-full border-collapse"
           aria-label="Line items"
         >

@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { Children, cloneElement, isValidElement, type ReactNode } from 'react';
 
 interface FieldProps {
   label: string;
@@ -8,6 +8,18 @@ interface FieldProps {
 }
 
 export function Field({ label, htmlFor, error, children }: FieldProps) {
+  const errorId = error ? `${htmlFor}-error` : undefined;
+
+  const enhanced = Children.map(children, (child) => {
+    if (isValidElement<Record<string, unknown>>(child)) {
+      return cloneElement(child, {
+        'aria-invalid': error ? true : undefined,
+        'aria-describedby': errorId,
+      });
+    }
+    return child;
+  });
+
   return (
     <div className="flex flex-col gap-1.5">
       <label
@@ -16,9 +28,9 @@ export function Field({ label, htmlFor, error, children }: FieldProps) {
       >
         {label}
       </label>
-      {children}
+      {enhanced}
       {error ? (
-        <p role="alert" className="text-[12px] text-danger">
+        <p id={errorId} role="alert" className="text-[12px] text-danger">
           {error}
         </p>
       ) : null}
