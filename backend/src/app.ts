@@ -38,6 +38,7 @@ import { dashboardRouter } from './routes/dashboard.js';
 import { coreRouter } from './routes/core.js';
 import { tradesRouter } from './routes/trades.js';
 import { bidPackagesRouter } from './routes/bidPackages.js';
+import { bidResponsesRouter, bidPortalRouter } from './routes/bidResponses.js';
 
 export function createApp(): Express {
   const app = express();
@@ -82,6 +83,8 @@ export function createApp(): Express {
   app.use('/api/core', coreRouter);
   app.use('/api/trades', tradesRouter);
   app.use('/api/bid-packages', bidPackagesRouter);
+  app.use('/api/bids', bidResponsesRouter);
+  app.use('/api/portal/bid', bidPortalRouter);
 
   app.get('/', (_req, res) => {
     res.json({ app: 'Quill', status: 'ok' });

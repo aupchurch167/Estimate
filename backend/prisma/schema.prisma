@@ -47,6 +47,13 @@ enum LineItemSource {
   PRICEBOOK
   MANUAL
   TEMPLATE
+  BID_RESPONSE
+}
+
+enum BidSubmissionSource {
+  PORTAL
+  EMAIL
+  MANUAL
 }
 
 enum SourceInputType {
@@ -297,6 +304,7 @@ model BidPackage {
   updatedAt       DateTime         @updatedAt
 
   bidRequests     BidRequest[]
+  bidDocuments    BidDocument[]
 
   @@index([organizationId])
   @@index([estimateId])
@@ -323,10 +331,80 @@ model BidRequest {
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 
+  bidResponse BidResponse?
+
   @@unique([bidPackageId, vendorEmail])
   @@index([organizationId])
   @@index([bidPackageId])
   @@index([accessToken])
+}
+
+model BidResponse {
+  id               String              @id @default(cuid())
+  organizationId   String
+  organization     Organization        @relation(fields: [organizationId], references: [id])
+  bidRequestId     String              @unique
+  bidRequest       BidRequest          @relation(fields: [bidRequestId], references: [id])
+  submissionSource BidSubmissionSource @default(PORTAL)
+  totalAmount      Decimal?            @db.Decimal(12, 2)
+  notes            String?             @db.Text
+  submittedAt      DateTime            @default(now())
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  lineItems   BidResponseLineItem[]
+  attachments BidResponseAttachment[]
+
+  @@index([organizationId])
+  @@index([bidRequestId])
+}
+
+model BidResponseLineItem {
+  id             String      @id @default(cuid())
+  bidResponseId  String
+  bidResponse    BidResponse @relation(fields: [bidResponseId], references: [id], onDelete: Cascade)
+  description    String
+  quantity       Decimal?    @db.Decimal(12, 4)
+  unit           String?
+  unitPrice      Decimal?    @db.Decimal(12, 4)
+  totalPrice     Decimal?    @db.Decimal(12, 2)
+  notes          String?
+  displayOrder   Int         @default(0)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([bidResponseId])
+}
+
+model BidResponseAttachment {
+  id            String      @id @default(cuid())
+  bidResponseId String
+  bidResponse   BidResponse @relation(fields: [bidResponseId], references: [id], onDelete: Cascade)
+  fileName      String
+  fileUrl       String
+  fileSize      Int?
+  mimeType      String?
+  createdAt     DateTime    @default(now())
+
+  @@index([bidResponseId])
+}
+
+model BidDocument {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  bidPackageId   String
+  bidPackage     BidPackage   @relation(fields: [bidPackageId], references: [id])
+  fileName       String
+  fileUrl        String
+  fileSize       Int?
+  mimeType       String?
+  uploadedById   String
+  uploadedBy     User         @relation(fields: [uploadedById], references: [id])
+  createdAt      DateTime     @default(now())
+
+  @@index([bidPackageId])
+  @@index([organizationId])
 }
 
 model Organization {
@@ -362,6 +440,8 @@ model Organization {
   coreProjectCaches   CoreProjectCache[]
   bidPackages         BidPackage[]
   bidRequests         BidRequest[]
+  bidResponses        BidResponse[]
+  bidDocuments        BidDocument[]
 
   @@index([deletedAt])
 }
@@ -422,6 +502,7 @@ model User {
   aiMessages          AIMessage[]
   aiRuns              AIRun[]
   bidPackagesCreated  BidPackage[]
+  bidDocumentsUploaded BidDocument[]
 
   @@index([organizationId])
   @@index([organizationId, role])
