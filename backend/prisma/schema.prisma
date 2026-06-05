@@ -155,6 +155,12 @@ enum ActivityEventType {
   PRICEBOOK_ENTRY_CREATED
   PRICEBOOK_ENTRY_UPDATED
   PRICEBOOK_BULK_IMPORTED
+  BID_PACKAGE_CREATED
+  BID_PACKAGE_PUBLISHED
+  BID_PACKAGE_CLOSED
+  BID_REQUEST_SENT
+  BID_REQUEST_RESPONDED
+  BID_REQUEST_DECLINED
 }
 
 enum NotificationType {
@@ -167,6 +173,25 @@ enum NotificationType {
   ESTIMATE_LOST
   AI_RUN_FAILED
   INVITATION_ACCEPTED
+  BID_RESPONSE_RECEIVED
+  BID_REQUEST_DECLINED
+  BID_PACKAGE_CLOSED
+}
+
+enum BidPackageStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+  CANCELLED
+}
+
+enum BidRequestStatus {
+  PENDING
+  SENT
+  VIEWED
+  RESPONDED
+  DECLINED
+  EXPIRED
 }
 
 enum TradeCategory {
@@ -194,7 +219,8 @@ model TradeCanonical {
   displayOrder Int
   createdAt    DateTime      @default(now())
 
-  mappings TradeMapping[]
+  mappings    TradeMapping[]
+  bidPackages BidPackage[]
 
   @@index([category])
 }
@@ -250,6 +276,59 @@ model CoreProjectCache {
   @@index([organizationId, name])
 }
 
+model BidPackage {
+  id              String           @id @default(cuid())
+  organizationId  String
+  organization    Organization     @relation(fields: [organizationId], references: [id])
+  estimateId      String
+  estimate        Estimate         @relation(fields: [estimateId], references: [id])
+  title           String
+  description     String?          @db.Text
+  tradeCode       String?
+  tradeCanonicalId String?
+  tradeCanonical  TradeCanonical?  @relation(fields: [tradeCanonicalId], references: [id])
+  status          BidPackageStatus @default(DRAFT)
+  dueDate         DateTime?
+  publishedAt     DateTime?
+  closedAt        DateTime?
+  createdById     String
+  createdBy       User             @relation(fields: [createdById], references: [id])
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  bidRequests     BidRequest[]
+
+  @@index([organizationId])
+  @@index([estimateId])
+  @@index([organizationId, status])
+}
+
+model BidRequest {
+  id              String           @id @default(cuid())
+  organizationId  String
+  organization    Organization     @relation(fields: [organizationId], references: [id])
+  bidPackageId    String
+  bidPackage      BidPackage       @relation(fields: [bidPackageId], references: [id])
+  coreVendorId    String?
+  vendorName      String
+  vendorEmail     String
+  vendorPhone     String?
+  status          BidRequestStatus @default(PENDING)
+  sentAt          DateTime?
+  viewedAt        DateTime?
+  respondedAt     DateTime?
+  declinedAt      DateTime?
+  declineReason   String?
+  accessToken     String           @unique @default(cuid())
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@unique([bidPackageId, vendorEmail])
+  @@index([organizationId])
+  @@index([bidPackageId])
+  @@index([accessToken])
+}
+
 model Organization {
   id        String    @id @default(cuid())
   name      String
@@ -281,6 +360,8 @@ model Organization {
   tradeMappings       TradeMapping[]
   coreVendorCaches    CoreVendorCache[]
   coreProjectCaches   CoreProjectCache[]
+  bidPackages         BidPackage[]
+  bidRequests         BidRequest[]
 
   @@index([deletedAt])
 }
@@ -340,6 +421,7 @@ model User {
   snapshots           EstimateSnapshot[]
   aiMessages          AIMessage[]
   aiRuns              AIRun[]
+  bidPackagesCreated  BidPackage[]
 
   @@index([organizationId])
   @@index([organizationId, role])
@@ -410,6 +492,7 @@ model Estimate {
   activityEvents ActivityEvent[]
   conversation   AIConversation?
   aiRuns         AIRun[]
+  bidPackages    BidPackage[]
 
   @@unique([organizationId, number])
   @@index([organizationId, status])
