@@ -90,6 +90,10 @@ const settingsPatchBody = z
     monthlyAiCostCapUsd: monthlyAiCostCap.nullable().optional(),
     confirmUnlimited: z.boolean().optional(),
     logoUrl: z.string().url().nullable().optional(),
+    bidDefaultDueDays: z.number().int().min(1).max(90).optional(),
+    bidReminderDaysBefore: z.number().int().min(1).max(30).optional(),
+    bidAutoCloseOnDue: z.boolean().optional(),
+    bidPortalMessage: z.string().max(5000).nullable().optional(),
   })
   .refine(
     (v) => {
