@@ -169,7 +169,50 @@ enum NotificationType {
   INVITATION_ACCEPTED
 }
 
+enum TradeCategory {
+  MECHANICAL
+  ELECTRICAL
+  PLUMBING
+  FIRE_PROTECTION
+  STRUCTURAL
+  ARCHITECTURAL
+  FINISHES
+  SPECIALTIES
+  EXTERIOR
+  SITE
+  EQUIPMENT
+  GENERAL
+}
+
 // ─── Models ─────────────────────────────────────────────────────────────────
+
+model TradeCanonical {
+  id           String        @id @default(cuid())
+  name         String        @unique
+  code         String        @unique
+  category     TradeCategory
+  displayOrder Int
+  createdAt    DateTime      @default(now())
+
+  mappings TradeMapping[]
+
+  @@index([category])
+}
+
+model TradeMapping {
+  id               String       @id @default(cuid())
+  organizationId   String
+  organization     Organization @relation(fields: [organizationId], references: [id])
+  rawTrade         String
+  tradeCanonicalId String
+  tradeCanonical   TradeCanonical @relation(fields: [tradeCanonicalId], references: [id])
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@unique([organizationId, rawTrade])
+  @@index([organizationId])
+  @@index([tradeCanonicalId])
+}
 
 model Organization {
   id        String    @id @default(cuid())
@@ -199,6 +242,7 @@ model Organization {
   reviewActions       ReviewAction[]
   activityEvents      ActivityEvent[]
   notifications       Notification[]
+  tradeMappings       TradeMapping[]
 
   @@index([deletedAt])
 }
