@@ -7,6 +7,7 @@ import { InvitationTable } from '@/features/team/InvitationTable';
 import { UserTable } from '@/features/team/UserTable';
 import { useInvitations, useUsers } from '@/features/team/useTeam';
 import { Button, Card, TitleBlock } from '@/components/ui';
+import { ErrorState, SkeletonList } from '@/components/states';
 
 export function TeamPage() {
   const { canManageUsers } = usePermissions();
@@ -64,11 +65,9 @@ export function TeamPage() {
         bodyClassName="!p-0"
       >
         {usersQuery.isLoading ? (
-          <p className="px-5 py-4 text-[13px] text-text-secondary">Loading…</p>
+          <div className="px-5 py-4"><SkeletonList rows={3} /></div>
         ) : usersQuery.isError || !usersQuery.data ? (
-          <p role="alert" className="px-5 py-4 text-[13px] text-danger">
-            Could not load members.
-          </p>
+          <div className="px-5 py-4"><ErrorState message="Could not load members." onRetry={() => usersQuery.refetch()} /></div>
         ) : (
           <UserTable users={usersQuery.data} />
         )}
@@ -86,11 +85,9 @@ export function TeamPage() {
         bodyClassName="!p-0"
       >
         {invitationsQuery.isLoading ? (
-          <p className="px-5 py-4 text-[13px] text-text-secondary">Loading…</p>
+          <div className="px-5 py-4"><SkeletonList rows={3} /></div>
         ) : invitationsQuery.isError || !invitationsQuery.data ? (
-          <p role="alert" className="px-5 py-4 text-[13px] text-danger">
-            Could not load invitations.
-          </p>
+          <div className="px-5 py-4"><ErrorState message="Could not load invitations." onRetry={() => invitationsQuery.refetch()} /></div>
         ) : (
           <InvitationTable invitations={invitationsQuery.data} />
         )}

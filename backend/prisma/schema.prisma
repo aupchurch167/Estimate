@@ -47,6 +47,20 @@ enum LineItemSource {
   PRICEBOOK
   MANUAL
   TEMPLATE
+  BID_RESPONSE
+}
+
+enum BidSubmissionSource {
+  PORTAL
+  EMAIL
+  MANUAL
+}
+
+enum BidReminderStatus {
+  SCHEDULED
+  SENT
+  SKIPPED
+  FAILED
 }
 
 enum SourceInputType {
@@ -155,6 +169,12 @@ enum ActivityEventType {
   PRICEBOOK_ENTRY_CREATED
   PRICEBOOK_ENTRY_UPDATED
   PRICEBOOK_BULK_IMPORTED
+  BID_PACKAGE_CREATED
+  BID_PACKAGE_PUBLISHED
+  BID_PACKAGE_CLOSED
+  BID_REQUEST_SENT
+  BID_REQUEST_RESPONDED
+  BID_REQUEST_DECLINED
 }
 
 enum NotificationType {
@@ -167,9 +187,251 @@ enum NotificationType {
   ESTIMATE_LOST
   AI_RUN_FAILED
   INVITATION_ACCEPTED
+  BID_RESPONSE_RECEIVED
+  BID_REQUEST_DECLINED
+  BID_PACKAGE_CLOSED
+}
+
+enum BidPackageStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+  CANCELLED
+}
+
+enum BidRequestStatus {
+  PENDING
+  SENT
+  VIEWED
+  RESPONDED
+  DECLINED
+  EXPIRED
+}
+
+enum TradeCategory {
+  MECHANICAL
+  ELECTRICAL
+  PLUMBING
+  FIRE_PROTECTION
+  STRUCTURAL
+  ARCHITECTURAL
+  FINISHES
+  SPECIALTIES
+  EXTERIOR
+  SITE
+  EQUIPMENT
+  GENERAL
 }
 
 // ─── Models ─────────────────────────────────────────────────────────────────
+
+model TradeCanonical {
+  id           String        @id @default(cuid())
+  name         String        @unique
+  code         String        @unique
+  category     TradeCategory
+  displayOrder Int
+  createdAt    DateTime      @default(now())
+
+  mappings    TradeMapping[]
+  bidPackages BidPackage[]
+
+  @@index([category])
+}
+
+model TradeMapping {
+  id               String       @id @default(cuid())
+  organizationId   String
+  organization     Organization @relation(fields: [organizationId], references: [id])
+  rawTrade         String
+  tradeCanonicalId String
+  tradeCanonical   TradeCanonical @relation(fields: [tradeCanonicalId], references: [id])
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@unique([organizationId, rawTrade])
+  @@index([organizationId])
+  @@index([tradeCanonicalId])
+}
+
+model CoreVendorCache {
+  id               String       @id @default(cuid())
+  organizationId   String
+  organization     Organization @relation(fields: [organizationId], references: [id])
+  coreVendorId     String
+  name             String
+  trade            String?
+  complianceStatus String?
+  email            String?
+  phone            String?
+  syncedAt         DateTime     @default(now())
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@unique([organizationId, coreVendorId])
+  @@index([organizationId])
+  @@index([organizationId, name])
+}
+
+model CoreProjectCache {
+  id              String       @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  coreProjectId   String
+  name            String
+  status          String?
+  coreAccountId   String?
+  syncedAt        DateTime     @default(now())
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@unique([organizationId, coreProjectId])
+  @@index([organizationId])
+  @@index([organizationId, name])
+}
+
+model BidPackage {
+  id              String           @id @default(cuid())
+  organizationId  String
+  organization    Organization     @relation(fields: [organizationId], references: [id])
+  estimateId      String
+  estimate        Estimate         @relation(fields: [estimateId], references: [id])
+  title           String
+  description     String?          @db.Text
+  tradeCode       String?
+  tradeCanonicalId String?
+  tradeCanonical  TradeCanonical?  @relation(fields: [tradeCanonicalId], references: [id])
+  status          BidPackageStatus @default(DRAFT)
+  dueDate         DateTime?
+  publishedAt     DateTime?
+  closedAt        DateTime?
+  createdById     String
+  createdBy       User             @relation(fields: [createdById], references: [id])
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  bidRequests     BidRequest[]
+  bidDocuments    BidDocument[]
+
+  @@index([organizationId])
+  @@index([estimateId])
+  @@index([organizationId, status])
+}
+
+model BidRequest {
+  id              String           @id @default(cuid())
+  organizationId  String
+  organization    Organization     @relation(fields: [organizationId], references: [id])
+  bidPackageId    String
+  bidPackage      BidPackage       @relation(fields: [bidPackageId], references: [id])
+  coreVendorId    String?
+  vendorName      String
+  vendorEmail     String
+  vendorPhone     String?
+  status          BidRequestStatus @default(PENDING)
+  sentAt          DateTime?
+  viewedAt        DateTime?
+  respondedAt     DateTime?
+  declinedAt      DateTime?
+  declineReason   String?
+  accessToken     String           @unique @default(cuid())
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  bidResponse BidResponse?
+  bidReminders BidReminder[]
+
+  @@unique([bidPackageId, vendorEmail])
+  @@index([organizationId])
+  @@index([bidPackageId])
+  @@index([accessToken])
+}
+
+model BidResponse {
+  id               String              @id @default(cuid())
+  organizationId   String
+  organization     Organization        @relation(fields: [organizationId], references: [id])
+  bidRequestId     String              @unique
+  bidRequest       BidRequest          @relation(fields: [bidRequestId], references: [id])
+  submissionSource BidSubmissionSource @default(PORTAL)
+  totalAmount      Decimal?            @db.Decimal(12, 2)
+  notes            String?             @db.Text
+  submittedAt      DateTime            @default(now())
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  lineItems   BidResponseLineItem[]
+  attachments BidResponseAttachment[]
+
+  @@index([organizationId])
+  @@index([bidRequestId])
+}
+
+model BidResponseLineItem {
+  id             String      @id @default(cuid())
+  bidResponseId  String
+  bidResponse    BidResponse @relation(fields: [bidResponseId], references: [id], onDelete: Cascade)
+  description    String
+  quantity       Decimal?    @db.Decimal(12, 4)
+  unit           String?
+  unitPrice      Decimal?    @db.Decimal(12, 4)
+  totalPrice     Decimal?    @db.Decimal(12, 2)
+  notes          String?
+  displayOrder   Int         @default(0)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([bidResponseId])
+}
+
+model BidResponseAttachment {
+  id            String      @id @default(cuid())
+  bidResponseId String
+  bidResponse   BidResponse @relation(fields: [bidResponseId], references: [id], onDelete: Cascade)
+  fileName      String
+  fileUrl       String
+  fileSize      Int?
+  mimeType      String?
+  createdAt     DateTime    @default(now())
+
+  @@index([bidResponseId])
+}
+
+model BidDocument {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  bidPackageId   String
+  bidPackage     BidPackage   @relation(fields: [bidPackageId], references: [id])
+  fileName       String
+  fileUrl        String
+  fileSize       Int?
+  mimeType       String?
+  uploadedById   String
+  uploadedBy     User         @relation(fields: [uploadedById], references: [id])
+  createdAt      DateTime     @default(now())
+
+  @@index([bidPackageId])
+  @@index([organizationId])
+}
+
+model BidReminder {
+  id             String            @id @default(cuid())
+  organizationId String
+  organization   Organization      @relation(fields: [organizationId], references: [id])
+  bidRequestId   String
+  bidRequest     BidRequest        @relation(fields: [bidRequestId], references: [id])
+  scheduledFor   DateTime
+  status         BidReminderStatus @default(SCHEDULED)
+  sentAt         DateTime?
+  failReason     String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([status, scheduledFor])
+  @@index([bidRequestId])
+  @@index([organizationId])
+}
 
 model Organization {
   id        String    @id @default(cuid())
@@ -199,6 +461,14 @@ model Organization {
   reviewActions       ReviewAction[]
   activityEvents      ActivityEvent[]
   notifications       Notification[]
+  tradeMappings       TradeMapping[]
+  coreVendorCaches    CoreVendorCache[]
+  coreProjectCaches   CoreProjectCache[]
+  bidPackages         BidPackage[]
+  bidRequests         BidRequest[]
+  bidResponses        BidResponse[]
+  bidDocuments        BidDocument[]
+  bidReminders        BidReminder[]
 
   @@index([deletedAt])
 }
@@ -222,6 +492,10 @@ model OrgSettings {
   drafterCanSend       Boolean      @default(true)
   timezone             String       @default("America/New_York")
   monthlyAiCostCapUsd  Decimal?     @db.Decimal(10, 2)
+  bidDefaultDueDays    Int          @default(14)
+  bidReminderDaysBefore Int         @default(3)
+  bidAutoCloseOnDue    Boolean      @default(false)
+  bidPortalMessage     String?      @db.Text
   createdAt            DateTime     @default(now())
   updatedAt            DateTime     @updatedAt
 }
@@ -258,6 +532,8 @@ model User {
   snapshots           EstimateSnapshot[]
   aiMessages          AIMessage[]
   aiRuns              AIRun[]
+  bidPackagesCreated  BidPackage[]
+  bidDocumentsUploaded BidDocument[]
 
   @@index([organizationId])
   @@index([organizationId, role])
@@ -328,6 +604,7 @@ model Estimate {
   activityEvents ActivityEvent[]
   conversation   AIConversation?
   aiRuns         AIRun[]
+  bidPackages    BidPackage[]
 
   @@unique([organizationId, number])
   @@index([organizationId, status])

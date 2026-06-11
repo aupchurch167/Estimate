@@ -1,5 +1,7 @@
 # Quill
 
+[![CI](https://github.com/aupchurch167/Estimate/actions/workflows/ci.yml/badge.svg)](https://github.com/aupchurch167/Estimate/actions/workflows/ci.yml)
+
 AI-powered commercial construction estimating tool. A non-expert produces an
 80% draft by talking to AI; an expert reviewer corrects and finalizes. Built
 first for Mark Allan Contracting, multi-tenant SaaS from day one.

@@ -35,6 +35,15 @@ const InvitationAcceptPage = lazy(() =>
     default: m.InvitationAcceptPage,
   })),
 );
+const BidPackagesPage = lazy(() =>
+  import('@/pages/BidPackages').then((m) => ({ default: m.BidPackagesPage })),
+);
+const BidPackageDetailPage = lazy(() =>
+  import('@/pages/BidPackageDetail').then((m) => ({ default: m.BidPackageDetailPage })),
+);
+const BidPortalPage = lazy(() =>
+  import('@/pages/BidPortal').then((m) => ({ default: m.BidPortalPage })),
+);
 
 function RouteFallback() {
   return (
@@ -122,6 +131,23 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/app/bid-packages"
+          element={
+            <ProtectedRoute>
+              <BidPackagesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/app/bid-packages/:id"
+          element={
+            <ProtectedRoute>
+              <BidPackageDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/bid/:token" element={<BidPortalPage />} />
         <Route path="/invite/:token" element={<InvitationAcceptPage />} />
         <Route path="/" element={<Navigate to="/app" replace />} />
         <Route path="*" element={<Navigate to="/app" replace />} />

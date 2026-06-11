@@ -14,6 +14,7 @@ import { EntryEditor } from '@/features/pricing/EntryEditor';
 import { ManageCategoriesModal } from '@/features/pricing/ManageCategoriesModal';
 import { CsvImportWizard } from '@/features/pricing/CsvImportWizard';
 import { Badge, Button, Card, Input, TitleBlock } from '@/components/ui';
+import { ErrorState, SkeletonCard, SkeletonList } from '@/components/states';
 import type { PriceBookEntry } from '@/features/pricing/types';
 
 export function PricingPage() {
@@ -68,7 +69,7 @@ export function PricingPage() {
   if (booksQuery.isLoading) {
     return (
       <Shell>
-        <p className="text-[13px] text-text-secondary">Loading…</p>
+        <SkeletonCard rows={4} />
       </Shell>
     );
   }
@@ -76,11 +77,7 @@ export function PricingPage() {
   if (booksQuery.isError || !defaultBook) {
     return (
       <Shell>
-        <Card>
-          <p role="alert" className="text-[13px] text-danger">
-            Could not load price books.
-          </p>
-        </Card>
+        <ErrorState message="Could not load price books." onRetry={() => booksQuery.refetch()} />
       </Shell>
     );
   }
@@ -127,7 +124,7 @@ export function PricingPage() {
         <Card title="Categories" className="!p-0">
           <div className="p-4">
             {categoriesQuery.isLoading ? (
-              <p className="text-[13px] text-text-secondary">Loading…</p>
+              <SkeletonList rows={5} />
             ) : (
               <CategoryList
                 categories={categoriesQuery.data ?? []}
@@ -163,11 +160,9 @@ export function PricingPage() {
 
           <div className="p-5">
             {entriesQuery.isLoading ? (
-              <p className="text-[13px] text-text-secondary">Loading…</p>
+              <SkeletonList rows={6} twoColumn />
             ) : entriesQuery.isError || !entriesQuery.data ? (
-              <p role="alert" className="text-[13px] text-danger">
-                Could not load entries.
-              </p>
+              <ErrorState message="Could not load entries." onRetry={() => entriesQuery.refetch()} />
             ) : (
               <>
                 <EntryTable

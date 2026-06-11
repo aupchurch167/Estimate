@@ -1,0 +1,953 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Avatar snapshots > empty name 1`] = `
+<span
+  class="inline-flex flex-none items-center justify-center overflow-hidden rounded-full font-medium h-8 w-8 text-[12px]"
+  data-testid="avatar"
+  style="background-color: rgb(206, 237, 243); color: rgb(36, 95, 107);"
+  title=""
+>
+  <span
+    aria-hidden="true"
+  >
+    ?
+  </span>
+</span>
+`;
+
+exports[`Avatar snapshots > initials 1`] = `
+<span
+  class="inline-flex flex-none items-center justify-center overflow-hidden rounded-full font-medium h-8 w-8 text-[12px]"
+  data-testid="avatar"
+  style="background-color: rgb(206, 243, 231); color: rgb(36, 107, 83);"
+  title="Adam Mark"
+>
+  <span
+    aria-hidden="true"
+  >
+    AM
+  </span>
+</span>
+`;
+
+exports[`Avatar snapshots > with image 1`] = `
+<span
+  class="inline-flex flex-none items-center justify-center overflow-hidden rounded-full font-medium h-8 w-8 text-[12px] bg-bg-tertiary"
+  data-testid="avatar"
+  title="Adam"
+>
+  <img
+    alt="Adam"
+    class="h-full w-full object-cover"
+    src="https://example.com/a.png"
+  />
+</span>
+`;
+
+exports[`Badge snapshots > size=lg 1`] = `
+<span
+  class="inline-flex items-center gap-1.5 rounded-full font-medium leading-none whitespace-nowrap bg-info-light text-info h-7 px-3 text-[13px]"
+  data-testid="badge"
+  data-variant="info"
+>
+  <span>
+    lg
+  </span>
+</span>
+`;
+
+exports[`Badge snapshots > size=md 1`] = `
+<span
+  class="inline-flex items-center gap-1.5 rounded-full font-medium leading-none whitespace-nowrap bg-info-light text-info h-6 px-2 text-[12px]"
+  data-testid="badge"
+  data-variant="info"
+>
+  <span>
+    md
+  </span>
+</span>
+`;
+
+exports[`Badge snapshots > size=sm 1`] = `
+<span
+  class="inline-flex items-center gap-1.5 rounded-full font-medium leading-none whitespace-nowrap bg-info-light text-info h-5 px-2 text-[11px]"
+  data-testid="badge"
+  data-variant="info"
+>
+  <span>
+    sm
+  </span>
+</span>
+`;
+
+exports[`Badge snapshots > status resolution 1`] = `
+<span
+  class="inline-flex items-center gap-1.5 rounded-full font-medium leading-none whitespace-nowrap bg-success-light text-success h-6 px-2 text-[12px]"
+  data-testid="badge"
+  data-variant="success"
+>
+  <span>
+    Approved
+  </span>
+</span>
+`;
+
+exports[`Badge snapshots > variant=danger 1`] = `
+<span
+  class="inline-flex items-center gap-1.5 rounded-full font-medium leading-none whitespace-nowrap bg-danger-light text-danger h-6 px-2 text-[12px]"
+  data-testid="badge"
+  data-variant="danger"
+>
+  <span>
+    danger
+  </span>
+</span>
+`;
+
+exports[`Badge snapshots > variant=info 1`] = `
+<span
+  class="inline-flex items-center gap-1.5 rounded-full font-medium leading-none whitespace-nowrap bg-info-light text-info h-6 px-2 text-[12px]"
+  data-testid="badge"
+  data-variant="info"
+>
+  <span>
+    info
+  </span>
+</span>
+`;
+
+exports[`Badge snapshots > variant=neutral 1`] = `
+<span
+  class="inline-flex items-center gap-1.5 rounded-full font-medium leading-none whitespace-nowrap bg-neutral-light text-neutral h-6 px-2 text-[12px]"
+  data-testid="badge"
+  data-variant="neutral"
+>
+  <span>
+    neutral
+  </span>
+</span>
+`;
+
+exports[`Badge snapshots > variant=success 1`] = `
+<span
+  class="inline-flex items-center gap-1.5 rounded-full font-medium leading-none whitespace-nowrap bg-success-light text-success h-6 px-2 text-[12px]"
+  data-testid="badge"
+  data-variant="success"
+>
+  <span>
+    success
+  </span>
+</span>
+`;
+
+exports[`Badge snapshots > variant=warning 1`] = `
+<span
+  class="inline-flex items-center gap-1.5 rounded-full font-medium leading-none whitespace-nowrap bg-warning-light text-warning h-6 px-2 text-[12px]"
+  data-testid="badge"
+  data-variant="warning"
+>
+  <span>
+    warning
+  </span>
+</span>
+`;
+
+exports[`Badge snapshots > with dot 1`] = `
+<span
+  class="inline-flex items-center gap-1.5 rounded-full font-medium leading-none whitespace-nowrap bg-success-light text-success h-6 px-2 text-[12px]"
+  data-testid="badge"
+  data-variant="success"
+>
+  <span
+    aria-hidden="true"
+    class="inline-block h-1.5 w-1.5 rounded-full bg-success"
+  />
+  <span>
+    Active
+  </span>
+</span>
+`;
+
+exports[`Button snapshots > disabled 1`] = `
+<button
+  class="inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 bg-primary text-text-inverse border border-primary hover:bg-primary-hover hover:border-primary-hover h-9 px-4 text-[14px]"
+  data-size="md"
+  data-variant="primary"
+  disabled=""
+  type="button"
+>
+  Save
+</button>
+`;
+
+exports[`Button snapshots > fullWidth with icons 1`] = `
+<button
+  class="inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 bg-primary text-text-inverse border border-primary hover:bg-primary-hover hover:border-primary-hover h-9 px-4 text-[14px] w-full"
+  data-size="md"
+  data-variant="primary"
+  type="button"
+>
+  <span
+    class="flex items-center"
+  >
+    <span>
+      +
+    </span>
+  </span>
+  Create
+  <span
+    class="flex items-center"
+  >
+    <span>
+      →
+    </span>
+  </span>
+</button>
+`;
+
+exports[`Button snapshots > loading 1`] = `
+<button
+  class="inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 bg-primary text-text-inverse border border-primary hover:bg-primary-hover hover:border-primary-hover h-9 px-4 text-[14px]"
+  data-loading="true"
+  data-size="md"
+  data-variant="primary"
+  disabled=""
+  type="button"
+>
+  <span
+    aria-hidden="true"
+    class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+    data-testid="button-spinner"
+  />
+  Save
+</button>
+`;
+
+exports[`Button snapshots > size=lg 1`] = `
+<button
+  class="inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 bg-primary text-text-inverse border border-primary hover:bg-primary-hover hover:border-primary-hover h-11 px-6 text-[16px]"
+  data-size="lg"
+  data-variant="primary"
+  type="button"
+>
+  Label
+</button>
+`;
+
+exports[`Button snapshots > size=md 1`] = `
+<button
+  class="inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 bg-primary text-text-inverse border border-primary hover:bg-primary-hover hover:border-primary-hover h-9 px-4 text-[14px]"
+  data-size="md"
+  data-variant="primary"
+  type="button"
+>
+  Label
+</button>
+`;
+
+exports[`Button snapshots > size=sm 1`] = `
+<button
+  class="inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 bg-primary text-text-inverse border border-primary hover:bg-primary-hover hover:border-primary-hover h-7 px-2 text-[12px]"
+  data-size="sm"
+  data-variant="primary"
+  type="button"
+>
+  Label
+</button>
+`;
+
+exports[`Button snapshots > variant=danger 1`] = `
+<button
+  class="inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 bg-danger text-text-inverse border border-danger hover:bg-danger/90 hover:border-danger/90 h-9 px-4 text-[14px]"
+  data-size="md"
+  data-variant="danger"
+  type="button"
+>
+  Label
+</button>
+`;
+
+exports[`Button snapshots > variant=ghost 1`] = `
+<button
+  class="inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 bg-transparent text-text-secondary border border-transparent hover:bg-bg-tertiary hover:text-text-primary h-9 px-4 text-[14px]"
+  data-size="md"
+  data-variant="ghost"
+  type="button"
+>
+  Label
+</button>
+`;
+
+exports[`Button snapshots > variant=link 1`] = `
+<button
+  class="inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 bg-transparent text-primary border border-transparent hover:underline px-0 h-9 px-4 text-[14px]"
+  data-size="md"
+  data-variant="link"
+  type="button"
+>
+  Label
+</button>
+`;
+
+exports[`Button snapshots > variant=primary 1`] = `
+<button
+  class="inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 bg-primary text-text-inverse border border-primary hover:bg-primary-hover hover:border-primary-hover h-9 px-4 text-[14px]"
+  data-size="md"
+  data-variant="primary"
+  type="button"
+>
+  Label
+</button>
+`;
+
+exports[`Button snapshots > variant=secondary 1`] = `
+<button
+  class="inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 bg-bg-primary text-text-primary border border-border-secondary hover:bg-bg-tertiary h-9 px-4 text-[14px]"
+  data-size="md"
+  data-variant="secondary"
+  type="button"
+>
+  Label
+</button>
+`;
+
+exports[`Card snapshots > minimal 1`] = `
+<div
+  class="rounded-lg border border-border-primary bg-bg-primary shadow-sm"
+  data-testid="card"
+>
+  <div
+    class="px-5 py-4"
+  >
+    Body only
+  </div>
+</div>
+`;
+
+exports[`Card snapshots > with title + actions + body + footer 1`] = `
+<div
+  class="rounded-lg border border-border-primary bg-bg-primary shadow-sm"
+  data-testid="card"
+>
+  <header
+    class="flex items-baseline justify-between gap-4 border-b border-border-primary px-5 py-4"
+  >
+    <div
+      class="min-w-0 flex-1"
+    >
+      <h3
+        class="text-[16px] font-medium leading-6 text-text-primary"
+      >
+        Title
+      </h3>
+    </div>
+    <div
+      class="flex items-center gap-2"
+    >
+      <button
+        class="inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 bg-primary text-text-inverse border border-primary hover:bg-primary-hover hover:border-primary-hover h-7 px-2 text-[12px]"
+        data-size="sm"
+        data-variant="primary"
+        type="button"
+      >
+        Act
+      </button>
+    </div>
+  </header>
+  <div
+    class="px-5 py-4"
+  >
+    Body
+  </div>
+  <footer
+    class="border-t border-border-primary px-5 py-4"
+  >
+    <span>
+      Foot
+    </span>
+  </footer>
+</div>
+`;
+
+exports[`EmptyState snapshots > minimal 1`] = `
+<div
+  class="flex flex-col items-center justify-center gap-3 px-6 py-10 text-center"
+  data-testid="empty-state"
+>
+  <p
+    class="text-[18px] font-medium leading-7 text-text-primary"
+  >
+    Nothing here
+  </p>
+</div>
+`;
+
+exports[`EmptyState snapshots > with CTA 1`] = `
+<div
+  class="flex flex-col items-center justify-center gap-3 px-6 py-10 text-center"
+  data-testid="empty-state"
+>
+  <p
+    class="text-[18px] font-medium leading-7 text-text-primary"
+  >
+    No estimates
+  </p>
+  <p
+    class="max-w-[60ch] text-[14px] text-text-secondary"
+  >
+    Create one to get started.
+  </p>
+  <div
+    class="mt-2"
+  >
+    <button
+      class="inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 bg-primary text-text-inverse border border-primary hover:bg-primary-hover hover:border-primary-hover h-9 px-4 text-[14px]"
+      data-size="md"
+      data-variant="primary"
+      type="button"
+    >
+      New estimate
+    </button>
+  </div>
+</div>
+`;
+
+exports[`Input snapshots > default 1`] = `
+<div
+  class="flex flex-col gap-1"
+>
+  <label
+    class="text-[14px] font-medium text-text-primary"
+    for=":r0:"
+  >
+    Email
+  </label>
+  <input
+    class="h-9 w-full rounded-md border bg-bg-tertiary px-3 text-[14px] text-text-primary placeholder:text-text-tertiary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-0 border-border-secondary focus-visible:border-border-focus disabled:cursor-not-allowed disabled:opacity-50"
+    data-testid="input"
+    id=":r0:"
+  />
+</div>
+`;
+
+exports[`Input snapshots > required 1`] = `
+<div
+  class="flex flex-col gap-1"
+>
+  <label
+    class="text-[14px] font-medium text-text-primary"
+    for=":r3:"
+  >
+    Email
+    <span
+      class="ml-1 text-danger"
+    >
+      *
+    </span>
+  </label>
+  <input
+    class="h-9 w-full rounded-md border bg-bg-tertiary px-3 text-[14px] text-text-primary placeholder:text-text-tertiary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-0 border-border-secondary focus-visible:border-border-focus disabled:cursor-not-allowed disabled:opacity-50"
+    data-testid="input"
+    id=":r3:"
+    required=""
+  />
+</div>
+`;
+
+exports[`Input snapshots > with error 1`] = `
+<div
+  class="flex flex-col gap-1"
+>
+  <label
+    class="text-[14px] font-medium text-text-primary"
+    for=":r1:"
+  >
+    Email
+  </label>
+  <input
+    aria-describedby=":r1:-error"
+    aria-invalid="true"
+    class="h-9 w-full rounded-md border bg-bg-tertiary px-3 text-[14px] text-text-primary placeholder:text-text-tertiary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-0 border-danger focus-visible:border-danger focus-visible:ring-danger disabled:cursor-not-allowed disabled:opacity-50"
+    data-testid="input"
+    id=":r1:"
+  />
+  <p
+    class="text-[12px] text-danger"
+    id=":r1:-error"
+    role="alert"
+  >
+    Required
+  </p>
+</div>
+`;
+
+exports[`Input snapshots > with help text 1`] = `
+<div
+  class="flex flex-col gap-1"
+>
+  <label
+    class="text-[14px] font-medium text-text-primary"
+    for=":r2:"
+  >
+    Name
+  </label>
+  <input
+    aria-describedby=":r2:-help"
+    class="h-9 w-full rounded-md border bg-bg-tertiary px-3 text-[14px] text-text-primary placeholder:text-text-tertiary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-0 border-border-secondary focus-visible:border-border-focus disabled:cursor-not-allowed disabled:opacity-50"
+    data-testid="input"
+    id=":r2:"
+  />
+  <p
+    class="text-[12px] text-text-tertiary"
+    id=":r2:-help"
+  >
+    As shown on your ID.
+  </p>
+</div>
+`;
+
+exports[`Modal snapshots > open with footer 1`] = `
+<div
+  class="fixed inset-0 z-40 flex items-center justify-center bg-text-primary/40 px-4 animate-in fade-in duration-fast"
+  data-testid="modal-backdrop"
+>
+  <div
+    aria-label="Confirm"
+    aria-modal="true"
+    class="flex w-full flex-col rounded-lg border border-border-primary bg-bg-primary shadow-lg max-w-[640px] max-h-[calc(100vh-32px)]"
+    data-testid="modal"
+    role="dialog"
+    tabindex="-1"
+  >
+    <header
+      class="flex items-start justify-between gap-4 border-b border-border-primary px-6 py-4"
+    >
+      <div
+        class="min-w-0 flex-1"
+      >
+        <h2
+          class="text-[18px] font-medium leading-7 text-text-primary"
+        >
+          Confirm
+        </h2>
+      </div>
+      <button
+        aria-label="Close"
+        class="rounded-md p-1 text-text-tertiary hover:bg-bg-tertiary hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
+        data-testid="modal-close"
+        type="button"
+      >
+        <svg
+          aria-hidden="true"
+          fill="none"
+          height="20"
+          viewBox="0 0 20 20"
+          width="20"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M6 6L14 14M14 6L6 14"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-width="1.6"
+          />
+        </svg>
+      </button>
+    </header>
+    <div
+      class="flex-1 overflow-auto px-6 py-5"
+    >
+      Body
+    </div>
+    <footer
+      class="flex items-center justify-end gap-2 border-t border-border-primary px-6 py-4"
+    >
+      <button
+        class="inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 bg-bg-primary text-text-primary border border-border-secondary hover:bg-bg-tertiary h-9 px-4 text-[14px]"
+        data-size="md"
+        data-variant="secondary"
+        type="button"
+      >
+        Cancel
+      </button>
+      <button
+        class="inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 bg-primary text-text-inverse border border-primary hover:bg-primary-hover hover:border-primary-hover h-9 px-4 text-[14px]"
+        data-size="md"
+        data-variant="primary"
+        type="button"
+      >
+        OK
+      </button>
+    </footer>
+  </div>
+</div>
+`;
+
+exports[`Select snapshot > default 1`] = `
+<div
+  class="flex flex-col gap-1"
+>
+  <label
+    class="text-[14px] font-medium text-text-primary"
+    for=":r4:"
+  >
+    Role
+  </label>
+  <select
+    class="h-9 w-full rounded-md border bg-bg-tertiary px-3 pr-8 text-[14px] text-text-primary appearance-none bg-no-repeat bg-right bg-[url("data:image/svg+xml;charset=UTF-8,%3csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20viewBox=%270%200%2020%2020%27%20fill=%27%2364748B%27%3e%3cpath%20d=%27M5.293%207.707a1%201%200%20011.414%200L10%2011l3.293-3.293a1%201%200%20111.414%201.414l-4%204a1%201%200%2001-1.414%200l-4-4a1%201%200%20010-1.414z%27/%3e%3c/svg%3e")] bg-[length:18px_18px] bg-[position:right_8px_center] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus border-border-secondary focus-visible:border-border-focus disabled:cursor-not-allowed disabled:opacity-50"
+    data-testid="select"
+    id=":r4:"
+  >
+    <option
+      value="ADMIN"
+    >
+      Admin
+    </option>
+    <option
+      value="MEMBER"
+    >
+      Member
+    </option>
+  </select>
+</div>
+`;
+
+exports[`Skeleton snapshots > Skeleton 1`] = `
+<div
+  aria-hidden="true"
+  class="animate-pulse bg-bg-tertiary h-3 rounded-sm"
+  data-testid="skeleton"
+  role="presentation"
+  style="width: 60%;"
+/>
+`;
+
+exports[`Skeleton snapshots > SkeletonCard 1`] = `
+<div
+  class="flex flex-col gap-3 rounded-lg border border-border-primary bg-bg-primary p-5 shadow-sm"
+  data-testid="skeleton-card"
+>
+  <div
+    aria-hidden="true"
+    class="animate-pulse bg-bg-tertiary h-2 rounded-sm"
+    data-testid="skeleton"
+    role="presentation"
+    style="width: 35%;"
+  />
+  <div
+    aria-hidden="true"
+    class="animate-pulse bg-bg-tertiary h-5 rounded-sm"
+    data-testid="skeleton"
+    role="presentation"
+    style="width: 80%;"
+  />
+  <div
+    class="mt-2 flex flex-col gap-2"
+  >
+    <div
+      aria-hidden="true"
+      class="animate-pulse bg-bg-tertiary h-3 rounded-sm"
+      data-testid="skeleton"
+      role="presentation"
+      style="width: 100%;"
+    />
+    <div
+      aria-hidden="true"
+      class="animate-pulse bg-bg-tertiary h-3 rounded-sm"
+      data-testid="skeleton"
+      role="presentation"
+      style="width: 100%;"
+    />
+    <div
+      aria-hidden="true"
+      class="animate-pulse bg-bg-tertiary h-3 rounded-sm"
+      data-testid="skeleton"
+      role="presentation"
+      style="width: 60%;"
+    />
+  </div>
+</div>
+`;
+
+exports[`Skeleton snapshots > SkeletonMetric 1`] = `
+<div
+  class="flex flex-col gap-2"
+  data-testid="skeleton-metric"
+>
+  <div
+    aria-hidden="true"
+    class="animate-pulse bg-bg-tertiary h-3 rounded-sm"
+    data-testid="skeleton"
+    role="presentation"
+    style="width: 40%;"
+  />
+  <div
+    aria-hidden="true"
+    class="animate-pulse bg-bg-tertiary h-7 rounded-md"
+    data-testid="skeleton"
+    role="presentation"
+    style="width: 60%;"
+  />
+</div>
+`;
+
+exports[`Skeleton snapshots > SkeletonRow 1`] = `
+<tr
+  data-testid="skeleton-row"
+>
+  <td
+    class="border-b border-border-primary px-4 py-3"
+  >
+    <div
+      aria-hidden="true"
+      class="animate-pulse bg-bg-tertiary h-3 rounded-sm"
+      data-testid="skeleton"
+      role="presentation"
+      style="width: 70%;"
+    />
+  </td>
+  <td
+    class="border-b border-border-primary px-4 py-3"
+  >
+    <div
+      aria-hidden="true"
+      class="animate-pulse bg-bg-tertiary h-3 rounded-sm"
+      data-testid="skeleton"
+      role="presentation"
+      style="width: 40%;"
+    />
+  </td>
+  <td
+    class="border-b border-border-primary px-4 py-3"
+  >
+    <div
+      aria-hidden="true"
+      class="animate-pulse bg-bg-tertiary h-3 rounded-sm"
+      data-testid="skeleton"
+      role="presentation"
+      style="width: 40%;"
+    />
+  </td>
+  <td
+    class="border-b border-border-primary px-4 py-3"
+  >
+    <div
+      aria-hidden="true"
+      class="animate-pulse bg-bg-tertiary h-3 rounded-sm"
+      data-testid="skeleton"
+      role="presentation"
+      style="width: 40%;"
+    />
+  </td>
+</tr>
+`;
+
+exports[`Skeleton snapshots > SkeletonText 1`] = `
+<div
+  class="flex flex-col gap-2"
+>
+  <div
+    aria-hidden="true"
+    class="animate-pulse bg-bg-tertiary h-3 rounded-sm"
+    data-testid="skeleton"
+    role="presentation"
+    style="width: 100%;"
+  />
+  <div
+    aria-hidden="true"
+    class="animate-pulse bg-bg-tertiary h-3 rounded-sm"
+    data-testid="skeleton"
+    role="presentation"
+    style="width: 100%;"
+  />
+  <div
+    aria-hidden="true"
+    class="animate-pulse bg-bg-tertiary h-3 rounded-sm"
+    data-testid="skeleton"
+    role="presentation"
+    style="width: 60%;"
+  />
+</div>
+`;
+
+exports[`Table snapshot > renders correctly 1`] = `
+<div
+  class="-mx-px overflow-x-auto"
+>
+  <table
+    class="w-full min-w-[640px] border-separate border-spacing-0 text-[14px]"
+    data-testid="table"
+  >
+    <thead
+      class="bg-bg-secondary"
+    >
+      <tr>
+        <th
+          class="border-b border-border-primary px-4 py-3 text-left text-[12px]"
+          scope="col"
+        >
+          <span
+            class="font-medium uppercase tracking-[0.06em] text-text-secondary"
+          >
+            Name
+          </span>
+        </th>
+      </tr>
+    </thead>
+    <tbody
+      class=""
+    >
+      <tr
+        class="transition-colors duration-fast"
+        data-testid="table-row"
+      >
+        <td
+          class="border-b border-border-primary px-4 py-3 text-[14px] text-text-primary"
+        >
+          Alpha
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`Textarea snapshots > default 1`] = `
+<div
+  class="flex flex-col gap-1"
+>
+  <label
+    class="text-[14px] font-medium text-text-primary"
+    for=":r5:"
+  >
+    Notes
+  </label>
+  <textarea
+    class="min-h-[80px] w-full resize-y rounded-md border bg-bg-tertiary px-3 py-2 text-[14px] text-text-primary placeholder:text-text-tertiary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus border-border-secondary focus-visible:border-border-focus disabled:cursor-not-allowed disabled:opacity-50"
+    data-testid="textarea"
+    id=":r5:"
+  />
+  <div
+    class="flex items-baseline justify-between gap-2"
+  >
+    <span />
+  </div>
+</div>
+`;
+
+exports[`Textarea snapshots > with character count 1`] = `
+<div
+  class="flex flex-col gap-1"
+>
+  <label
+    class="text-[14px] font-medium text-text-primary"
+    for=":r6:"
+  >
+    Notes
+  </label>
+  <textarea
+    class="min-h-[80px] w-full resize-y rounded-md border bg-bg-tertiary px-3 py-2 text-[14px] text-text-primary placeholder:text-text-tertiary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus border-border-secondary focus-visible:border-border-focus disabled:cursor-not-allowed disabled:opacity-50"
+    data-testid="textarea"
+    id=":r6:"
+    maxlength="500"
+  >
+    hello
+  </textarea>
+  <div
+    class="flex items-baseline justify-between gap-2"
+  >
+    <span />
+    <p
+      class="text-[12px] tabular-nums text-text-tertiary"
+    >
+      5
+       / 
+      500
+    </p>
+  </div>
+</div>
+`;
+
+exports[`TitleBlock snapshots > full 1`] = `
+<div
+  class="flex flex-col gap-4 pb-5 border-b border-border-primary"
+  data-testid="title-block"
+>
+  <div
+    class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-4"
+  >
+    <div
+      class="flex min-w-0 items-center gap-3"
+    >
+      <div
+        class="min-w-0"
+      >
+        <div
+          class="flex items-center gap-3"
+        >
+          <h1
+            class="truncate text-[24px] font-medium leading-8 text-text-primary"
+          >
+            Estimates
+          </h1>
+          <span
+            class="inline-flex items-center gap-1.5 rounded-full font-medium leading-none whitespace-nowrap bg-info-light text-info h-6 px-2 text-[12px]"
+            data-testid="badge"
+            data-variant="info"
+          >
+            <span>
+              Beta
+            </span>
+          </span>
+        </div>
+        <p
+          class="mt-1 text-[14px] text-text-secondary"
+        >
+          All work in flight
+        </p>
+      </div>
+    </div>
+    <div
+      class="flex flex-wrap items-center gap-2 md:flex-nowrap md:justify-end"
+    >
+      <button
+        class="inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 bg-primary text-text-inverse border border-primary hover:bg-primary-hover hover:border-primary-hover h-9 px-4 text-[14px]"
+        data-size="md"
+        data-variant="primary"
+        type="button"
+      >
+        New
+      </button>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`TitleBlock snapshots > minimal 1`] = `
+<div
+  class="flex flex-col gap-4 pb-5 border-b border-border-primary"
+  data-testid="title-block"
+>
+  <div
+    class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-4"
+  >
+    <div
+      class="flex min-w-0 items-center gap-3"
+    >
+      <div
+        class="min-w-0"
+      >
+        <div
+          class="flex items-center gap-3"
+        >
+          <h1
+            class="truncate text-[24px] font-medium leading-8 text-text-primary"
+          >
+            Dashboard
+          </h1>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;

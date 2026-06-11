@@ -12,6 +12,8 @@ import bcrypt from 'bcrypt';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../src/lib/prisma.js';
 import { env } from '../src/lib/env.js';
+import { seedTrades } from './seedTrades.js';
+import { seedBids } from './seedBids.js';
 
 const SEED_PASSWORD = 'password123';
 const ORG_SLUG = 'mark-allan-contracting';
@@ -59,6 +61,20 @@ async function wipeOrgScopedData(orgId: string) {
   await prisma.priceBookCategory.deleteMany({ where: { organizationId: orgId } });
   await prisma.markupRule.deleteMany({ where: { organizationId: orgId } });
   await prisma.priceBook.deleteMany({ where: { organizationId: orgId } });
+  await prisma.bidReminder.deleteMany({ where: { organizationId: orgId } });
+  await prisma.bidDocument.deleteMany({ where: { organizationId: orgId } });
+  await prisma.bidResponseAttachment.deleteMany({
+    where: { bidResponse: { organizationId: orgId } },
+  });
+  await prisma.bidResponseLineItem.deleteMany({
+    where: { bidResponse: { organizationId: orgId } },
+  });
+  await prisma.bidResponse.deleteMany({ where: { organizationId: orgId } });
+  await prisma.bidRequest.deleteMany({ where: { organizationId: orgId } });
+  await prisma.bidPackage.deleteMany({ where: { organizationId: orgId } });
+  await prisma.coreVendorCache.deleteMany({ where: { organizationId: orgId } });
+  await prisma.coreProjectCache.deleteMany({ where: { organizationId: orgId } });
+  await prisma.tradeMapping.deleteMany({ where: { organizationId: orgId } });
   await prisma.invitation.deleteMany({ where: { organizationId: orgId } });
   await prisma.user.deleteMany({ where: { organizationId: orgId } });
   await prisma.orgSettings.deleteMany({ where: { organizationId: orgId } });
@@ -752,7 +768,13 @@ async function main() {
     },
   });
 
-  // 5. Summary
+  // 5. Trades
+  await seedTrades(prisma, org.id);
+
+  // 6. Bids
+  await seedBids(prisma, org.id, inReview.id, adam.id);
+
+  // 7. Summary
   const counts = {
     organizations: await prisma.organization.count(),
     users: await prisma.user.count(),
@@ -764,6 +786,8 @@ async function main() {
     lineItems: await prisma.lineItem.count(),
     sourceInputs: await prisma.sourceInput.count(),
     comments: await prisma.comment.count(),
+    tradeCanonicals: await prisma.tradeCanonical.count(),
+    tradeMappings: await prisma.tradeMapping.count(),
   };
 
   console.log('\n[seed] complete.');
@@ -778,6 +802,8 @@ async function main() {
   console.log(`  line items:          ${counts.lineItems}`);
   console.log(`  source inputs:       ${counts.sourceInputs}`);
   console.log(`  comments:            ${counts.comments}`);
+  console.log(`  trade canonicals:    ${counts.tradeCanonicals}`);
+  console.log(`  trade mappings:      ${counts.tradeMappings}`);
 
   if (env.NODE_ENV === 'development') {
     console.log('\n[seed] dev login credentials (DO NOT USE IN PRODUCTION):');

@@ -156,6 +156,29 @@ export function useDeleteLineItem(estimateId: string) {
   });
 }
 
+export function useDuplicateLineItem(estimateId: string) {
+  const qc = useQueryClient();
+  return useMutation<LineItem, AxiosError, LineItem>({
+    mutationFn: async (source) => {
+      const res = await api.post<{ lineItem: LineItem }>(
+        `/api/scope-sections/${source.scopeSectionId}/line-items`,
+        {
+          description: source.description,
+          quantity: source.quantity,
+          unitOfMeasure: source.unitOfMeasure,
+          unitCostMaterial: source.unitCostMaterial,
+          unitCostLabor: source.unitCostLabor,
+          markupPercent: source.markupPercent,
+        },
+      );
+      return res.data.lineItem;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: estimateDetailKey(estimateId) });
+    },
+  });
+}
+
 export function useBulkDeleteLineItems(estimateId: string) {
   const qc = useQueryClient();
   return useMutation<{ count: number }, AxiosError, string[]>({

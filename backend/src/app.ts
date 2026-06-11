@@ -36,9 +36,19 @@ import { aiRunsRouter, estimateAiRouter } from './routes/aiRuns.js';
 import { notificationsRouter } from './routes/notifications.js';
 import { dashboardRouter } from './routes/dashboard.js';
 import { coreRouter } from './routes/core.js';
+import { tradesRouter } from './routes/trades.js';
+import { bidPackagesRouter } from './routes/bidPackages.js';
+import { bidResponsesRouter, bidPortalRouter } from './routes/bidResponses.js';
+import { bidRemindersRouter } from './routes/bidReminders.js';
+import { bidAwardRouter } from './routes/bidAward.js';
+import { bidInboundEmailRouter } from './routes/bidInboundEmail.js';
 
 export function createApp(): Express {
   const app = express();
+
+  // Railway (and most PaaS hosts) sit behind a reverse proxy.
+  // Express must trust it so req.ip and rate-limiters work correctly.
+  app.set('trust proxy', 1);
 
   // CORS — the frontend is served from APP_URL on a different port. Cookies
   // are httpOnly + sameSite, so we need credentials:true here so the browser
@@ -78,6 +88,13 @@ export function createApp(): Express {
   app.use('/api/notifications', notificationsRouter);
   app.use('/api/dashboard', dashboardRouter);
   app.use('/api/core', coreRouter);
+  app.use('/api/trades', tradesRouter);
+  app.use('/api/bid-packages', bidPackagesRouter);
+  app.use('/api/bids', bidResponsesRouter);
+  app.use('/api/portal/bid', bidPortalRouter);
+  app.use('/api/bid-reminders', bidRemindersRouter);
+  app.use('/api/bids', bidAwardRouter);
+  app.use('/api/webhooks/bid-email', bidInboundEmailRouter);
 
   app.get('/', (_req, res) => {
     res.json({ app: 'Quill', status: 'ok' });

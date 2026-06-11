@@ -18,6 +18,22 @@ export interface CoreDeal {
   accountId: string;
 }
 
+export interface CoreVendor {
+  id: string;
+  name: string;
+  trade: string | null;
+  complianceStatus: string | null;
+  email: string | null;
+  phone: string | null;
+}
+
+export interface CoreProject {
+  id: string;
+  name: string;
+  status: string | null;
+  accountId: string | null;
+}
+
 export interface PaginatedResult<T> {
   data: T[];
   nextCursor: string | null;
@@ -126,7 +142,26 @@ export const core = {
       corePatch<{ data: CoreDeal }>(`/deals/${id}`, body),
   },
 
+  vendors: {
+    list: (params?: { search?: string; cursor?: string; limit?: number; complianceStatus?: string }) =>
+      coreGet<PaginatedResult<CoreVendor>>('/vendors', {
+        search: params?.search,
+        cursor: params?.cursor,
+        limit: params?.limit?.toString(),
+        complianceStatus: params?.complianceStatus,
+      }),
+    get: (id: string) => coreGet<{ data: CoreVendor }>(`/vendors/${id}`),
+  },
+
   projects: {
+    list: (params?: { search?: string; cursor?: string; limit?: number; accountId?: string }) =>
+      coreGet<PaginatedResult<CoreProject>>('/projects', {
+        search: params?.search,
+        cursor: params?.cursor,
+        limit: params?.limit?.toString(),
+        accountId: params?.accountId,
+      }),
+    get: (id: string) => coreGet<{ data: CoreProject }>(`/projects/${id}`),
     create: (body: Record<string, unknown>) =>
       corePost<{ data: { id: string } }>('/projects', body),
   },

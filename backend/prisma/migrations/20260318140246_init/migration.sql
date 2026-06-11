@@ -1,0 +1,1 @@
+-- Stub: original init migration applied directly to production DB
