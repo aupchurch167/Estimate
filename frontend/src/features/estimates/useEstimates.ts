@@ -34,9 +34,13 @@ export interface ListEstimatesArgs {
   order?: 'asc' | 'desc';
 }
 
-export function useEstimates(args: ListEstimatesArgs = {}) {
+export function useEstimates(
+  args: ListEstimatesArgs = {},
+  options?: { enabled?: boolean },
+) {
   return useQuery<PaginatedEstimates, AxiosError>({
     queryKey: [...ESTIMATES_QUERY_KEY, args],
+    enabled: options?.enabled ?? true,
     queryFn: async () => {
       const params = new URLSearchParams();
       if (args.status && args.status.length > 0) {

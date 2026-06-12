@@ -5,9 +5,11 @@ import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { Field, inputClass } from '@/features/auth/Field';
 import { backendErrorMessage } from '@/features/auth/useAuth';
+import { useEstimates } from '@/features/estimates/useEstimates';
 import { useCreateBidPackage, useTrades } from './useBids';
 
 const schema = z.object({
+  estimateId: z.string().min(1, 'Estimate is required'),
   title: z.string().min(1, 'Title is required').max(200),
   description: z.string().max(5000).optional(),
   tradeCanonicalId: z.string().optional(),
@@ -18,13 +20,18 @@ type FormValues = z.infer<typeof schema>;
 interface Props {
   open: boolean;
   onClose: () => void;
-  estimateId: string;
+  /** Preselects the estimate and hides the picker when provided. */
+  estimateId?: string;
 }
 
 export function CreateBidPackageModal({ open, onClose, estimateId }: Props) {
   const navigate = useNavigate();
   const create = useCreateBidPackage();
   const tradesQuery = useTrades();
+  const estimatesQuery = useEstimates(
+    { pageSize: 100, sort: 'updatedAt', order: 'desc' },
+    { enabled: open && !estimateId },
+  );
 
   const {
     register,
@@ -33,16 +40,28 @@ export function CreateBidPackageModal({ open, onClose, estimateId }: Props) {
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { title: '', description: '', tradeCanonicalId: '', dueDate: '' },
+    defaultValues: {
+      estimateId: estimateId ?? '',
+      title: '',
+      description: '',
+      tradeCanonicalId: '',
+      dueDate: '',
+    },
   });
 
   useEffect(() => {
     if (!open) {
-      reset();
+      reset({
+        estimateId: estimateId ?? '',
+        title: '',
+        description: '',
+        tradeCanonicalId: '',
+        dueDate: '',
+      });
       create.reset();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, estimateId]);
 
   if (!open) return null;
 
@@ -50,7 +69,7 @@ export function CreateBidPackageModal({ open, onClose, estimateId }: Props) {
     try {
       const trade = tradesQuery.data?.find((t) => t.id === values.tradeCanonicalId);
       const created = await create.mutateAsync({
-        estimateId,
+        estimateId: values.estimateId,
         title: values.title.trim(),
         description: values.description?.trim() || undefined,
         tradeCanonicalId: values.tradeCanonicalId || undefined,
@@ -105,6 +124,27 @@ export function CreateBidPackageModal({ open, onClose, estimateId }: Props) {
             >
               {banner}
             </div>
+          )}
+
+          {!estimateId && (
+            <Field
+              label="Estimate"
+              htmlFor="bid-estimate"
+              error={errors.estimateId?.message}
+            >
+              <select
+                id="bid-estimate"
+                className={inputClass}
+                {...register('estimateId')}
+              >
+                <option value="">Select estimate…</option>
+                {(estimatesQuery.data?.data ?? []).map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.number} — {e.title}
+                  </option>
+                ))}
+              </select>
+            </Field>
           )}
 
           <Field label="Title" htmlFor="bid-title" error={errors.title?.message}>

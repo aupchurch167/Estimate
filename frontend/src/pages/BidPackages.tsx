@@ -127,13 +127,11 @@ export function BidPackagesPage() {
           )}
         </Card>
 
-        {estimateId && (
-          <CreateBidPackageModal
-            open={createOpen}
-            onClose={() => setCreateOpen(false)}
-            estimateId={estimateId}
-          />
-        )}
+        <CreateBidPackageModal
+          open={createOpen}
+          onClose={() => setCreateOpen(false)}
+          estimateId={estimateId}
+        />
       </main>
     </div>
   );
