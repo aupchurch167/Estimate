@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import type { AxiosError } from 'axios';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AppHeader } from '@/components/AppHeader';
 import { Field, inputClass } from '@/features/auth/Field';
@@ -176,7 +177,7 @@ export function BidPackageCreatePage() {
 
       navigate(next === 'preview' ? `/app/bid-packages/${pkg.id}/send` : `/app/bid-packages/${pkg.id}`);
     } catch (err) {
-      setError(backendErrorMessage(err, 'Could not create bid package.'));
+      setError(backendErrorMessage(err as AxiosError, 'Could not create bid package.'));
     } finally {
       setSubmitting(false);
     }

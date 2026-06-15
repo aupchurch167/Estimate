@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type { AxiosError } from 'axios';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { AppHeader } from '@/components/AppHeader';
 import { backendErrorMessage, useCurrentUser } from '@/features/auth/useAuth';
@@ -68,7 +69,7 @@ export function BidPackageSendPage() {
       await updateMut.mutateAsync({ id: pkg!.id, personalNote: note.trim() || null });
       return true;
     } catch (err) {
-      setError(backendErrorMessage(err, 'Could not save the note.'));
+      setError(backendErrorMessage(err as AxiosError, 'Could not save the note.'));
       return false;
     }
   }
@@ -93,7 +94,7 @@ export function BidPackageSendPage() {
       toast.success('Bid requests sent.');
       navigate(`/app/bid-packages/${pkg!.id}`);
     } catch (err) {
-      setError(backendErrorMessage(err, 'Could not send bid requests.'));
+      setError(backendErrorMessage(err as AxiosError, 'Could not send bid requests.'));
     }
   }
 
