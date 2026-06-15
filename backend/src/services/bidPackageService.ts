@@ -12,6 +12,17 @@ const INCLUDE_REQUESTS = {
   estimate: { select: { id: true, title: true, number: true } },
 } as const;
 
+// Detail include adds the package documents and the org name — used by the
+// single-package fetch and create response, which back the email preview page.
+const INCLUDE_DETAIL = {
+  ...INCLUDE_REQUESTS,
+  organization: { select: { name: true } },
+  bidDocuments: {
+    orderBy: { createdAt: 'asc' },
+    include: { uploadedBy: { select: { id: true, firstName: true, lastName: true } } },
+  },
+} as const;
+
 export async function list(orgId: string, estimateId?: string, status?: BidPackageStatus) {
   return prisma.bidPackage.findMany({
     where: {
@@ -27,7 +38,7 @@ export async function list(orgId: string, estimateId?: string, status?: BidPacka
 export async function get(id: string, orgId: string) {
   return prisma.bidPackage.findFirst({
     where: { id, organizationId: orgId },
-    include: INCLUDE_REQUESTS,
+    include: INCLUDE_DETAIL,
   });
 }
 
@@ -36,6 +47,7 @@ export async function create(data: {
   estimateId: string;
   title: string;
   description?: string;
+  personalNote?: string;
   tradeCode?: string;
   tradeCanonicalId?: string;
   dueDate?: Date;
@@ -52,12 +64,13 @@ export async function create(data: {
       estimateId: data.estimateId,
       title: data.title,
       description: data.description,
+      personalNote: data.personalNote,
       tradeCode: data.tradeCode,
       tradeCanonicalId: data.tradeCanonicalId,
       dueDate: data.dueDate,
       createdById: data.createdById,
     },
-    include: INCLUDE_REQUESTS,
+    include: INCLUDE_DETAIL,
   });
 }
 
@@ -67,6 +80,7 @@ export async function update(
   data: {
     title?: string;
     description?: string | null;
+    personalNote?: string | null;
     tradeCode?: string | null;
     tradeCanonicalId?: string | null;
     dueDate?: Date | null;
@@ -83,7 +97,7 @@ export async function update(
   return prisma.bidPackage.update({
     where: { id },
     data,
-    include: INCLUDE_REQUESTS,
+    include: INCLUDE_DETAIL,
   });
 }
 
@@ -103,8 +117,10 @@ export async function publish(id: string, orgId: string) {
   const updated = await prisma.bidPackage.update({
     where: { id },
     data: { status: 'PUBLISHED', publishedAt: new Date() },
-    include: { ...INCLUDE_REQUESTS, organization: { select: { name: true } } },
+    include: INCLUDE_DETAIL,
   });
+
+  const documentNames = updated.bidDocuments.map((d) => d.fileName);
 
   for (const req of updated.bidRequests) {
     if (req.status === 'PENDING') {
@@ -121,13 +137,20 @@ export async function publish(id: string, orgId: string) {
           tradeName: updated.tradeCanonical?.name,
           dueDate: updated.dueDate?.toLocaleDateString(),
           description: updated.description ?? undefined,
+          personalNote: updated.personalNote ?? undefined,
+          documentNames,
           accessToken: req.accessToken,
         })
         .catch((err) => logger.error({ err }, 'Bid invitation email failed'));
     }
   }
 
-  return updated;
+  // Re-read so the returned payload reflects the SENT statuses set above —
+  // the `updated` snapshot serialized its requests before that loop ran.
+  return prisma.bidPackage.findUniqueOrThrow({
+    where: { id },
+    include: INCLUDE_DETAIL,
+  });
 }
 
 export async function close(id: string, orgId: string) {

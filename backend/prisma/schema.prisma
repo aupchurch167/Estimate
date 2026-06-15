@@ -298,6 +298,7 @@ model BidPackage {
   estimate        Estimate         @relation(fields: [estimateId], references: [id])
   title           String
   description     String?          @db.Text
+  personalNote    String?          @db.Text
   tradeCode       String?
   tradeCanonicalId String?
   tradeCanonical  TradeCanonical?  @relation(fields: [tradeCanonicalId], references: [id])

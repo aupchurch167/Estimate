@@ -12,6 +12,8 @@ interface Props {
   tradeName?: string;
   dueDate?: string;
   description?: string;
+  personalNote?: string;
+  documentNames?: string[];
   portalUrl: string;
   vendorName: string;
 }
@@ -22,6 +24,8 @@ export function BidInvitationEmail({
   tradeName,
   dueDate,
   description,
+  personalNote,
+  documentNames,
   portalUrl,
   vendorName,
 }: Props) {
@@ -29,6 +33,9 @@ export function BidInvitationEmail({
     { label: 'Package', value: packageTitle },
     ...(tradeName ? [{ label: 'Trade', value: tradeName }] : []),
     ...(dueDate ? [{ label: 'Due', value: dueDate }] : []),
+    ...(documentNames && documentNames.length > 0
+      ? [{ label: 'Attached', value: documentNames.join(' · ') }]
+      : []),
   ];
 
   return (
@@ -37,7 +44,7 @@ export function BidInvitationEmail({
       badgeColor={MARK_AMBER}
       recipientFirstName={vendorName.split(' ')[0]}
       headline={`${orgName} is requesting a bid from you.`}
-      subheadline={description ?? undefined}
+      subheadline={personalNote ?? description ?? undefined}
     >
       <MetaRow items={meta} />
       <PrimaryButton href={portalUrl}>View &amp; respond</PrimaryButton>

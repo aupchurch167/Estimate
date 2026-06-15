@@ -1,9 +1,7 @@
-import { useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { AppHeader } from '@/components/AppHeader';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useBidPackages } from '@/features/bids/useBids';
-import { CreateBidPackageModal } from '@/features/bids/CreateBidPackageModal';
 import { BID_STATUS_LABELS, type BidPackageStatus } from '@/features/bids/types';
 import {
   Badge,
@@ -25,12 +23,15 @@ const STATUS_VARIANT: Record<BidPackageStatus, 'neutral' | 'info' | 'success' | 
 
 export function BidPackagesPage() {
   const { canCreateEstimate: canEdit } = usePermissions();
+  const navigate = useNavigate();
   const [params] = useSearchParams();
   const estimateId = params.get('estimateId') ?? undefined;
   const statusFilter = (params.get('status') as BidPackageStatus) ?? undefined;
 
   const query = useBidPackages({ estimateId, status: statusFilter });
-  const [createOpen, setCreateOpen] = useState(false);
+
+  const goCreate = () =>
+    navigate(estimateId ? `/app/bid-packages/new?estimateId=${estimateId}` : '/app/bid-packages/new');
 
   return (
     <div className="min-h-screen bg-bg-secondary">
@@ -41,7 +42,7 @@ export function BidPackagesPage() {
           subtitle="Solicit and manage sub-contractor bids across your estimates."
           actions={
             canEdit ? (
-              <Button onClick={() => setCreateOpen(true)}>New Bid Package</Button>
+              <Button onClick={goCreate}>New Bid Package</Button>
             ) : undefined
           }
         />
@@ -67,7 +68,7 @@ export function BidPackagesPage() {
               title="No bid packages"
               description="Create a bid package to start soliciting sub-contractor pricing."
               actionLabel={canEdit ? 'New Bid Package' : undefined}
-              onAction={canEdit ? () => setCreateOpen(true) : undefined}
+              onAction={canEdit ? goCreate : undefined}
             />
           )}
 
@@ -126,14 +127,6 @@ export function BidPackagesPage() {
             </Table>
           )}
         </Card>
-
-        {estimateId && (
-          <CreateBidPackageModal
-            open={createOpen}
-            onClose={() => setCreateOpen(false)}
-            estimateId={estimateId}
-          />
-        )}
       </main>
     </div>
   );
