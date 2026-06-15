@@ -11,6 +11,7 @@ import App from './App';
 import { queryClient } from './lib/queryClient';
 import { AuthProvider } from './context/AuthContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { ToastProvider } from './components/ui';
 
 // Sentry must init before the React tree mounts so it can catch
 // errors thrown during initial render. No-ops when VITE_SENTRY_DSN is
@@ -38,7 +39,9 @@ createRoot(root).render(
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
           <AuthProvider>
-            <App />
+            <ToastProvider>
+              <App />
+            </ToastProvider>
           </AuthProvider>
         </BrowserRouter>
       </QueryClientProvider>
