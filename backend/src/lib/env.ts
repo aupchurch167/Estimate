@@ -14,7 +14,7 @@ const durationString = z
   .string()
   .regex(/^\d+(ms|s|m|h|d)$/, 'must be a duration like "15m" or "7d"');
 
-const schema = z.object({
+const baseSchema = z.object({
   // Runtime
   NODE_ENV: z
     .enum(['development', 'production', 'test'])
@@ -119,6 +119,22 @@ const schema = z.object({
     .describe('UUID of a user in Core DB — dev bypass auth (x-helm-test-user-id)'),
 });
 
+// When Core integration is on, the connection vars are no longer optional —
+// without them every Core call throws and is silently swallowed, leaving the
+// vendor/account directories mysteriously empty. Fail loudly at startup instead.
+const schema = baseSchema.superRefine((val, ctx) => {
+  if (!val.HELM_CORE_INTEGRATION) return;
+  for (const key of ['CORE_API_URL', 'CORE_ORG_SLUG', 'CORE_DEV_USER_ID'] as const) {
+    if (!val[key]) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [key],
+        message: 'Required when HELM_CORE_INTEGRATION=true',
+      });
+    }
+  }
+});
+
 type EnvSchema = typeof schema;
 type Env = z.infer<EnvSchema>;
 
@@ -153,7 +169,7 @@ function formatFriendlyError(error: z.ZodError): string {
 }
 
 function describeKey(key: string): string {
-  const shape = schema.shape as Record<string, z.ZodTypeAny>;
+  const shape = baseSchema.shape as Record<string, z.ZodTypeAny>;
   const field = shape[key];
   return field?.description ?? '';
 }
