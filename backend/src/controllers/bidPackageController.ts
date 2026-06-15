@@ -1,8 +1,22 @@
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 import * as bidPackageService from '../services/bidPackageService.js';
-import { NotFoundError } from '../lib/errors.js';
+import { NotFoundError, ValidationError } from '../lib/errors.js';
 import { ok, created } from '../lib/response.js';
+
+function parse<T extends z.ZodTypeAny>(schema: T, value: unknown): z.infer<T> {
+  const result = schema.safeParse(value);
+  if (!result.success) {
+    throw new ValidationError('Invalid request', {
+      issues: result.error.issues.map((i) => ({
+        path: i.path.join('.'),
+        message: i.message,
+        code: i.code,
+      })),
+    });
+  }
+  return result.data;
+}
 
 const bidPackageStatusEnum = z.enum(['DRAFT', 'PUBLISHED', 'CLOSED', 'CANCELLED']);
 
@@ -10,6 +24,7 @@ const createBody = z.object({
   estimateId: z.string().min(1),
   title: z.string().min(1).max(200),
   description: z.string().max(5000).optional(),
+  personalNote: z.string().max(5000).optional(),
   tradeCode: z.string().max(10).optional(),
   tradeCanonicalId: z.string().optional(),
   dueDate: z.coerce.date().optional(),
@@ -18,6 +33,7 @@ const createBody = z.object({
 const updateBody = z.object({
   title: z.string().min(1).max(200).optional(),
   description: z.string().max(5000).nullable().optional(),
+  personalNote: z.string().max(5000).nullable().optional(),
   tradeCode: z.string().max(10).nullable().optional(),
   tradeCanonicalId: z.string().nullable().optional(),
   dueDate: z.coerce.date().nullable().optional(),
@@ -33,7 +49,7 @@ const addRequestBody = z.object({
 export async function listPackages(req: Request, res: Response) {
   const estimateId = req.query.estimateId as string | undefined;
   const status = req.query.status
-    ? bidPackageStatusEnum.parse(req.query.status)
+    ? parse(bidPackageStatusEnum, req.query.status)
     : undefined;
   const packages = await bidPackageService.list(
     req.user!.organizationId,
@@ -53,12 +69,13 @@ export async function getPackage(req: Request, res: Response) {
 }
 
 export async function createPackage(req: Request, res: Response) {
-  const body = createBody.parse(req.body);
+  const body = parse(createBody, req.body);
   const pkg = await bidPackageService.create({
     organizationId: req.user!.organizationId,
     estimateId: body.estimateId,
     title: body.title,
     description: body.description,
+    personalNote: body.personalNote,
     tradeCode: body.tradeCode,
     tradeCanonicalId: body.tradeCanonicalId,
     dueDate: body.dueDate,
@@ -68,7 +85,7 @@ export async function createPackage(req: Request, res: Response) {
 }
 
 export async function updatePackage(req: Request, res: Response) {
-  const body = updateBody.parse(req.body);
+  const body = parse(updateBody, req.body);
   const pkg = await bidPackageService.update(
     String(req.params.id),
     req.user!.organizationId,
@@ -120,7 +137,7 @@ export async function listRequests(req: Request, res: Response) {
 }
 
 export async function addRequest(req: Request, res: Response) {
-  const body = addRequestBody.parse(req.body);
+  const body = parse(addRequestBody, req.body);
   const request = await bidPackageService.addRequest(
     String(req.params.id),
     req.user!.organizationId,

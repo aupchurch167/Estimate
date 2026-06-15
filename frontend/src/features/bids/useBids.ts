@@ -1,11 +1,20 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { AxiosError } from 'axios';
 import { api } from '@/lib/api';
-import type { BidPackage, BidPackageStatus, BidResponse, TradeCanonical } from './types';
+import type {
+  BidDocument,
+  BidPackage,
+  BidPackageStatus,
+  BidResponse,
+  CoreVendor,
+  TradeCanonical,
+} from './types';
 
 export const BID_PACKAGES_KEY = ['bid-packages'] as const;
 export const BID_RESPONSES_KEY = ['bid-responses'] as const;
+export const BID_DOCUMENTS_KEY = ['bid-documents'] as const;
 export const TRADES_KEY = ['trades-canonical'] as const;
+export const CORE_VENDORS_KEY = ['core-vendors'] as const;
 
 // ─── Trades ─────────────────────────────────────────────────────────────────
 
@@ -46,12 +55,31 @@ export function useCreateBidPackage() {
     estimateId: string;
     title: string;
     description?: string;
+    personalNote?: string;
     tradeCode?: string;
     tradeCanonicalId?: string;
     dueDate?: string;
   }>({
     mutationFn: async (input) => (await api.post<BidPackage>('/api/bid-packages', input)).data,
     onSuccess: () => qc.invalidateQueries({ queryKey: BID_PACKAGES_KEY }),
+  });
+}
+
+// ─── Vendor directory (Helm Core, when integration is enabled) ────────────────
+
+export function useCoreVendors(search?: string) {
+  return useQuery<{ enabled: boolean; data: CoreVendor[] }, AxiosError>({
+    queryKey: [...CORE_VENDORS_KEY, search ?? ''],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (search) params.set('search', search);
+      const res = await api.get<{ enabled: boolean; data: CoreVendor[] }>(
+        `/api/core/vendors?${params}`,
+      );
+      return res.data;
+    },
+    staleTime: 60 * 1000,
+    placeholderData: (prev) => prev,
   });
 }
 
@@ -112,6 +140,74 @@ export function useRemoveBidRequest() {
       await api.delete(`/api/bid-packages/${bidPackageId}/requests/${requestId}`);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: BID_PACKAGES_KEY }),
+  });
+}
+
+// ─── Bid Documents (scope docs the estimator attaches) ───────────────────────
+
+export function useBidDocuments(packageId: string) {
+  return useQuery<BidDocument[], AxiosError>({
+    queryKey: [...BID_DOCUMENTS_KEY, packageId],
+    queryFn: async () =>
+      (await api.get<BidDocument[]>(`/api/bids/packages/${packageId}/documents`)).data,
+    enabled: !!packageId,
+  });
+}
+
+interface SignedUpload {
+  url: string;
+  key: string;
+  expiresIn: number;
+  publicUrl: string;
+}
+
+/**
+ * Uploads one file to a bid package: mints a presigned PUT to Spaces, pushes
+ * the bytes directly from the browser, then records the document metadata.
+ */
+export function useUploadBidDocument() {
+  const qc = useQueryClient();
+  return useMutation<BidDocument, AxiosError | Error, { packageId: string; file: File }>({
+    mutationFn: async ({ packageId, file }) => {
+      const signed = (
+        await api.post<SignedUpload>(`/api/bids/packages/${packageId}/documents/sign`, {
+          fileName: file.name,
+          contentType: file.type,
+          fileSizeBytes: file.size,
+        })
+      ).data;
+      const put = await fetch(signed.url, {
+        method: 'PUT',
+        headers: { 'Content-Type': file.type, 'x-amz-acl': 'public-read' },
+        body: file,
+      });
+      if (!put.ok) throw new Error(`Upload failed (${put.status})`);
+      return (
+        await api.post<BidDocument>(`/api/bids/packages/${packageId}/documents`, {
+          fileName: file.name,
+          fileUrl: signed.publicUrl,
+          fileSize: file.size,
+          mimeType: file.type,
+        })
+      ).data;
+    },
+    onSuccess: (_doc, { packageId }) => {
+      qc.invalidateQueries({ queryKey: [...BID_DOCUMENTS_KEY, packageId] });
+      qc.invalidateQueries({ queryKey: BID_PACKAGES_KEY });
+    },
+  });
+}
+
+export function useRemoveBidDocument() {
+  const qc = useQueryClient();
+  return useMutation<void, AxiosError, { packageId: string; docId: string }>({
+    mutationFn: async ({ docId }) => {
+      await api.delete(`/api/bids/documents/${docId}`);
+    },
+    onSuccess: (_v, { packageId }) => {
+      qc.invalidateQueries({ queryKey: [...BID_DOCUMENTS_KEY, packageId] });
+      qc.invalidateQueries({ queryKey: BID_PACKAGES_KEY });
+    },
   });
 }
 

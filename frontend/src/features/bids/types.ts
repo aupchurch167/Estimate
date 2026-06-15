@@ -7,6 +7,7 @@ export interface BidPackage {
   estimateId: string;
   title: string;
   description: string | null;
+  personalNote: string | null;
   tradeCode: string | null;
   tradeCanonicalId: string | null;
   status: BidPackageStatus;
@@ -20,6 +21,31 @@ export interface BidPackage {
   createdBy: { id: string; firstName: string; lastName: string; email: string };
   estimate: { id: string; title: string; number: string };
   bidRequests: BidRequest[];
+  // Present on the single-package fetch (detail / email preview), not the list.
+  organization?: { name: string };
+  bidDocuments?: BidDocument[];
+}
+
+export interface BidDocument {
+  id: string;
+  bidPackageId: string;
+  fileName: string;
+  fileUrl: string;
+  fileSize: number | null;
+  mimeType: string | null;
+  uploadedById: string;
+  createdAt: string;
+  uploadedBy?: { id: string; firstName: string; lastName: string };
+}
+
+export interface CoreVendor {
+  id: string;
+  coreVendorId: string;
+  name: string;
+  trade: string | null;
+  complianceStatus: string | null;
+  email: string | null;
+  phone: string | null;
 }
 
 export interface BidRequest {

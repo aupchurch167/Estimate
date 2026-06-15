@@ -1,9 +1,18 @@
+import { randomBytes } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { NotFoundError, ValidationError } from '../lib/errors.js';
+import { generateSignedUploadUrl, type SignedUploadResult } from '../lib/spaces.js';
 import type { BidSubmissionSource } from '@prisma/client';
 
 const dec = (n: number | string) => new Prisma.Decimal(n);
+
+const MAX_DOCUMENT_BYTES = 200 * 1024 * 1024; // 200MB — matches the upload UI hint
+const DOCUMENT_MIMES: Record<string, string> = {
+  'application/pdf': 'pdf',
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+};
 
 const INCLUDE_FULL = {
   lineItems: { orderBy: { displayOrder: 'asc' as const } },
@@ -148,6 +157,35 @@ export async function listDocuments(bidPackageId: string, orgId: string) {
     },
     orderBy: { createdAt: 'desc' },
   });
+}
+
+export async function signDocumentUpload(
+  bidPackageId: string,
+  orgId: string,
+  data: { fileName: string; contentType: string; fileSizeBytes: number },
+): Promise<SignedUploadResult> {
+  const pkg = await prisma.bidPackage.findFirst({
+    where: { id: bidPackageId, organizationId: orgId },
+  });
+  if (!pkg) throw new NotFoundError('Bid package not found');
+
+  const ext = DOCUMENT_MIMES[data.contentType];
+  if (!ext) {
+    throw new ValidationError('Unsupported document type', {
+      allowed: Object.keys(DOCUMENT_MIMES),
+      received: data.contentType,
+    });
+  }
+  if (data.fileSizeBytes <= 0 || data.fileSizeBytes > MAX_DOCUMENT_BYTES) {
+    throw new ValidationError('Document exceeds maximum size', {
+      maxBytes: MAX_DOCUMENT_BYTES,
+      received: data.fileSizeBytes,
+    });
+  }
+
+  const slug = randomBytes(6).toString('hex');
+  const key = `orgs/${orgId}/bid-packages/${bidPackageId}/documents/${Date.now()}-${slug}.${ext}`;
+  return generateSignedUploadUrl({ key, contentType: data.contentType, acl: 'public-read' });
 }
 
 export async function addDocument(

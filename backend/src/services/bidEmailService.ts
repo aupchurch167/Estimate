@@ -14,6 +14,8 @@ export async function sendBidInvitation(params: {
   tradeName?: string;
   dueDate?: string;
   description?: string;
+  personalNote?: string;
+  documentNames?: string[];
   accessToken: string;
 }) {
   const portalUrl = `${env.APP_URL}/bid/${params.accessToken}`;
@@ -27,6 +29,8 @@ export async function sendBidInvitation(params: {
         tradeName: params.tradeName,
         dueDate: params.dueDate,
         description: params.description,
+        personalNote: params.personalNote,
+        documentNames: params.documentNames,
         portalUrl,
         vendorName: params.vendorName,
       }),

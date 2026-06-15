@@ -14,6 +14,7 @@ bidResponsesRouter.post('/responses', writes, asyncHandler(controller.manualSubm
 bidResponsesRouter.post('/responses/:responseId/attachments', writes, asyncHandler(controller.addAttachment));
 
 bidResponsesRouter.get('/packages/:packageId/documents', asyncHandler(controller.listDocuments));
+bidResponsesRouter.post('/packages/:packageId/documents/sign', writes, asyncHandler(controller.signDocumentUpload));
 bidResponsesRouter.post('/packages/:packageId/documents', writes, asyncHandler(controller.addDocument));
 bidResponsesRouter.delete('/documents/:docId', writes, asyncHandler(controller.removeDocument));
 

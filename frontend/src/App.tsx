@@ -38,8 +38,14 @@ const InvitationAcceptPage = lazy(() =>
 const BidPackagesPage = lazy(() =>
   import('@/pages/BidPackages').then((m) => ({ default: m.BidPackagesPage })),
 );
+const BidPackageCreatePage = lazy(() =>
+  import('@/pages/BidPackageCreate').then((m) => ({ default: m.BidPackageCreatePage })),
+);
 const BidPackageDetailPage = lazy(() =>
   import('@/pages/BidPackageDetail').then((m) => ({ default: m.BidPackageDetailPage })),
+);
+const BidPackageSendPage = lazy(() =>
+  import('@/pages/BidPackageSend').then((m) => ({ default: m.BidPackageSendPage })),
 );
 const BidPortalPage = lazy(() =>
   import('@/pages/BidPortal').then((m) => ({ default: m.BidPortalPage })),
@@ -140,10 +146,26 @@ export default function App() {
           }
         />
         <Route
+          path="/app/bid-packages/new"
+          element={
+            <ProtectedRoute>
+              <BidPackageCreatePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/app/bid-packages/:id"
           element={
             <ProtectedRoute>
               <BidPackageDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/app/bid-packages/:id/send"
+          element={
+            <ProtectedRoute>
+              <BidPackageSendPage />
             </ProtectedRoute>
           }
         />
