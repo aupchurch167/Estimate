@@ -117,15 +117,25 @@ const baseSchema = z.object({
     .string()
     .optional()
     .describe('UUID of a user in Core DB — dev bypass auth (x-helm-test-user-id)'),
+  CORE_SERVICE_TOKEN: z
+    .string()
+    .optional()
+    .describe('Service-to-service bearer token for Core (required in production when HELM_CORE_INTEGRATION=true)'),
 });
 
 // When Core integration is on, the connection vars are no longer optional —
 // without them every Core call throws and is silently swallowed, leaving the
 // vendor/account directories mysteriously empty. Fail loudly at startup instead.
+//
+// Auth differs by environment: production uses a service-to-service bearer
+// token (CORE_SERVICE_TOKEN); development uses the Auth.js dev-bypass headers,
+// which need a real Core user id (CORE_DEV_USER_ID).
 const schema = baseSchema.superRefine((val, ctx) => {
   if (!val.HELM_CORE_INTEGRATION) return;
-  for (const key of ['CORE_API_URL', 'CORE_ORG_SLUG', 'CORE_DEV_USER_ID'] as const) {
-    if (!val[key]) {
+  const required: string[] = ['CORE_API_URL', 'CORE_ORG_SLUG'];
+  required.push(val.NODE_ENV === 'production' ? 'CORE_SERVICE_TOKEN' : 'CORE_DEV_USER_ID');
+  for (const key of required) {
+    if (!val[key as keyof typeof val]) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: [key],

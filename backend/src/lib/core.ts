@@ -50,10 +50,38 @@ export class CoreApiError extends Error {
   }
 }
 
-async function coreGet<T>(path: string, params?: Record<string, string | undefined>): Promise<T> {
-  if (!env.CORE_API_URL || !env.CORE_ORG_SLUG || !env.CORE_DEV_USER_ID) {
-    throw new Error('Core API not configured');
+/**
+ * Auth headers for a Core request. Production uses a service-to-service bearer
+ * token; development uses the Auth.js dev-bypass headers (only honored by a
+ * Core server itself running in development mode).
+ */
+function coreAuthHeaders(): Record<string, string> {
+  if (env.NODE_ENV === 'production') {
+    return { Authorization: `Bearer ${env.CORE_SERVICE_TOKEN}` };
   }
+  return {
+    'x-helm-test-user-id': env.CORE_DEV_USER_ID as string,
+    'x-helm-test-org-slug': env.CORE_ORG_SLUG as string,
+  };
+}
+
+/** Throws if the vars needed to reach Core in this environment are missing. */
+function assertCoreConfigured(): void {
+  const missing: string[] = [];
+  if (!env.CORE_API_URL) missing.push('CORE_API_URL');
+  if (!env.CORE_ORG_SLUG) missing.push('CORE_ORG_SLUG');
+  if (env.NODE_ENV === 'production') {
+    if (!env.CORE_SERVICE_TOKEN) missing.push('CORE_SERVICE_TOKEN');
+  } else if (!env.CORE_DEV_USER_ID) {
+    missing.push('CORE_DEV_USER_ID');
+  }
+  if (missing.length > 0) {
+    throw new Error(`Core API not configured (missing: ${missing.join(', ')})`);
+  }
+}
+
+async function coreGet<T>(path: string, params?: Record<string, string | undefined>): Promise<T> {
+  assertCoreConfigured();
   const url = new URL(`/api/v1/orgs/${env.CORE_ORG_SLUG}${path}`, env.CORE_API_URL);
   if (params) {
     for (const [k, v] of Object.entries(params)) {
@@ -61,10 +89,7 @@ async function coreGet<T>(path: string, params?: Record<string, string | undefin
     }
   }
   const res = await fetch(url.toString(), {
-    headers: {
-      'x-helm-test-user-id': env.CORE_DEV_USER_ID,
-      'x-helm-test-org-slug': env.CORE_ORG_SLUG,
-    },
+    headers: coreAuthHeaders(),
   });
   if (!res.ok) {
     const body = await res.text().catch(() => '');
@@ -74,15 +99,12 @@ async function coreGet<T>(path: string, params?: Record<string, string | undefin
 }
 
 async function corePost<T>(path: string, body: unknown): Promise<T> {
-  if (!env.CORE_API_URL || !env.CORE_ORG_SLUG || !env.CORE_DEV_USER_ID) {
-    throw new Error('Core API not configured');
-  }
+  assertCoreConfigured();
   const url = new URL(`/api/v1/orgs/${env.CORE_ORG_SLUG}${path}`, env.CORE_API_URL);
   const res = await fetch(url.toString(), {
     method: 'POST',
     headers: {
-      'x-helm-test-user-id': env.CORE_DEV_USER_ID,
-      'x-helm-test-org-slug': env.CORE_ORG_SLUG,
+      ...coreAuthHeaders(),
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(body),
@@ -95,15 +117,12 @@ async function corePost<T>(path: string, body: unknown): Promise<T> {
 }
 
 async function corePatch<T>(path: string, body: unknown): Promise<T> {
-  if (!env.CORE_API_URL || !env.CORE_ORG_SLUG || !env.CORE_DEV_USER_ID) {
-    throw new Error('Core API not configured');
-  }
+  assertCoreConfigured();
   const url = new URL(`/api/v1/orgs/${env.CORE_ORG_SLUG}${path}`, env.CORE_API_URL);
   const res = await fetch(url.toString(), {
     method: 'PATCH',
     headers: {
-      'x-helm-test-user-id': env.CORE_DEV_USER_ID,
-      'x-helm-test-org-slug': env.CORE_ORG_SLUG,
+      ...coreAuthHeaders(),
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(body),
