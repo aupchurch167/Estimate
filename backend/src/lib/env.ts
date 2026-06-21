@@ -123,30 +123,41 @@ const baseSchema = z.object({
     .describe('Service-to-service bearer token for Core (required in production when HELM_CORE_INTEGRATION=true)'),
 });
 
-// When Core integration is on, the connection vars are no longer optional —
-// without them every Core call throws and is silently swallowed, leaving the
-// vendor/account directories mysteriously empty. Fail loudly at startup instead.
-//
-// Auth differs by environment: production uses a service-to-service bearer
-// token (CORE_SERVICE_TOKEN); development uses the Auth.js dev-bypass headers,
-// which need a real Core user id (CORE_DEV_USER_ID).
-const schema = baseSchema.superRefine((val, ctx) => {
-  if (!val.HELM_CORE_INTEGRATION) return;
-  const required: string[] = ['CORE_API_URL', 'CORE_ORG_SLUG'];
-  required.push(val.NODE_ENV === 'production' ? 'CORE_SERVICE_TOKEN' : 'CORE_DEV_USER_ID');
-  for (const key of required) {
-    if (!val[key as keyof typeof val]) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: [key],
-        message: 'Required when HELM_CORE_INTEGRATION=true',
-      });
-    }
-  }
-});
+const schema = baseSchema;
 
 type EnvSchema = typeof schema;
 type Env = z.infer<EnvSchema>;
+
+// Which Core connection vars must be present for the integration to actually
+// work. Auth differs by environment: production uses a service-to-service
+// bearer token (CORE_SERVICE_TOKEN); development uses the Auth.js dev-bypass
+// headers, which need a real Core user id (CORE_DEV_USER_ID).
+function missingCoreVars(val: Env): string[] {
+  const required: string[] = ['CORE_API_URL', 'CORE_ORG_SLUG'];
+  required.push(val.NODE_ENV === 'production' ? 'CORE_SERVICE_TOKEN' : 'CORE_DEV_USER_ID');
+  return required.filter((key) => !val[key as keyof Env]);
+}
+
+// When Core integration is on but its connection vars are incomplete, every
+// Core call would throw and be silently swallowed, leaving the vendor/account
+// directories mysteriously empty. We surface that loudly — but we do NOT crash
+// the process. Estimating must keep working even when Core is misconfigured, so
+// we disable the integration and let every consumer fall back to its local path
+// (they all gate on `core.enabled()`). Returns the env with the flag corrected.
+function gateCoreIntegration(val: Env): Env {
+  if (!val.HELM_CORE_INTEGRATION) return val;
+  const missing = missingCoreVars(val);
+  if (missing.length === 0) return val;
+
+  process.stderr.write(
+    '\n[Core integration disabled]\n\n' +
+      'HELM_CORE_INTEGRATION=true but required vars are missing:\n' +
+      missing.map((key) => `  - ${key} — ${describeKey(key)}`).join('\n') +
+      '\n\nThe server will start with Core integration OFF and fall back to ' +
+      'local directories.\nSet the vars above and redeploy to enable Core.\n\n',
+  );
+  return { ...val, HELM_CORE_INTEGRATION: false };
+}
 
 function formatFriendlyError(error: z.ZodError): string {
   const lines: string[] = ['', '[Env validation failed]', ''];
@@ -190,7 +201,7 @@ function loadEnv(): Env {
     process.stderr.write(formatFriendlyError(parsed.error));
     process.exit(1);
   }
-  return parsed.data;
+  return gateCoreIntegration(parsed.data);
 }
 
 export const env = loadEnv();
