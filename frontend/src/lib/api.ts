@@ -16,7 +16,10 @@ interface RetryConfig extends InternalAxiosRequestConfig {
 }
 
 export const api = axios.create({
-  baseURL: env.VITE_API_URL,
+  // Empty VITE_API_URL → relative requests (e.g. `/api/...`), which target the
+  // same origin that served the app. Used in single-deployment mode where the
+  // backend serves the built frontend.
+  baseURL: env.VITE_API_URL || undefined,
   withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
 });

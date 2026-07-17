@@ -10,9 +10,12 @@ import { z } from 'zod';
 
 const schema = z.object({
   VITE_API_URL: z
-    .string()
-    .url()
-    .describe('Base URL of the backend API (e.g. http://localhost:4000)'),
+    .union([z.string().url(), z.literal('')])
+    .default('')
+    .describe(
+      'Base URL of the backend API (e.g. http://localhost:4000). Leave empty ' +
+        'for same-origin deployments where the API is served from the same host.',
+    ),
   VITE_APP_URL: z
     .string()
     .url()

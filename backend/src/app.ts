@@ -6,6 +6,9 @@
  */
 
 import express, { type Express } from 'express';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import { env } from './lib/env.js';
@@ -96,9 +99,30 @@ export function createApp(): Express {
   app.use('/api/bids', bidAwardRouter);
   app.use('/api/webhooks/bid-email', bidInboundEmailRouter);
 
-  app.get('/', (_req, res) => {
-    res.json({ app: 'Quill', status: 'ok' });
-  });
+  // --- Single-deployment mode: serve the built frontend --------------------
+  // When the SPA has been built (frontend/dist exists), serve it from this
+  // same process so one host serves both API and UI on a shared origin. API
+  // routes above are matched first; any other GET falls through to the SPA's
+  // index.html for client-side routing. Unknown /api/* paths are excluded so
+  // they still 404 as JSON instead of returning the HTML shell. Resolved from
+  // this module's location (not cwd), so it works under both `tsx` (src/) and
+  // compiled `dist/`. Skipped entirely when dist is absent (local dev with the
+  // Vite server, or tests).
+  const clientDist = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    '../../frontend/dist',
+  );
+  if (fs.existsSync(path.join(clientDist, 'index.html'))) {
+    app.use(express.static(clientDist));
+    app.get(/^(?!\/api(\/|$)).*/, (_req, res) => {
+      res.sendFile(path.join(clientDist, 'index.html'));
+    });
+  } else {
+    // No built SPA present — keep the bare API info response at the root.
+    app.get('/', (_req, res) => {
+      res.json({ app: 'Quill', status: 'ok' });
+    });
+  }
 
   // Error handler — must be last
   app.use(errorHandler);

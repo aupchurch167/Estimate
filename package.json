@@ -14,6 +14,8 @@
     "dev:backend": "npm --workspace backend run dev",
     "build:frontend": "npm --workspace frontend run build",
     "build:backend": "npm --workspace backend run build",
+    "build": "npm run build:frontend && npm run build:backend",
+    "start": "npm --workspace backend run start",
     "typecheck": "npm --workspace frontend run typecheck && npm --workspace backend run typecheck",
     "lint": "npm --workspace frontend run lint && npm --workspace backend run lint",
     "lint:fix": "npm --workspace frontend run lint:fix && npm --workspace backend run lint:fix",

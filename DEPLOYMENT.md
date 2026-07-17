@@ -223,6 +223,41 @@ the OWNER of their org.
 
 ---
 
+## 7b. Single-service deployment (Railway) — frontend + backend in one instance
+
+Sections 6–7 run the API and the SPA as two separate services. You can instead
+serve **both from one service**, which is the simplest way to avoid duplicating
+env vars across two instances. In this mode the backend serves the built
+frontend as static files, so the API and UI share one origin.
+
+How it works in the code:
+
+- The root `package.json` exposes `build` (builds frontend **and** backend) and
+  `start` (runs the backend). Railway/Railpack detects these automatically — no
+  start-command config needed.
+- `backend/src/app.ts` serves `frontend/dist` and adds an SPA fallback: every
+  non-`/api` GET returns `index.html`. If `frontend/dist` isn't present (local
+  dev with the Vite server, or tests) this is skipped.
+- The frontend calls the API at a **relative** path when `VITE_API_URL` is
+  empty, so requests hit the same origin that served the app. Don't set
+  `VITE_API_URL` in this mode.
+
+Railway service config:
+
+- **Root directory**: leave blank (monorepo root — Railway must see both
+  workspaces).
+- **Build command**: leave blank (Railpack runs `npm run build`) or set it
+  explicitly to `npm run build`.
+- **Start command**: leave blank (Railpack runs `npm start`) or set it to
+  `npm start`.
+- **Health check path**: `/healthz`
+- **Environment variables**: the same backend vars from section 6. Set
+  `APP_URL` and `API_URL` to the service's public Railway URL. Do **not** set
+  `VITE_API_URL` (leaving it empty selects same-origin). Run the production
+  migration once the service is healthy, as in section 6 step 6.
+
+---
+
 ## 8. Smoke test
 
 ```bash
