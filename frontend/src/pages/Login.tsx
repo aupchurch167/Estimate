@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { LoginForm } from '@/features/auth/LoginForm';
+import { GoogleSignInButton } from '@/features/auth/GoogleSignInButton';
 import { Card } from '@/components/ui';
 
 export function LoginPage() {
@@ -13,7 +14,10 @@ export function LoginPage() {
           </p>
         </div>
         <Card spacious>
-          <LoginForm />
+          <div className="flex flex-col gap-5">
+            <LoginForm />
+            <GoogleSignInButton />
+          </div>
         </Card>
         <p className="mt-4 text-center text-[13px] text-text-secondary">
           New to Quill?{' '}

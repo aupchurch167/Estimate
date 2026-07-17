@@ -32,6 +32,10 @@ const schema = z.object({
     .optional()
     .transform((v) => v === 'true')
     .describe('Enable Core API integration (account/deal pickers on estimate form)'),
+  VITE_GOOGLE_CLIENT_ID: z
+    .string()
+    .optional()
+    .describe('Google OAuth 2.0 Web client ID — shows "Sign in with Google" when set'),
 });
 
 type Env = z.infer<typeof schema>;

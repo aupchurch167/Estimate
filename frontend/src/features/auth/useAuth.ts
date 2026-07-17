@@ -45,6 +45,23 @@ export function useLogin() {
   });
 }
 
+export interface GoogleLoginInput {
+  credential: string;
+}
+
+export function useGoogleLogin() {
+  const qc = useQueryClient();
+  return useMutation<LoginResponse, AxiosError, GoogleLoginInput>({
+    mutationFn: async (input) => {
+      const res = await api.post<LoginResponse>('/api/auth/google', input);
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ME_QUERY_KEY });
+    },
+  });
+}
+
 export interface SignupInput {
   email: string;
   password: string;

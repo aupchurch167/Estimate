@@ -23,6 +23,11 @@ const loginBody = z.object({
   password: z.string().min(1).max(128),
 });
 
+const googleBody = z.object({
+  // The ID token ("credential") returned by Google Identity Services.
+  credential: z.string().min(1).max(8192),
+});
+
 function parseBody<T extends z.ZodTypeAny>(schema: T, body: unknown): z.infer<T> {
   const result = schema.safeParse(body);
   if (!result.success) {
@@ -47,6 +52,13 @@ export async function signup(req: Request, res: Response): Promise<void> {
 export async function login(req: Request, res: Response): Promise<void> {
   const input = parseBody(loginBody, req.body);
   const { user, tokens } = await authService.login(input.email, input.password);
+  setAuthCookies(res, tokens);
+  ok(res, { user });
+}
+
+export async function googleAuth(req: Request, res: Response): Promise<void> {
+  const input = parseBody(googleBody, req.body);
+  const { user, tokens } = await authService.loginWithGoogle(input.credential);
   setAuthCookies(res, tokens);
   ok(res, { user });
 }

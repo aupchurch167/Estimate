@@ -9,6 +9,7 @@
  */
 
 import bcrypt from 'bcrypt';
+import { OAuth2Client } from 'google-auth-library';
 import type { Prisma, User } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { env } from '../lib/env.js';
@@ -131,6 +132,71 @@ export async function login(email: string, password: string) {
   return {
     user: toSafeUser(user),
     tokens: tokensFor(user),
+  };
+}
+
+// Reused across requests — the client just holds the audience and fetches +
+// caches Google's public signing keys internally.
+let googleClient: OAuth2Client | null = null;
+function getGoogleClient(): OAuth2Client {
+  if (!env.GOOGLE_CLIENT_ID) {
+    throw new AuthError('Google sign-in is not configured', 'google_not_configured');
+  }
+  if (!googleClient) {
+    googleClient = new OAuth2Client(env.GOOGLE_CLIENT_ID);
+  }
+  return googleClient;
+}
+
+/**
+ * Sign in with a Google ID token (the `credential` from Google Identity
+ * Services). We verify the token against Google's keys, then log in the
+ * existing Quill user whose email matches. This is login-only: a Google
+ * account with no matching Quill user is rejected — accounts are created via
+ * signup or invitation, not by signing in with Google.
+ */
+export async function loginWithGoogle(idToken: string) {
+  const client = getGoogleClient();
+
+  let payload;
+  try {
+    const ticket = await client.verifyIdToken({
+      idToken,
+      audience: env.GOOGLE_CLIENT_ID,
+    });
+    payload = ticket.getPayload();
+  } catch {
+    throw new AuthError('Invalid Google credential', 'invalid_google_token');
+  }
+
+  if (!payload?.email) {
+    throw new AuthError('Invalid Google credential', 'invalid_google_token');
+  }
+  if (!payload.email_verified) {
+    throw new AuthError('Google email not verified', 'google_email_unverified');
+  }
+
+  const user = await prisma.user.findUnique({ where: { email: payload.email } });
+  if (!user || !user.isActive || user.deletedAt) {
+    // Don't reveal whether the email exists but is disabled — a single code
+    // the UI turns into "ask an admin for an invite".
+    throw new AuthError('No Quill account for this Google email', 'no_account');
+  }
+
+  const updated = await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      lastLoginAt: new Date(),
+      // Google has verified this email; record it if we hadn't already.
+      ...(user.emailVerifiedAt ? {} : { emailVerifiedAt: new Date() }),
+      // Backfill an avatar from the Google profile if the user has none.
+      ...(!user.avatarUrl && payload.picture ? { avatarUrl: payload.picture } : {}),
+    },
+  });
+
+  return {
+    user: toSafeUser(updated),
+    tokens: tokensFor(updated),
   };
 }
 

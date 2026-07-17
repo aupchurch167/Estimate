@@ -59,6 +59,10 @@ const baseSchema = z.object({
     .max(15)
     .default(12)
     .describe('bcrypt cost factor (12 in production)'),
+  GOOGLE_CLIENT_ID: z
+    .string()
+    .optional()
+    .describe('Google OAuth 2.0 Web client ID — enables "Sign in with Google"'),
 
   // AI
   ANTHROPIC_API_KEY: z.string().min(1).describe('Anthropic API key (sk-ant-…)'),
