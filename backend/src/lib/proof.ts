@@ -133,11 +133,27 @@ function buildUrl(path: string, params?: Record<string, string | undefined>): st
   return url.toString();
 }
 
+// Guard against a non-JSON 200 — e.g. a consolidated Proof deploy whose SPA
+// catch-all serves index.html because the /api/v1 router isn't mounted. Without
+// this the caller hits a cryptic "Unexpected token '<'" JSON parse error; here
+// it becomes an actionable ProofApiError.
+async function parseJson<T>(res: Response): Promise<T> {
+  const contentType = res.headers.get('content-type') ?? '';
+  if (!contentType.includes('application/json')) {
+    throw new ProofApiError(
+      res.status,
+      `Proof returned ${contentType || 'no content-type'} instead of JSON — is the /api/v1 API deployed at PROOF_API_URL?`,
+      'non_json_response',
+    );
+  }
+  return res.json() as Promise<T>;
+}
+
 async function proofGet<T>(path: string, params?: Record<string, string | undefined>): Promise<T> {
   assertProofConfigured();
   const res = await fetch(buildUrl(path, params), { headers: proofAuthHeaders() });
   if (!res.ok) await throwFromResponse(res);
-  return res.json() as Promise<T>;
+  return parseJson<T>(res);
 }
 
 async function proofPost<T>(path: string, body: unknown): Promise<T> {
@@ -148,7 +164,7 @@ async function proofPost<T>(path: string, body: unknown): Promise<T> {
     body: JSON.stringify(body ?? {}),
   });
   if (!res.ok) await throwFromResponse(res);
-  return res.json() as Promise<T>;
+  return parseJson<T>(res);
 }
 
 export interface CoiRequestInput {
