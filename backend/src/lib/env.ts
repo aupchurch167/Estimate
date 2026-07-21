@@ -125,6 +125,26 @@ const baseSchema = z.object({
     .string()
     .optional()
     .describe('Service-to-service bearer token for Core (required in production when HELM_CORE_INTEGRATION=true)'),
+
+  // Helm Proof integration (vendor management + COI/insurance compliance)
+  HELM_PROOF_INTEGRATION: z
+    .union([z.boolean(), z.string()])
+    .transform((v) => (typeof v === 'boolean' ? v : v === 'true'))
+    .default(false)
+    .describe('Enable Proof API integration (vendor directory + COI compliance)'),
+  PROOF_API_URL: z
+    .string()
+    .url()
+    .optional()
+    .describe('Proof API base URL (required when HELM_PROOF_INTEGRATION=true)'),
+  PROOF_ORG_SLUG: z
+    .string()
+    .optional()
+    .describe('Org slug or id that scopes Proof API calls (required when HELM_PROOF_INTEGRATION=true)'),
+  PROOF_SERVICE_TOKEN: z
+    .string()
+    .optional()
+    .describe('Service-to-service bearer token for Proof (required in production when HELM_PROOF_INTEGRATION=true)'),
 });
 
 const schema = baseSchema;
@@ -161,6 +181,32 @@ function gateCoreIntegration(val: Env): Env {
       'local directories.\nSet the vars above and redeploy to enable Core.\n\n',
   );
   return { ...val, HELM_CORE_INTEGRATION: false };
+}
+
+// Proof needs a base URL and an org to scope calls to; production additionally
+// needs a service token (dev uses the x-helm-test-org-slug bypass).
+function missingProofVars(val: Env): string[] {
+  const required: string[] = ['PROOF_API_URL', 'PROOF_ORG_SLUG'];
+  if (val.NODE_ENV === 'production') required.push('PROOF_SERVICE_TOKEN');
+  return required.filter((key) => !val[key as keyof Env]);
+}
+
+// Same resilient contract as Core: if Proof is enabled but misconfigured, warn
+// loudly and disable it rather than crash. Consumers gate on `proof.enabled()`
+// and fall back (the bid picker reverts to Core/manual vendor entry).
+function gateProofIntegration(val: Env): Env {
+  if (!val.HELM_PROOF_INTEGRATION) return val;
+  const missing = missingProofVars(val);
+  if (missing.length === 0) return val;
+
+  process.stderr.write(
+    '\n[Proof integration disabled]\n\n' +
+      'HELM_PROOF_INTEGRATION=true but required vars are missing:\n' +
+      missing.map((key) => `  - ${key} — ${describeKey(key)}`).join('\n') +
+      '\n\nThe server will start with Proof integration OFF.\n' +
+      'Set the vars above and redeploy to enable Proof.\n\n',
+  );
+  return { ...val, HELM_PROOF_INTEGRATION: false };
 }
 
 function formatFriendlyError(error: z.ZodError): string {
@@ -205,7 +251,7 @@ function loadEnv(): Env {
     process.stderr.write(formatFriendlyError(parsed.error));
     process.exit(1);
   }
-  return gateCoreIntegration(parsed.data);
+  return gateProofIntegration(gateCoreIntegration(parsed.data));
 }
 
 export const env = loadEnv();

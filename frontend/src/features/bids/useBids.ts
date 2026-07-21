@@ -7,6 +7,8 @@ import type {
   BidPackageStatus,
   BidResponse,
   CoreVendor,
+  ProofCoiRequest,
+  ProofVendor,
   TradeCanonical,
 } from './types';
 
@@ -15,6 +17,7 @@ export const BID_RESPONSES_KEY = ['bid-responses'] as const;
 export const BID_DOCUMENTS_KEY = ['bid-documents'] as const;
 export const TRADES_KEY = ['trades-canonical'] as const;
 export const CORE_VENDORS_KEY = ['core-vendors'] as const;
+export const PROOF_VENDORS_KEY = ['proof-vendors'] as const;
 
 // ─── Trades ─────────────────────────────────────────────────────────────────
 
@@ -67,7 +70,7 @@ export function useCreateBidPackage() {
 
 // ─── Vendor directory (Helm Core, when integration is enabled) ────────────────
 
-export function useCoreVendors(search?: string) {
+export function useCoreVendors(search?: string, enabled = true) {
   return useQuery<{ enabled: boolean; data: CoreVendor[] }, AxiosError>({
     queryKey: [...CORE_VENDORS_KEY, search ?? ''],
     queryFn: async () => {
@@ -78,8 +81,43 @@ export function useCoreVendors(search?: string) {
       );
       return res.data;
     },
+    enabled,
     staleTime: 60 * 1000,
     placeholderData: (prev) => prev,
+  });
+}
+
+// ─── Vendor directory (Proof, when integration is enabled) ────────────────────
+
+export function useProofVendors(search?: string, enabled = true) {
+  return useQuery<{ enabled: boolean; data: ProofVendor[] }, AxiosError>({
+    queryKey: [...PROOF_VENDORS_KEY, search ?? ''],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (search) params.set('search', search);
+      const res = await api.get<{ enabled: boolean; data: ProofVendor[] }>(
+        `/api/proof/vendors?${params}`,
+      );
+      return res.data;
+    },
+    enabled,
+    staleTime: 60 * 1000,
+    placeholderData: (prev) => prev,
+  });
+}
+
+// Trigger a COI request for a Proof vendor. Refreshes the directory so the
+// vendor's `coiLastRequestedAt` / status reflect the pending request.
+export function useRequestCoi() {
+  const qc = useQueryClient();
+  return useMutation<
+    { enabled: boolean; data: ProofCoiRequest },
+    AxiosError,
+    { proofVendorId: string }
+  >({
+    mutationFn: async ({ proofVendorId }) =>
+      (await api.post(`/api/proof/vendors/${proofVendorId}/coi-request`)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: PROOF_VENDORS_KEY }),
   });
 }
 
@@ -126,6 +164,7 @@ export function useAddBidRequest() {
     vendorEmail: string;
     vendorPhone?: string;
     coreVendorId?: string;
+    proofVendorId?: string;
   }>({
     mutationFn: async ({ bidPackageId, ...body }) =>
       (await api.post(`/api/bid-packages/${bidPackageId}/requests`, body)).data,

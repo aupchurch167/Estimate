@@ -41,6 +41,7 @@ const updateBody = z.object({
 
 const addRequestBody = z.object({
   coreVendorId: z.string().optional(),
+  proofVendorId: z.string().optional(),
   vendorName: z.string().min(1).max(200),
   vendorEmail: z.string().email(),
   vendorPhone: z.string().max(30).optional(),

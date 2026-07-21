@@ -273,6 +273,38 @@ model CoreVendorCache {
   @@index([organizationId, name])
 }
 
+// Local cache of vendors from Proof (the vendor management / COI system).
+// Proof is the canonical vendor directory for bid packages; we mirror its
+// list-form fields plus COI compliance so the picker and badges stay fast and
+// keep working when Proof is briefly unreachable. Coverage detail is NOT cached
+// — it's fetched live from Proof for the vendor detail view.
+//   proofVendorId — Proof's opaque UUID for the vendor (canonical id here).
+//   coreVendorId  — set only when Proof links the vendor back to a Core record.
+//   coiStatus     — Proof's computed enum: compliant|expiring_soon|expired|pending|none.
+//   coiExpiresAt  — earliest coverage expiry, a calendar date (YYYY-MM-DD) kept
+//                   as text to avoid timezone drift on a date-only value.
+model ProofVendorCache {
+  id                 String       @id @default(cuid())
+  organizationId     String
+  organization       Organization @relation(fields: [organizationId], references: [id])
+  proofVendorId      String
+  coreVendorId       String?
+  name               String
+  trade              String?
+  email              String?
+  phone              String?
+  coiStatus          String?
+  coiExpiresAt       String?
+  coiLastRequestedAt DateTime?
+  syncedAt           DateTime     @default(now())
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  @@unique([organizationId, proofVendorId])
+  @@index([organizationId])
+  @@index([organizationId, name])
+}
+
 model CoreProjectCache {
   id              String       @id @default(cuid())
   organizationId  String
@@ -326,6 +358,7 @@ model BidRequest {
   bidPackageId    String
   bidPackage      BidPackage       @relation(fields: [bidPackageId], references: [id])
   coreVendorId    String?
+  proofVendorId   String?
   vendorName      String
   vendorEmail     String
   vendorPhone     String?
@@ -465,6 +498,7 @@ model Organization {
   tradeMappings       TradeMapping[]
   coreVendorCaches    CoreVendorCache[]
   coreProjectCaches   CoreProjectCache[]
+  proofVendorCaches   ProofVendorCache[]
   bidPackages         BidPackage[]
   bidRequests         BidRequest[]
   bidResponses        BidResponse[]

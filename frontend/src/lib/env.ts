@@ -36,6 +36,11 @@ const schema = z.object({
     .string()
     .optional()
     .describe('Google OAuth 2.0 Web client ID — shows "Sign in with Google" when set'),
+  VITE_HELM_PROOF_INTEGRATION: z
+    .union([z.literal('true'), z.literal('false'), z.literal('')])
+    .optional()
+    .transform((v) => v === 'true')
+    .describe('Enable Proof integration (vendor directory + COI badges + Request COI). Must match the backend flag.'),
 });
 
 type Env = z.infer<typeof schema>;
@@ -62,6 +67,7 @@ const TEST_DEFAULTS = {
   VITE_APP_URL: 'http://localhost:5173',
   VITE_SENTRY_DSN: '',
   VITE_HELM_CORE_INTEGRATION: 'false',
+  VITE_HELM_PROOF_INTEGRATION: 'false',
 };
 
 function loadEnv(): Env {

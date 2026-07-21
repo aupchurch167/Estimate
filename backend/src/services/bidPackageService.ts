@@ -205,6 +205,7 @@ export async function addRequest(
   orgId: string,
   data: {
     coreVendorId?: string;
+    proofVendorId?: string;
     vendorName: string;
     vendorEmail: string;
     vendorPhone?: string;
@@ -220,6 +221,7 @@ export async function addRequest(
       organizationId: orgId,
       bidPackageId,
       coreVendorId: data.coreVendorId,
+      proofVendorId: data.proofVendorId,
       vendorName: data.vendorName,
       vendorEmail: data.vendorEmail,
       vendorPhone: data.vendorPhone,

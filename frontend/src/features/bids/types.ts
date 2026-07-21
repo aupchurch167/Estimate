@@ -48,6 +48,33 @@ export interface CoreVendor {
   phone: string | null;
 }
 
+// ─── Proof (vendor management + COI) ─────────────────────────────────────────
+
+export type ProofCoiStatus = 'compliant' | 'expiring_soon' | 'expired' | 'pending' | 'none';
+
+// A Proof vendor as cached/returned by GET /api/proof/vendors. The list form
+// carries a flattened COI status; the detail form (GET /vendors/:id) adds
+// `coi.coverages`, which the picker doesn't need.
+export interface ProofVendor {
+  proofVendorId: string;
+  coreVendorId: string | null;
+  name: string;
+  trade: string | null;
+  email: string | null;
+  phone: string | null;
+  coiStatus: ProofCoiStatus | null;
+  coiExpiresAt: string | null;
+  coiLastRequestedAt: string | null;
+}
+
+export interface ProofCoiRequest {
+  id: string;
+  vendorId: string;
+  status: 'requested' | 'fulfilled' | 'cancelled';
+  coverageTypes: string[];
+  requestedAt: string;
+}
+
 export interface BidRequest {
   id: string;
   bidPackageId: string;

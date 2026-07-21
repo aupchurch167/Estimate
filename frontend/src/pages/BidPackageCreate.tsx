@@ -10,18 +10,40 @@ import {
   useCreateBidPackage,
   useTrades,
   useCoreVendors,
+  useProofVendors,
+  useRequestCoi,
   useAddBidRequest,
   useUploadBidDocument,
 } from '@/features/bids/useBids';
+import type { ProofCoiStatus } from '@/features/bids/types';
+import { CoiBadge } from '@/features/bids/CoiBadge';
+import { env } from '@/lib/env';
 import { Badge, Button, Card, TitleBlock, useToast } from '@/components/ui';
 
 interface SelectedVendor {
   key: string;
   coreVendorId?: string;
+  proofVendorId?: string;
   vendorName: string;
   vendorEmail: string;
   vendorPhone?: string;
-  complianceStatus?: string | null;
+  complianceStatus?: string | null; // Core
+  coiStatus?: ProofCoiStatus | null; // Proof
+  coiExpiresAt?: string | null; // Proof
+}
+
+// A vendor-directory row normalized across the Core and Proof sources so the
+// picker UI renders one shape regardless of which system backs it.
+interface DirectoryRow {
+  key: string;
+  coreVendorId?: string;
+  proofVendorId?: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  complianceStatus?: string | null; // Core
+  coiStatus?: ProofCoiStatus | null; // Proof
+  coiExpiresAt?: string | null; // Proof
 }
 
 function coiVariant(status?: string | null): 'success' | 'warning' | 'neutral' {
@@ -40,9 +62,11 @@ export function BidPackageCreatePage() {
   const estimatesQuery = useEstimates({ pageSize: 100, sort: 'updatedAt', order: 'desc' });
   const tradesQuery = useTrades();
 
+  const proofEnabled = env.VITE_HELM_PROOF_INTEGRATION;
   const createPkg = useCreateBidPackage();
   const addRequest = useAddBidRequest();
   const uploadDoc = useUploadBidDocument();
+  const requestCoi = useRequestCoi();
 
   // ─── Foundation ───
   const [estimateId, setEstimateId] = useState(presetEstimateId);
@@ -56,7 +80,9 @@ export function BidPackageCreatePage() {
   const [manualName, setManualName] = useState('');
   const [manualEmail, setManualEmail] = useState('');
   const [manualPhone, setManualPhone] = useState('');
-  const vendorsQuery = useCoreVendors(vendorFilter.trim() || undefined);
+  const filterTerm = vendorFilter.trim() || undefined;
+  const coreVendorsQuery = useCoreVendors(filterTerm, !proofEnabled);
+  const proofVendorsQuery = useProofVendors(filterTerm, proofEnabled);
 
   // ─── Documents (buffered until the package exists) ───
   const [files, setFiles] = useState<File[]>([]);
@@ -74,13 +100,7 @@ export function BidPackageCreatePage() {
 
   const isSelected = (key: string) => selected.some((v) => v.key === key);
 
-  function toggleDirectoryVendor(vendor: {
-    coreVendorId: string;
-    name: string;
-    email: string | null;
-    phone: string | null;
-    complianceStatus: string | null;
-  }) {
+  function toggleDirectoryVendor(vendor: DirectoryRow) {
     if (!vendor.email) {
       toast.error(`${vendor.name} has no email on file — add manually.`);
       return;
@@ -94,13 +114,30 @@ export function BidPackageCreatePage() {
             {
               key,
               coreVendorId: vendor.coreVendorId,
+              proofVendorId: vendor.proofVendorId,
               vendorName: vendor.name,
               vendorEmail: vendor.email!,
               vendorPhone: vendor.phone ?? undefined,
               complianceStatus: vendor.complianceStatus,
+              coiStatus: vendor.coiStatus,
+              coiExpiresAt: vendor.coiExpiresAt,
             },
           ],
     );
+  }
+
+  async function onRequestCoi(proofVendorId: string, name: string) {
+    try {
+      await requestCoi.mutateAsync({ proofVendorId });
+      toast.success(`COI request sent to ${name}.`);
+    } catch (err) {
+      const status = (err as AxiosError).response?.status;
+      if (status === 409) {
+        toast.error(`${name} already has an open COI request.`);
+      } else {
+        toast.error(`Couldn't request a COI from ${name}.`);
+      }
+    }
   }
 
   function addManualVendor() {
@@ -158,6 +195,7 @@ export function BidPackageCreatePage() {
           await addRequest.mutateAsync({
             bidPackageId: pkg.id,
             coreVendorId: v.coreVendorId,
+            proofVendorId: v.proofVendorId,
             vendorName: v.vendorName,
             vendorEmail: v.vendorEmail,
             vendorPhone: v.vendorPhone,
@@ -194,7 +232,25 @@ export function BidPackageCreatePage() {
     );
   }
 
-  const directory = vendorsQuery.data?.data ?? [];
+  const directory: DirectoryRow[] = proofEnabled
+    ? (proofVendorsQuery.data?.data ?? []).map((v) => ({
+        key: v.email?.toLowerCase() ?? v.proofVendorId,
+        proofVendorId: v.proofVendorId,
+        coreVendorId: v.coreVendorId ?? undefined,
+        name: v.name,
+        email: v.email,
+        phone: v.phone,
+        coiStatus: v.coiStatus,
+        coiExpiresAt: v.coiExpiresAt,
+      }))
+    : (coreVendorsQuery.data?.data ?? []).map((v) => ({
+        key: v.email?.toLowerCase() ?? v.coreVendorId,
+        coreVendorId: v.coreVendorId,
+        name: v.name,
+        email: v.email,
+        phone: v.phone,
+        complianceStatus: v.complianceStatus,
+      }));
   const fmtBytes = (n: number) => `${(n / 1024 / 1024).toFixed(1)} MB`;
 
   return (
@@ -288,10 +344,14 @@ export function BidPackageCreatePage() {
                     <div className="flex items-center gap-3">
                       <span className="text-sm font-medium text-text-primary">{v.vendorName}</span>
                       <span className="text-[13px] text-dim">{v.vendorEmail}</span>
-                      {v.complianceStatus && (
-                        <Badge variant={coiVariant(v.complianceStatus)}>
-                          COI {v.complianceStatus}
-                        </Badge>
+                      {proofEnabled ? (
+                        <CoiBadge status={v.coiStatus} expiresAt={v.coiExpiresAt} />
+                      ) : (
+                        v.complianceStatus && (
+                          <Badge variant={coiVariant(v.complianceStatus)}>
+                            COI {v.complianceStatus}
+                          </Badge>
+                        )
                       )}
                     </div>
                     <button
@@ -315,36 +375,41 @@ export function BidPackageCreatePage() {
                   onChange={(e) => setVendorFilter(e.target.value)}
                 />
                 <div className="mt-2 max-h-72 overflow-y-auto border border-rule">
-                  {directory.map((v) => {
-                    const key = v.email?.toLowerCase() ?? v.coreVendorId;
-                    return (
-                      <label
-                        key={v.coreVendorId}
-                        className="flex cursor-pointer items-center gap-3 border-b border-rule px-3 py-2 last:border-b-0 hover:bg-bg-secondary"
-                      >
+                  {directory.map((v) => (
+                    <div
+                      key={v.key}
+                      className="flex items-center gap-3 border-b border-rule px-3 py-2 last:border-b-0 hover:bg-bg-secondary"
+                    >
+                      <label className="flex flex-1 cursor-pointer items-center gap-3">
                         <input
                           type="checkbox"
-                          checked={isSelected(key)}
-                          onChange={() =>
-                            toggleDirectoryVendor({
-                              coreVendorId: v.coreVendorId,
-                              name: v.name,
-                              email: v.email,
-                              phone: v.phone,
-                              complianceStatus: v.complianceStatus,
-                            })
-                          }
+                          checked={isSelected(v.key)}
+                          onChange={() => toggleDirectoryVendor(v)}
                         />
                         <span className="flex-1 text-sm text-text-primary">{v.name}</span>
                         <span className="text-[13px] text-dim">{v.email ?? 'no email'}</span>
-                        {v.complianceStatus && (
+                      </label>
+                      {proofEnabled ? (
+                        <CoiBadge status={v.coiStatus} expiresAt={v.coiExpiresAt} />
+                      ) : (
+                        v.complianceStatus && (
                           <Badge variant={coiVariant(v.complianceStatus)}>
                             {v.complianceStatus}
                           </Badge>
-                        )}
-                      </label>
-                    );
-                  })}
+                        )
+                      )}
+                      {proofEnabled && v.proofVendorId && v.coiStatus !== 'compliant' && (
+                        <button
+                          type="button"
+                          disabled={requestCoi.isPending}
+                          onClick={() => onRequestCoi(v.proofVendorId!, v.name)}
+                          className="whitespace-nowrap border border-rule px-2 py-1 font-mono text-[10px] uppercase tracking-label text-ink hover:border-ink disabled:opacity-50"
+                        >
+                          Request COI
+                        </button>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

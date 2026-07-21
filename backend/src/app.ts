@@ -39,6 +39,7 @@ import { aiRunsRouter, estimateAiRouter } from './routes/aiRuns.js';
 import { notificationsRouter } from './routes/notifications.js';
 import { dashboardRouter } from './routes/dashboard.js';
 import { coreRouter } from './routes/core.js';
+import { proofRouter } from './routes/proof.js';
 import { tradesRouter } from './routes/trades.js';
 import { bidPackagesRouter } from './routes/bidPackages.js';
 import { bidResponsesRouter, bidPortalRouter } from './routes/bidResponses.js';
@@ -91,6 +92,7 @@ export function createApp(): Express {
   app.use('/api/notifications', notificationsRouter);
   app.use('/api/dashboard', dashboardRouter);
   app.use('/api/core', coreRouter);
+  app.use('/api/proof', proofRouter);
   app.use('/api/trades', tradesRouter);
   app.use('/api/bid-packages', bidPackagesRouter);
   app.use('/api/bids', bidResponsesRouter);
